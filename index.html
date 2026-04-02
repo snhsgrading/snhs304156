@@ -1073,93 +1073,165 @@
           <div id="sf9-placeholder" class="card"><div class="empty">📄 Select a student above to generate their SF9 Report Card.</div></div>
           <div id="sf9-output" class="hidden">
             <div class="deped-page" id="sf9-page1">
-              <div style="font-size:9px;font-style:italic;margin-bottom:4px;">DEPED FORM 138 (Student's Report Card)</div>
-              <div class="deped-school-header">
-                <div class="deped-ph">Republic of the Philippines</div>
-                <div class="deped-title-main">Department of <span style="font-style:italic;">Education</span></div>
-                <div class="deped-region">Region X – Northern Mindanao</div>
-                <div class="deped-division">Division of Iligan City</div>
-                <div class="deped-school-name">SUAREZ NATIONAL HIGH SCHOOL</div>
-                <div class="deped-school-addr">Zone Orchids, Suarez, Iligan City</div>
-                <div class="deped-school-addr">School ID: 304156</div>
+              <div style="font-size:8px;font-style:italic;margin-bottom:3px;color:#555;">DEPED FORM 138 (Student's Report Card)</div>
+
+              <!-- School Header -->
+              <div class="deped-school-header" style="text-align:center;border-bottom:2px solid #14532d;padding-bottom:6px;margin-bottom:8px;">
+                <div style="font-size:9px;">Republic of the Philippines</div>
+                <div style="font-size:9px;">Department of <span style="font-style:italic;">Education</span></div>
+                <div style="font-size:9px;">Region X – Northern Mindanao &nbsp;·&nbsp; Division of Iligan City</div>
+                <div style="font-size:13px;font-weight:bold;text-transform:uppercase;margin:3px 0 1px;">Suarez National High School</div>
+                <div style="font-size:8px;">Zone Orchids, Suarez, Iligan City &nbsp;·&nbsp; School ID: 304156</div>
               </div>
-              <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:10px;">
+
+              <!-- Student Info -->
+              <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px;">
+                <colgroup>
+                  <col style="width:55px"><col style="width:160px"><col style="width:12px">
+                  <col style="width:140px"><col style="width:12px"><col>
+                </colgroup>
                 <tr>
-                  <td style="width:70px;font-weight:bold;">Name:</td>
-                  <td style="border-bottom:1px solid #000;width:140px;" id="sf9f-lastname"></td>
-                  <td style="width:10px;"></td>
-                  <td style="border-bottom:1px solid #000;width:130px;" id="sf9f-firstname"></td>
-                  <td style="width:10px;"></td>
-                  <td style="border-bottom:1px solid #000;" id="sf9f-middlename"></td>
+                  <td style="font-weight:bold;padding:2px 0;">Name:</td>
+                  <td style="border-bottom:1px solid #000;padding:1px 4px;" id="sf9f-lastname"></td>
+                  <td></td>
+                  <td style="border-bottom:1px solid #000;padding:1px 4px;" id="sf9f-firstname"></td>
+                  <td></td>
+                  <td style="border-bottom:1px solid #000;padding:1px 4px;" id="sf9f-middlename"></td>
                 </tr>
                 <tr>
                   <td></td>
-                  <td style="font-size:8px;text-align:center;font-style:italic;">(Last Name)</td>
+                  <td style="font-size:7.5px;text-align:center;font-style:italic;color:#555;">(Last Name)</td>
                   <td></td>
-                  <td style="font-size:8px;text-align:center;font-style:italic;">(First Name)</td>
+                  <td style="font-size:7.5px;text-align:center;font-style:italic;color:#555;">(First Name)</td>
                   <td></td>
-                  <td style="font-size:8px;font-style:italic;">(Middle Name)</td>
+                  <td style="font-size:7.5px;font-style:italic;color:#555;">(Middle Name)</td>
                 </tr>
+                <tr style="height:6px;"></tr>
                 <tr>
-                  <td colspan="2" style="padding-top:4px;"><span style="font-weight:bold;">Learner's Reference Number (LRN):</span> <span id="sf9f-lrn" style="border-bottom:1px solid #000;display:inline-block;min-width:120px;padding:0 4px;"></span></td>
-                  <td colspan="2" style="padding-top:4px;"><span style="font-weight:bold;">Age:</span> <span id="sf9f-age" style="border-bottom:1px solid #000;display:inline-block;min-width:30px;padding:0 4px;"></span></td>
-                  <td colspan="2" style="padding-top:4px;"><span style="font-weight:bold;">Sex:</span> <span id="sf9f-sex" style="border-bottom:1px solid #000;display:inline-block;min-width:50px;padding:0 4px;"></span></td>
+                  <td colspan="2" style="padding:2px 0;">
+                    <span style="font-weight:bold;">LRN:</span>
+                    <span id="sf9f-lrn" style="border-bottom:1px solid #000;display:inline-block;min-width:130px;padding:1px 4px;"></span>
+                  </td>
+                  <td colspan="2" style="padding:2px 0;">
+                    <span style="font-weight:bold;">Age:</span>
+                    <span id="sf9f-age" style="border-bottom:1px solid #000;display:inline-block;min-width:28px;padding:1px 4px;"></span>
+                  </td>
+                  <td colspan="2" style="padding:2px 0;">
+                    <span style="font-weight:bold;">Sex:</span>
+                    <span id="sf9f-sex" style="border-bottom:1px solid #000;display:inline-block;min-width:55px;padding:1px 4px;"></span>
+                  </td>
                 </tr>
+                <tr style="height:4px;"></tr>
                 <tr>
-                  <td style="padding-top:4px;font-weight:bold;">Grade:</td>
-                  <td style="border-bottom:1px solid #000;padding:0 4px;" id="sf9f-grade"></td>
-                  <td colspan="2" style="padding-top:4px;"><span style="font-weight:bold;">Section:</span> <span id="sf9f-section" style="border-bottom:1px solid #000;display:inline-block;min-width:90px;padding:0 4px;"></span></td>
-                  <td colspan="2" style="padding-top:4px;"><span style="font-weight:bold;">School Year:</span> <span style="border-bottom:1px solid #000;display:inline-block;min-width:80px;padding:0 4px;">2026-2027</span></td>
+                  <td style="font-weight:bold;padding:2px 0;">Grade:</td>
+                  <td style="border-bottom:1px solid #000;padding:1px 4px;" id="sf9f-grade"></td>
+                  <td colspan="2" style="padding:2px 0;">
+                    <span style="font-weight:bold;">Section:</span>
+                    <span id="sf9f-section" style="border-bottom:1px solid #000;display:inline-block;min-width:100px;padding:1px 4px;"></span>
+                  </td>
+                  <td colspan="2" style="padding:2px 0;">
+                    <span style="font-weight:bold;">School Year:</span>
+                    <span style="border-bottom:1px solid #000;display:inline-block;min-width:75px;padding:1px 4px;">2026-2027</span>
+                  </td>
                 </tr>
-                <tr><td colspan="6" style="padding-top:4px;"><span style="font-weight:bold;">Curriculum:</span> <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;padding:0 4px;">Enhanced K-12</span></td></tr>
+                <tr style="height:4px;"></tr>
+                <tr>
+                  <td colspan="6" style="padding:2px 0;">
+                    <span style="font-weight:bold;">Curriculum:</span>
+                    <span style="border-bottom:1px solid #000;display:inline-block;min-width:130px;padding:1px 4px;">Enhanced Basic Education (K to 12)</span>
+                  </td>
+                </tr>
               </table>
-              <div style="margin:10px 0;font-size:10px;">
-                <div style="font-weight:bold;">Dear Parent,</div>
-                <div style="font-style:italic;margin-top:4px;line-height:1.5;">&nbsp;&nbsp;&nbsp;&nbsp;This report card shows the ability and progress your child has made in the different areas and his/her core values.<br>&nbsp;&nbsp;&nbsp;&nbsp;The school welcomes you should you desire to know more about your child's progress.</div>
-                <div style="display:flex;justify-content:space-between;margin-top:16px;">
-                  <div style="text-align:center;min-width:180px;"><div style="border-top:1px solid #000;padding-top:2px;font-weight:bold;font-size:10px;">ROSEMARIE S. MACARANDAN, PhD</div><div style="font-size:9px;font-style:italic;">Principal III</div></div>
-                  <div style="text-align:center;min-width:180px;"><div id="sf9f-teacher-sig" style="border-top:1px solid #000;padding-top:2px;font-weight:bold;font-size:10px;">________________________</div><div style="font-size:9px;font-style:italic;">Teacher</div></div>
+
+              <!-- Dear Parent -->
+              <div style="font-size:9.5px;margin:6px 0;">
+                <span style="font-weight:bold;">Dear Parent,</span>
+                <div style="font-style:italic;margin-top:3px;line-height:1.55;padding-left:16px;">This report card shows the ability and progress your child has made in the different areas and his/her core values.<br>The school welcomes you should you desire to know more about your child's progress.</div>
+              </div>
+
+              <!-- Principal & Teacher signatures -->
+              <div style="display:flex;justify-content:space-between;margin:10px 0 6px;font-size:9.5px;">
+                <div style="min-width:220px;">
+                  <div style="font-weight:bold;">ROSEMARIE S. MACARANDAN, PhD</div>
+                  <div style="font-size:8.5px;font-style:italic;">Principal III</div>
+                </div>
+                <div style="min-width:220px;text-align:right;">
+                  <div id="sf9f-teacher-sig" style="font-weight:bold;border-bottom:1px solid #000;padding-bottom:1px;min-width:200px;display:inline-block;text-align:center;">________________________</div>
+                  <div style="font-size:8.5px;font-style:italic;text-align:center;">Teacher</div>
                 </div>
               </div>
+
+              <!-- Certificate of Transfer -->
               <div class="deped-section-title">CERTIFICATE OF TRANSFER</div>
-              <table style="width:100%;font-size:10px;border-collapse:collapse;">
-                <tr><td style="padding:2px 0;">Admitted to Grade: <span style="border-bottom:1px solid #000;display:inline-block;min-width:100px;">&nbsp;</span> &nbsp;&nbsp; Section: <span style="border-bottom:1px solid #000;display:inline-block;min-width:100px;">&nbsp;</span></td></tr>
-                <tr><td style="padding:2px 0;">Eligibility for Admission to Grade: <span style="border-bottom:1px solid #000;display:inline-block;min-width:200px;">&nbsp;</span></td></tr>
-                <tr><td style="padding:2px 0;">Approved: <span style="border-bottom:1px solid #000;display:inline-block;min-width:250px;">&nbsp;</span></td></tr>
-                <tr><td style="padding-top:16px;text-align:right;padding-right:60px;"><div style="border-top:1px solid #000;display:inline-block;min-width:150px;text-align:center;padding-top:2px;font-size:9px;font-style:italic;">Teacher</div></td></tr>
-                <tr><td style="padding-top:8px;"><div style="border-top:1px solid #000;display:inline-block;min-width:150px;text-align:center;padding-top:2px;font-size:9px;font-style:italic;">Principal</div></td></tr>
+              <table style="width:100%;font-size:9.5px;border-collapse:collapse;margin-bottom:2px;">
+                <tr><td style="padding:2px 0;">Admitted to Grade: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span> &nbsp; Section: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span></td></tr>
+                <tr><td style="padding:2px 0;">Eligibility for Admission to Grade: <span style="border-bottom:1px solid #000;display:inline-block;min-width:180px;">&nbsp;</span></td></tr>
+                <tr><td style="padding:2px 0;">Approved: <span style="border-bottom:1px solid #000;display:inline-block;min-width:220px;">&nbsp;</span></td></tr>
+                <tr><td style="padding:10px 0 2px;display:flex;justify-content:space-between;">
+                  <div style="border-top:1px solid #000;min-width:140px;text-align:center;padding-top:2px;font-size:8.5px;font-style:italic;">Principal</div>
+                  <div style="border-top:1px solid #000;min-width:140px;text-align:center;padding-top:2px;font-size:8.5px;font-style:italic;">Teacher</div>
+                </td></tr>
               </table>
-              <div class="deped-section-title" style="margin-top:8px;">CANCELLATION OF ELIGIBILITY TO TRANSFER</div>
-              <table style="width:100%;font-size:10px;">
-                <tr><td>Admitted In: <span style="border-bottom:1px solid #000;display:inline-block;min-width:200px;">&nbsp;</span></td></tr>
-                <tr><td>Date: <span style="border-bottom:1px solid #000;display:inline-block;min-width:220px;">&nbsp;</span></td></tr>
-                <tr><td style="padding-top:16px;text-align:right;padding-right:60px;"><div style="border-top:1px solid #000;display:inline-block;min-width:150px;text-align:center;padding-top:2px;font-size:9px;font-style:italic;">Principal</div></td></tr>
+
+              <!-- Cancellation of Eligibility -->
+              <div class="deped-section-title" style="margin-top:4px;">CANCELLATION OF ELIGIBILITY TO TRANSFER</div>
+              <table style="width:100%;font-size:9.5px;border-collapse:collapse;margin-bottom:2px;">
+                <tr><td style="padding:2px 0;">Admitted In: <span style="border-bottom:1px solid #000;display:inline-block;min-width:190px;">&nbsp;</span></td></tr>
+                <tr><td style="padding:2px 0;">Date: <span style="border-bottom:1px solid #000;display:inline-block;min-width:210px;">&nbsp;</span></td></tr>
+                <tr><td style="padding:10px 0 2px;">
+                  <div style="border-top:1px solid #000;min-width:140px;text-align:center;padding-top:2px;font-size:8.5px;font-style:italic;display:inline-block;">Principal</div>
+                </td></tr>
               </table>
-              <div class="deped-section-title" style="margin-top:8px;">REPORT ON LEARNING PROGRESS AND ACHIEVEMENT</div>
+
+              <!-- Attendance Table -->
+              <div class="deped-section-title" style="margin-top:4px;">REPORT ON LEARNING PROGRESS AND ACHIEVEMENT</div>
               <table style="width:100%;border-collapse:collapse;font-size:9px;border:1px solid #000;">
                 <thead>
-                  <tr>
-                    <th style="border:1px solid #000;padding:3px;width:160px;"></th>
-                    <th style="border:1px solid #000;padding:3px;text-align:center;">JUN</th><th style="border:1px solid #000;padding:3px;text-align:center;">JUL</th><th style="border:1px solid #000;padding:3px;text-align:center;">AUG</th><th style="border:1px solid #000;padding:3px;text-align:center;">SEP</th><th style="border:1px solid #000;padding:3px;text-align:center;">OCT</th><th style="border:1px solid #000;padding:3px;text-align:center;">NOV</th><th style="border:1px solid #000;padding:3px;text-align:center;">DEC</th><th style="border:1px solid #000;padding:3px;text-align:center;">JAN</th><th style="border:1px solid #000;padding:3px;text-align:center;">FEB</th><th style="border:1px solid #000;padding:3px;text-align:center;">MAR</th>
-                    <th style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;">TOTAL</th>
+                  <tr style="background:#ddd;">
+                    <th style="border:1px solid #000;padding:3px 4px;text-align:left;width:155px;font-size:9px;"></th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">JUN</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">JUL</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">AUG</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">SEP</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">OCT</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">NOV</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">DEC</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">JAN</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">FEB</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;">MAR</th>
+                    <th style="border:1px solid #000;padding:3px 2px;text-align:center;font-size:8.5px;font-weight:bold;">TOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td style="border:1px solid #000;padding:3px;">No. of School Days</td><td id="sf9-sd-jun" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-jul" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-aug" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-sep" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-oct" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-nov" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-dec" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-jan" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-feb" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-mar" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-sd-tot" style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;"></td></tr>
-                  <tr><td style="border:1px solid #000;padding:3px;">No. of Days Present</td><td id="sf9-dp-jun" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-jul" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-aug" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-sep" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-oct" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-nov" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-dec" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-jan" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-feb" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-mar" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-dp-tot" style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;"></td></tr>
-                  <tr><td style="border:1px solid #000;padding:3px;">No. of Days Absent</td><td id="sf9-da-jun" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-jul" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-aug" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-sep" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-oct" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-nov" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-dec" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-jan" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-feb" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-mar" style="border:1px solid #000;padding:3px;text-align:center;"></td><td id="sf9-da-tot" style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;"></td></tr>
+                  <tr>
+                    <td style="border:1px solid #000;padding:3px 4px;font-size:9px;">No. of School Days</td>
+                    <td id="sf9-sd-jun" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-jul" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-aug" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-sep" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-oct" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-nov" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-dec" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-jan" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-feb" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-sd-mar" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td>
+                    <td id="sf9-sd-tot" style="border:1px solid #000;padding:3px 2px;text-align:center;font-weight:bold;background:#f5f5f5;"></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #000;padding:3px 4px;font-size:9px;">No. of Days Present</td>
+                    <td id="sf9-dp-jun" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-jul" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-aug" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-sep" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-oct" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-nov" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-dec" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-jan" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-feb" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-dp-mar" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td>
+                    <td id="sf9-dp-tot" style="border:1px solid #000;padding:3px 2px;text-align:center;font-weight:bold;background:#f5f5f5;"></td>
+                  </tr>
+                  <tr>
+                    <td style="border:1px solid #000;padding:3px 4px;font-size:9px;">No. of Days Absent</td>
+                    <td id="sf9-da-jun" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-jul" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-aug" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-sep" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-oct" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-nov" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-dec" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-jan" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-feb" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td><td id="sf9-da-mar" style="border:1px solid #000;padding:3px 2px;text-align:center;"></td>
+                    <td id="sf9-da-tot" style="border:1px solid #000;padding:3px 2px;text-align:center;font-weight:bold;background:#f5f5f5;"></td>
+                  </tr>
                 </tbody>
               </table>
-              <div style="margin-top:10px;font-size:10px;">
-                <div style="font-weight:bold;">PARENT/GUARDIAN SIGNATURE</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
-                  <div>1st Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
-                  <div>3rd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
-                  <div>2nd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
-                  <div>4th Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
+
+              <!-- Parent Signature -->
+              <div style="margin-top:8px;font-size:9.5px;">
+                <div style="font-weight:bold;margin-bottom:4px;">PARENT/GUARDIAN SIGNATURE</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                  <div>1st Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>3rd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>2nd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>4th Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
                 </div>
               </div>
-              <div style="display:flex;justify-content:flex-end;margin-top:8px;font-size:8px;font-style:italic;">DepEd MATATAG</div>
+              <div style="display:flex;justify-content:flex-end;margin-top:6px;font-size:7.5px;font-style:italic;color:#555;">DepEd MATATAG</div>
             </div>
 
             <!-- SF9 PAGE 2: BACK -->
@@ -3361,6 +3433,22 @@ async function renderSF9(){
   if(s.bday){const age=Math.floor((new Date()-new Date(s.bday))/(365.25*24*60*60*1000));document.getElementById('sf9f-age').textContent=age;}
   document.getElementById('sf9f-sex').textContent=s.sex==='F'?'Female':'Male';
 
+  // ── Auto-fill teacher name from section adviser ──────────────────
+  const adviserAcc = accountsCache.find(a=>
+    (a.role==='adviser'||a.role==='adviser-teacher') &&
+    a.advisory_section &&
+    sectionsMatch(s.section, a.advisory_section, s.grade)
+  );
+  const sigEl = document.getElementById('sf9f-teacher-sig');
+  if(sigEl){
+    if(adviserAcc){
+      sigEl.textContent = adviserAcc.name.toUpperCase();
+      sigEl.style.letterSpacing = '0.01em';
+    } else {
+      sigEl.textContent = '________________________';
+    }
+  }
+
   const qtr = +document.getElementById('sf9-qtr').value;
   // FIX v11: always uppercase section so grade-cache key matches encoding key (encoding always saves uppercase)
   const sectionKey = 'G'+(s.grade||'10')+'-'+s.section.toUpperCase();
@@ -3373,34 +3461,33 @@ async function renderSF9(){
   months.forEach((mo,i)=>{
     const yr=mYears[i],mn=mNums[i];
     const monthStr=yr+'-'+mn;
-    // Count actual school days = weekdays minus suspended/holiday days
     const daysInMonth=new Date(+yr,+mn,0).getDate();
     const suspDays=getSuspendedDays(monthStr).map(d=>d.date);
     let sd=0;
     for(let d=1;d<=daysInMonth;d++){
       const dateStr=monthStr+'-'+String(d).padStart(2,'0');
       const dow=new Date(yr,mn-1,d).getDay();
-      if(dow===0||dow===6) continue; // weekend
-      if(suspDays.includes(dateStr)) continue; // holiday/suspended
-      // Only count days that have at least one attendance record saved
+      if(dow===0||dow===6) continue;
+      if(suspDays.includes(dateStr)) continue;
       const amKey=dateStr+'_'+sectionKey+'_AM';
       if(attCache[amKey]||lsGet('att_'+amKey)) sd++;
     }
-    // Count days present/absent from AM records (only on actual school days)
     const amKeys=Object.keys(localStorage)
       .filter(k=>k.startsWith(LS+'att_'+yr+'-'+mn)&&k.endsWith('_'+sectionKey+'_AM'))
       .map(k=>k.slice((LS+'att_').length))
       .filter(k=>{ const ds=k.split('_')[0]; return !suspDays.includes(ds); });
     const dp=amKeys.reduce((a,k)=>{const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];return a+(v==='P'?1:0)},0);
     const da=amKeys.reduce((a,k)=>{const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];return a+(v==='A'?1:0)},0);
-    document.getElementById('sf9-sd-'+mo).textContent=sd||'';
-    document.getElementById('sf9-dp-'+mo).textContent=dp||'';
-    document.getElementById('sf9-da-'+mo).textContent=da||'';
+    // FIX: show 0 (not blank) when school was in session but student had no absences
+    // Only leave blank for months where no attendance was recorded at all (sd=0)
+    document.getElementById('sf9-sd-'+mo).textContent = sd>0 ? sd : '';
+    document.getElementById('sf9-dp-'+mo).textContent = sd>0 ? dp : '';
+    document.getElementById('sf9-da-'+mo).textContent = sd>0 ? da : '';
     sdTot+=sd; dpTot+=dp; daTot+=da;
   });
-  document.getElementById('sf9-sd-tot').textContent=sdTot||'';
-  document.getElementById('sf9-dp-tot').textContent=dpTot||'';
-  document.getElementById('sf9-da-tot').textContent=daTot||'';
+  document.getElementById('sf9-sd-tot').textContent = sdTot>0 ? sdTot : '';
+  document.getElementById('sf9-dp-tot').textContent = sdTot>0 ? dpTot : '';
+  document.getElementById('sf9-da-tot').textContent = sdTot>0 ? daTot : '';
 
   // ── Grades from encoded data (NOT hardcoded defaults) ──
   // Find student's index within their section's sorted list
