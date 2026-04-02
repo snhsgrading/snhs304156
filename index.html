@@ -231,6 +231,14 @@
   /* BUG-013 FIX: make Core Values cells visually interactive for advisers */
   #cv-table td[id^="ov-"] { cursor:pointer; transition:background 0.1s; }
   #cv-table td[id^="ov-"]:hover { background:var(--green-bg); outline:1px solid var(--green); }
+  /* SF10 inline-editable fields */
+  .sf10-edit { border-bottom:1.5px dashed #2563eb; outline:none; min-width:40px; display:inline-block; color:#1e3a5f; padding:0 2px; cursor:text; }
+  .sf10-edit:empty::before { content:attr(data-placeholder); color:#94a3b8; font-style:italic; }
+  .sf10-edit:focus { background:#eff6ff; border-radius:2px; }
+  @media print {
+    .sf10-edit { border-bottom:1px solid #000 !important; background:none !important; color:#000 !important; }
+    .sf10-edit:empty::before { content:'' !important; }
+  }
 
   .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:all 0.15s; border:none; }
   .btn-sm { padding:5px 10px; font-size:12px; }
@@ -650,19 +658,26 @@
 
 <!-- HISTORICAL RECORD MODAL -->
 <div class="modal-overlay" id="hist-modal">
-  <div class="modal" style="max-width:680px">
+  <div class="modal" style="max-width:780px">
     <div class="modal-header"><span class="modal-title" id="hist-modal-title">Encode Grade Records</span><button class="modal-close" onclick="closeModal('hist-modal')">✕</button></div>
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group"><label class="form-label">Grade Level</label><input type="text" class="form-input" id="hist-grade" readonly/></div>
-        <div class="form-group"><label class="form-label">School Year</label><input type="text" class="form-input" id="hist-sy" placeholder="e.g. 2022-2023"/></div>
-        <div class="form-group form-col-2"><label class="form-label">School Name</label><input type="text" class="form-input" id="hist-school" placeholder="Suarez National High School"/></div>
+        <div class="form-group"><label class="form-label">School Year *</label><input type="text" class="form-input" id="hist-sy" placeholder="e.g. 2022-2023"/></div>
+        <div class="form-group form-col-2"><label class="form-label">School Name *</label><input type="text" class="form-input" id="hist-school" placeholder="Suarez National High School"/></div>
+        <div class="form-group"><label class="form-label">School ID</label><input type="text" class="form-input" id="hist-school-id" placeholder="e.g. 304156"/></div>
+        <div class="form-group"><label class="form-label">District</label><input type="text" class="form-input" id="hist-district" placeholder="e.g. Suarez"/></div>
+        <div class="form-group"><label class="form-label">Division</label><input type="text" class="form-input" id="hist-division" placeholder="e.g. Division of Iligan City"/></div>
+        <div class="form-group"><label class="form-label">Region</label><input type="text" class="form-input" id="hist-region" placeholder="e.g. Region X"/></div>
         <div class="form-group"><label class="form-label">Section</label><input type="text" class="form-input" id="hist-section" placeholder="e.g. Steadfast"/></div>
-        <div class="form-group"><label class="form-label">Adviser</label><input type="text" class="form-input" id="hist-adviser" placeholder="Full name"/></div>
-        <div class="form-group form-col-2"><label class="form-label">Strand / Track (SHS only)</label><input type="text" class="form-input" id="hist-strand" placeholder="Leave blank for JHS"/></div>
+        <div class="form-group"><label class="form-label">Adviser / Teacher</label><input type="text" class="form-input" id="hist-adviser" placeholder="Full name"/></div>
+        <div class="form-group"><label class="form-label">Strand / Track (SHS only)</label><input type="text" class="form-input" id="hist-strand" placeholder="Leave blank for JHS"/></div>
       </div>
       <div style="margin-top:1rem">
-        <div style="font-weight:600;font-size:13px;color:var(--navy);margin-bottom:.75rem">Subject Grades</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+          <div style="font-weight:600;font-size:13px;color:var(--navy)">Subject Grades — Q1 to Final</div>
+          <div style="font-size:11px;color:var(--gray-400)">Final Grade auto-computes from quarters · GWA uses main subjects only</div>
+        </div>
         <div id="hist-subjects-table"></div>
         <button class="btn btn-outline btn-sm" style="margin-top:.5rem" onclick="addHistSubjectRow()">+ Add Subject</button>
         <div style="margin-top:.5rem;font-size:13px;font-weight:600" id="hist-avg-display"></div>
@@ -1493,6 +1508,7 @@
               <div class="card-sub">Formerly Form 137 · Access: Admin &amp; Class Advisers only</div>
             </div>
             <button class="btn btn-gold" id="sf10-print-btn" style="display:none" onclick="window.print()">🖨️ Print SF10</button>
+            <button class="btn btn-green" id="sf10-dl-btn" style="display:none" onclick="downloadSF10Excel()">📊 Download Excel</button>
           </div>
           <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
             <div id="sf10-section-filter-wrap" class="hidden" style="flex:1;min-width:180px;">
@@ -5853,7 +5869,8 @@ function _origBuildAttSummary_v9(){
 
 
 // ── SF10 HISTORICAL ────────────────────────────────────────────────
-const JHS_SUBJS=['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH'];
+const JHS_SUBJS=['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH','Music','Arts','Physical Education','Health'];
+const MAPEH_SUB_SUBJS = new Set(['Music','Arts','Physical Education','Health']);
 const SEM1_SUBJS=['Oral Communication','Komunikasyon at Pananaliksik','21st Century Literature','Contemporary Philippine Arts','Media and Information Literacy','General Mathematics','Earth and Life Science'];
 const SEM2_SUBJS=['Reading and Writing','Pagbasa at Pagsusuri','English for Academic and Professional Purposes','Practical Research 1','Empowerment Technologies'];
 
@@ -5924,21 +5941,24 @@ async function loadHistoricalRecords(){
 async function onSF10StudentChange(){
   const lrn = document.getElementById('sf10-student')?.value||'';
   const printBtn = document.getElementById('sf10-print-btn');
+  const dlBtn    = document.getElementById('sf10-dl-btn');
   const histSect = document.getElementById('sf10-hist-section');
   if(!lrn){
     document.getElementById('sf10-output').classList.add('hidden');
     document.getElementById('sf10-placeholder').classList.remove('hidden');
     if(printBtn) printBtn.style.display='none';
+    if(dlBtn)    dlBtn.style.display='none';
     if(histSect) histSect.classList.add('hidden');
     return;
   }
-  // Load historical records first
   if(!historicalCache[lrn]){
     if(isOnline){try{const{data}=await sb.from('historical_records').select('*').eq('lrn',lrn).order('grade_level');historicalCache[lrn]=data||[];}catch{historicalCache[lrn]=lsGet('hist_'+lrn)||[];}}
     else historicalCache[lrn]=lsGet('hist_'+lrn)||[];
   }
   await renderSF10(lrn);
   await loadHistoricalRecords();
+  if(printBtn) printBtn.style.display='inline-flex';
+  if(dlBtn)    dlBtn.style.display='inline-flex';
   if(histSect) histSect.classList.remove('hidden');
 }
 
@@ -6039,24 +6059,24 @@ async function renderSF10(lrn){
     <table style="width:100%;border-collapse:collapse;font-size:8px;">
       <tr><td colspan="4" style="border:1px solid #000;border-top:0;padding:2px 4px;background:#eee;font-weight:bold;">Elementary School Completer</td></tr>
       <tr>
-        <td style="border:1px solid #000;padding:2px 4px;width:25%;">General Average: <span style="border-bottom:1px solid #000;display:inline-block;min-width:35px;">&nbsp;</span></td>
-        <td style="border:1px solid #000;padding:2px 4px;width:25%;">School Year: <span style="border-bottom:1px solid #000;display:inline-block;min-width:50px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;width:25%;">General Average: <span contenteditable="true" class="sf10-edit" data-placeholder="___"></span></td>
+        <td style="border:1px solid #000;padding:2px 4px;width:25%;">School Year: <span contenteditable="true" class="sf10-edit" data-placeholder="e.g. 2021-2022"></span></td>
         <td colspan="2" style="border:1px solid #000;padding:2px 4px;"></td>
       </tr>
       <tr>
-        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name of Elementary School: <span style="border-bottom:1px solid #000;display:inline-block;min-width:130px;">&nbsp;</span></td>
-        <td style="border:1px solid #000;padding:2px 4px;">School ID: <span style="border-bottom:1px solid #000;display:inline-block;min-width:60px;">&nbsp;</span></td>
-        <td style="border:1px solid #000;padding:2px 4px;">Address: <span style="border-bottom:1px solid #000;display:inline-block;min-width:80px;">&nbsp;</span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name of Elementary School: <span contenteditable="true" class="sf10-edit" data-placeholder="School name"></span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">School ID: <span contenteditable="true" class="sf10-edit" data-placeholder="______"></span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Address: <span contenteditable="true" class="sf10-edit" data-placeholder="Address"></span></td>
       </tr>
       <tr><td colspan="4" style="border:1px solid #000;padding:2px 4px;background:#eee;font-weight:bold;">Other Credential Presented</td></tr>
       <tr>
-        <td style="border:1px solid #000;padding:2px 4px;">☐ PEPT Passer &nbsp; Rating: <span style="border-bottom:1px solid #000;display:inline-block;min-width:28px;">&nbsp;</span></td>
-        <td style="border:1px solid #000;padding:2px 4px;">☐ ALS A &amp; E Passer &nbsp; Rating: <span style="border-bottom:1px solid #000;display:inline-block;min-width:28px;">&nbsp;</span></td>
-        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">☐ Others: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">☐ PEPT Passer &nbsp; Rating: <span contenteditable="true" class="sf10-edit" data-placeholder="__"></span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">☐ ALS A &amp; E Passer &nbsp; Rating: <span contenteditable="true" class="sf10-edit" data-placeholder="__"></span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">☐ Others: <span contenteditable="true" class="sf10-edit" data-placeholder="Specify"></span></td>
       </tr>
       <tr>
-        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Date of Examination/Assessment: <span style="border-bottom:1px solid #000;display:inline-block;min-width:60px;">&nbsp;</span></td>
-        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name &amp; Address of Testing Center: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Date of Examination/Assessment: <span contenteditable="true" class="sf10-edit" data-placeholder="mm/dd/yyyy"></span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name &amp; Address of Testing Center: <span contenteditable="true" class="sf10-edit" data-placeholder="Testing center name &amp; address"></span></td>
       </tr>
     </table>
 
@@ -6125,10 +6145,10 @@ function buildSF10GradeBlock(data){
 // ── SF10 GRADE TABLE ──────────────────────────────────────────────────
 function buildSF10GradeTable(data){
   const isEmpty = data.empty;
-  const enc = data.enc||null;
+  const enc  = data.enc||null;
   const hist = data.hist||null;
 
-  // Compute GWA
+  // Compute GWA from main subjects only
   let gwa=null, remarks='';
   if(enc){
     let sum=0,cnt=0;
@@ -6141,33 +6161,49 @@ function buildSF10GradeTable(data){
 
   // Subject name matching for historical records
   const HIST_MATCH={
-    'Filipino':['Filipino','Fil'],'English':['English','Eng'],
-    'Mathematics':['Mathematics','Math'],'Science':['Science','Sci'],
-    'Araling Panlipunan (AP)':['Araling','AP'],'Edukasyon sa Pagpapakatao (EsP)':['Edukasyon','EsP','ESP','Values'],
+    'Filipino':['Filipino','Fil'],
+    'English':['English','Eng'],
+    'Mathematics':['Mathematics','Math'],
+    'Science':['Science','Sci'],
+    'Araling Panlipunan (AP)':['Araling','AP'],
+    'Edukasyon sa Pagpapakatao (EsP)':['Edukasyon','EsP','ESP','Values'],
     'Technology and Livelihood Education (TLE)':['TLE','Technology'],
-    'MAPEH':['MAPEH'],'Music':['Music'],'Arts':['Arts'],
-    'Physical Education':['Physical Education','PE'],'Health':['Health'],
+    'MAPEH':['MAPEH'],
+    'Music':['Music'],'Arts':['Arts'],
+    'Physical Education':['Physical Education','PE'],
+    'Health':['Health'],
   };
 
   const rows = SF10_SUBJS_JHS.map(subj=>{
     let q1='',q2='',q3='',q4='',final='',rem='';
     if(!isEmpty){
       if(enc){
+        // Current year — pull Q1-Q4 from encoded grades
         const gd=enc[subj.idx]||{};
-        if(gd.q1!=null)q1=gd.q1; if(gd.q2!=null)q2=gd.q2;
-        if(gd.q3!=null)q3=gd.q3; if(gd.q4!=null)q4=gd.q4;
+        if(gd.q1!=null)q1=gd.q1;
+        if(gd.q2!=null)q2=gd.q2;
+        if(gd.q3!=null)q3=gd.q3;
+        if(gd.q4!=null)q4=gd.q4;
         if(gd.final!=null){final=gd.final;rem=final>=75?'Passed':'Failed';}
       } else if(hist){
+        // Historical — match by subject name, use stored Q1-Q4
         const variants=HIST_MATCH[subj.name]||[subj.name];
         const found=(hist||[]).find(s=>variants.some(v=>
           s.name.toLowerCase().includes(v.toLowerCase())||v.toLowerCase().includes(s.name.toLowerCase())
         ));
-        if(found&&found.grade){final=found.grade;rem=parseFloat(found.grade)>=75?'Passed':'Failed';}
+        if(found){
+          if(found.q1)q1=found.q1;
+          if(found.q2)q2=found.q2;
+          if(found.q3)q3=found.q3;
+          if(found.q4)q4=found.q4;
+          if(found.grade){final=found.grade;rem=parseFloat(found.grade)>=75?'Passed':'Failed';}
+        }
       }
     }
     const nameCell=subj.sub
-      ?`<td style="border:1px solid #000;padding:1px 4px 1px 14px;font-style:italic;">${subj.name}</td>`
+      ?`<td style="border:1px solid #000;padding:1px 4px 1px 14px;font-style:italic;font-size:7.5px;">${subj.name}</td>`
       :`<td style="border:1px solid #000;padding:1px 4px;${subj.name==='MAPEH'?'font-weight:bold;':''}">${subj.name}</td>`;
+    const failStyle=rem==='Failed'?'color:red;':'';
     return`<tr>
       ${nameCell}
       <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q1}</td>
@@ -6175,7 +6211,7 @@ function buildSF10GradeTable(data){
       <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q3}</td>
       <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q4}</td>
       <td style="border:1px solid #000;padding:1px 3px;text-align:center;font-weight:bold;">${final}</td>
-      <td style="border:1px solid #000;padding:1px 3px;text-align:center;font-size:7.5px;${rem==='Failed'?'color:red;':''}">${rem}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;font-size:7.5px;${failStyle}">${rem}</td>
     </tr>`;
   }).join('');
 
@@ -6205,14 +6241,91 @@ function buildSF10GradeTable(data){
   </table>`;
 }
 
-// ── SF10 REMEDIAL CLASSES TABLE ───────────────────────────────────────
-function buildSF10RemedialTable(){
+// ── SF10 EXCEL DOWNLOAD ───────────────────────────────────────────────
+function downloadSF10Excel(){
+  const lrn = document.getElementById('sf10-student')?.value||'';
+  const student = studentsCache.find(s=>s.lrn===lrn);
+  if(!student){ toast('Select a student first',true); return; }
+
+  const records = historicalCache[lrn]||[];
+  const np = student.name.split(',');
+  const lastName  = (np[0]||'').trim();
+  const rp = (np[1]||'').trim().split(' ');
+  const firstName = rp[0]||'';
+  const midName   = rp.slice(1).join(' ')||'';
+
+  // Build rows for each grade level
+  const SUBJ_NAMES = ['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH','Music','Arts','Physical Education','Health'];
+  const HIST_MATCH={'Filipino':['Filipino','Fil'],'English':['English','Eng'],'Mathematics':['Mathematics','Math'],'Science':['Science','Sci'],'Araling Panlipunan (AP)':['Araling','AP'],'Edukasyon sa Pagpapakatao (EsP)':['Edukasyon','EsP','ESP','Values'],'Technology and Livelihood Education (TLE)':['TLE','Technology'],'MAPEH':['MAPEH'],'Music':['Music'],'Arts':['Arts'],'Physical Education':['Physical Education','PE'],'Health':['Health']};
+
+  // Current grade encoded data
+  const sectionKey = 'G'+student.grade+'-'+student.section.toUpperCase();
+  const sectionStudents = studentsCache.filter(st=>sectionsMatch(st.section,sectionKey,st.grade)).sort((a,b)=>a.name.localeCompare(b.name));
+  const studentIdx = sectionStudents.findIndex(st=>st.lrn===lrn);
+  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade);
+  const adviserAcc = accountsCache.find(a=>(a.role==='adviser'||a.role==='adviser-teacher')&&a.advisory_section&&sectionsMatch(student.section,a.advisory_section,student.grade));
+
+  const allRows = [];
+  // Header info rows
+  allRows.push(['SF10-JHS — Learner Permanent Record']);
+  allRows.push(['Last Name', lastName, 'First Name', firstName, 'Middle Name', midName]);
+  allRows.push(['LRN', student.lrn, 'Birthdate', student.bday||'', 'Sex', student.sex==='F'?'Female':'Male']);
+  allRows.push([]);
+
+  for(let g=7; g<=10; g++){
+    const isCurr = g===parseInt(student.grade);
+    const histRec = records.find(r=>r.grade_level===String(g))||null;
+
+    let school=SCHOOL_NAME, schoolId=SCHOOL_ID, district='Suarez', division=DIVISION, region='Region X', section='', sy='', adviser='';
+    let gwa='';
+
+    if(isCurr){
+      section=student.section.toUpperCase(); sy=SY; adviser=adviserAcc?.name||'';
+      let sum=0,cnt=0; [0,1,2,3,4,5,6,7].forEach(idx=>{const f=currentEnc[idx]?.final;if(f!=null){sum+=f;cnt++;}});
+      if(cnt>0) gwa=(sum/cnt).toFixed(2);
+    } else if(histRec){
+      school=histRec.school_name||SCHOOL_NAME; schoolId=histRec.school_id||SCHOOL_ID;
+      district=histRec.district||''; division=histRec.division||DIVISION;
+      region=histRec.region||'Region X'; section=(histRec.section||'').toUpperCase();
+      sy=histRec.school_year||''; adviser=histRec.adviser||'';
+      if(histRec.general_average) gwa=parseFloat(histRec.general_average).toFixed(2);
+    }
+
+    allRows.push(['GRADE '+g+' SCHOLASTIC RECORD']);
+    allRows.push(['School', school, 'School ID', schoolId, 'District', district, 'Division', division, 'Region', region]);
+    allRows.push(['Section', section, 'School Year', sy, 'Adviser', adviser]);
+    allRows.push(['LEARNING AREA','Q1','Q2','Q3','Q4','FINAL RATING','REMARKS']);
+
+    SUBJ_NAMES.forEach(name=>{
+      let q1='',q2='',q3='',q4='',final='',rem='';
+      if(isCurr){
+        const idx=['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH','Music','Arts','Physical Education','Health'].indexOf(name);
+        const sfIdx = idx<=7 ? idx : idx===8||idx===9 ? 8 : 9; // Music/Arts→idx8, PE/Health→idx9
+        const mapIdx = {8:8,9:8,10:9,11:9}[idx]??idx;
+        const gd = currentEnc[mapIdx<=7?mapIdx:mapIdx-idx+7]||currentEnc[idx>7?(idx<=9?8:9):idx]||{};
+        if(gd.q1!=null)q1=gd.q1; if(gd.q2!=null)q2=gd.q2; if(gd.q3!=null)q3=gd.q3; if(gd.q4!=null)q4=gd.q4;
+        if(gd.final!=null){final=gd.final;rem=gd.final>=75?'Passed':'Failed';}
+      } else if(histRec){
+        const variants=HIST_MATCH[name]||[name];
+        const found=(histRec.subjects||[]).find(s=>variants.some(v=>s.name.toLowerCase().includes(v.toLowerCase())||v.toLowerCase().includes(s.name.toLowerCase())));
+        if(found){if(found.q1)q1=found.q1;if(found.q2)q2=found.q2;if(found.q3)q3=found.q3;if(found.q4)q4=found.q4;if(found.grade){final=found.grade;rem=parseFloat(found.grade)>=75?'Passed':'Failed';}}
+      }
+      allRows.push([name,q1,q2,q3,q4,final,rem]);
+    });
+    allRows.push(['','','','','','General Average:', gwa]);
+    allRows.push([]);
+  }
+
+  const fname = `SF10_${student.lrn}_${student.name.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`;
+  downloadExcel(fname,[{name:'SF10-JHS', headers:[], rows:allRows}]);
+  toast('✅ SF10 Excel downloaded!');
+}
   return`<div style="border:1px solid #000;border-top:0;padding:2px 4px;font-size:8px;">
     <table style="width:100%;border-collapse:collapse;font-size:8px;margin-bottom:2px;">
       <tr>
         <td style="padding:1px 0;"><strong>Remedial Classes</strong></td>
-        <td style="padding:1px 4px;">Conducted from (mm/dd/yyyy): <span style="border-bottom:1px solid #000;display:inline-block;min-width:55px;">&nbsp;</span></td>
-        <td style="padding:1px 4px;">to (mm/dd/yyyy): <span style="border-bottom:1px solid #000;display:inline-block;min-width:55px;">&nbsp;</span></td>
+        <td style="padding:1px 4px;">Conducted from (mm/dd/yyyy): <span contenteditable="true" class="sf10-edit" data-placeholder="mm/dd/yyyy" style="min-width:60px;"></span></td>
+        <td style="padding:1px 4px;">to (mm/dd/yyyy): <span contenteditable="true" class="sf10-edit" data-placeholder="mm/dd/yyyy" style="min-width:60px;"></span></td>
       </tr>
     </table>
     <table style="width:100%;border-collapse:collapse;font-size:8px;">
@@ -6248,30 +6361,67 @@ function openHistModal(lrn,gradeLevel){
 }
 
 function renderHistSubjectRows(){
-  document.getElementById('hist-subjects-table').innerHTML=`<table style="width:100%;border-collapse:collapse"><thead><tr><th style="padding:6px;text-align:left;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Subject</th><th style="padding:6px;text-align:center;width:120px;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Final Grade</th><th style="width:40px;border-bottom:1px solid var(--gray-200)"></th></tr></thead><tbody>${histSubjectRows.map((sub,i)=>`<tr><td style="padding:4px 6px"><input type="text" class="form-input" value="${sub.name}" oninput="histSubjectRows[${i}].name=this.value" style="padding:5px 8px;font-size:12px"/></td><td style="padding:4px 6px"><input type="number" class="grade-input ${sub.grade?(+sub.grade>=75?'passing':'failing'):''}" value="${sub.grade}" min="60" max="100" oninput="histSubjectRows[${i}].grade=this.value;updateHistAvg()" style="width:80px;margin:0 auto;display:block"/></td><td style="padding:4px;text-align:center"><button class="btn btn-xs btn-red" onclick="removeHistRow(${i})">✕</button></td></tr>`).join('')}</tbody></table>`;
+  const inputStyle="width:46px;padding:3px 2px;border:1.5px solid var(--gray-200);border-radius:5px;font-size:11px;text-align:center;font-family:'DM Sans',sans-serif;display:block;margin:0 auto;";
+  const rows=histSubjectRows.map((sub,i)=>{
+    const isSub=sub.isSub||MAPEH_SUB_SUBJS.has(sub.name);
+    const cls=sub.grade?(+sub.grade>=75?'passing':'failing'):'';
+    return '<tr style="'+(isSub?'background:#fafafa':'')+'">'
+      +'<td style="padding:3px 6px;'+(isSub?'padding-left:18px;':'')+'"><input type="text" class="form-input" value="'+sub.name+'" oninput="histSubjectRows['+i+'].name=this.value;updateHistAvg()" style="padding:4px 6px;font-size:12px;'+(isSub?'font-style:italic;color:var(--gray-600)':'')+'" /></td>'
+      +'<td style="padding:3px 2px"><input type="number" min="60" max="100" value="'+(sub.q1||'')+'" oninput="histSubjectRows['+i+'].q1=this.value;autoComputeFinal('+i+')" style="'+inputStyle+'"/></td>'
+      +'<td style="padding:3px 2px"><input type="number" min="60" max="100" value="'+(sub.q2||'')+'" oninput="histSubjectRows['+i+'].q2=this.value;autoComputeFinal('+i+')" style="'+inputStyle+'"/></td>'
+      +'<td style="padding:3px 2px"><input type="number" min="60" max="100" value="'+(sub.q3||'')+'" oninput="histSubjectRows['+i+'].q3=this.value;autoComputeFinal('+i+')" style="'+inputStyle+'"/></td>'
+      +'<td style="padding:3px 2px"><input type="number" min="60" max="100" value="'+(sub.q4||'')+'" oninput="histSubjectRows['+i+'].q4=this.value;autoComputeFinal('+i+')" style="'+inputStyle+'"/></td>'
+      +'<td style="padding:3px 2px"><input type="number" class="grade-input '+cls+'" id="hist-final-'+i+'" min="60" max="100" value="'+(sub.grade||'')+'" oninput="histSubjectRows['+i+'].grade=this.value;updateHistAvg()" style="width:54px;margin:0 auto;display:block"/></td>'
+      +'<td style="padding:3px 4px;text-align:center"><button class="btn btn-xs btn-red" onclick="removeHistRow('+i+')">✕</button></td>'
+      +'</tr>';
+  }).join('');
+  const hdr='<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:var(--gray-50)">'
+    +'<th style="padding:5px 6px;text-align:left;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200);width:30%">Subject</th>'
+    +'<th style="padding:5px 4px;text-align:center;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Q1</th>'
+    +'<th style="padding:5px 4px;text-align:center;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Q2</th>'
+    +'<th style="padding:5px 4px;text-align:center;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Q3</th>'
+    +'<th style="padding:5px 4px;text-align:center;font-size:11px;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Q4</th>'
+    +'<th style="padding:5px 4px;text-align:center;font-size:11px;color:var(--navy);font-weight:600;border-bottom:1px solid var(--gray-200)">Final</th>'
+    +'<th style="width:30px;border-bottom:1px solid var(--gray-200)"></th>'
+    +'</tr></thead><tbody>';
+  document.getElementById('hist-subjects-table').innerHTML=hdr+rows+'</tbody></table>';
+  updateHistAvg();
+}
+function autoComputeFinal(i){
+  const sub=histSubjectRows[i];
+  const vals=[sub.q1,sub.q2,sub.q3,sub.q4].map(v=>parseFloat(v||0)).filter(v=>v>0);
+  if(vals.length>0){const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);histSubjectRows[i].grade=String(avg);const el=document.getElementById('hist-final-'+i);if(el){el.value=avg;el.className='grade-input '+(avg>=75?'passing':'failing');}}
   updateHistAvg();
 }
 function removeHistRow(i){histSubjectRows.splice(i,1);renderHistSubjectRows();}
-function addHistSubjectRow(){histSubjectRows.push({name:'',grade:''});renderHistSubjectRows();}
+function addHistSubjectRow(){histSubjectRows.push({name:'',q1:'',q2:'',q3:'',q4:'',grade:'',isSub:false});renderHistSubjectRows();}
+
 function updateHistAvg(){
-  const vals=histSubjectRows.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
+  const mainSubjs=histSubjectRows.filter(s=>s.name&&!MAPEH_SUB_SUBJS.has(s.name)&&!s.isSub);
+  const vals=mainSubjs.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
   const el=document.getElementById('hist-avg-display'); if(!el)return;
-  if(!vals.length){el.innerHTML='';return}
+  if(!vals.length){el.innerHTML='';return;}
   const avg=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2);
-  el.innerHTML=`GWA: <span style="color:var(--navy);font-size:16px">${avg}</span> &nbsp;·&nbsp; <span style="color:${+avg>=90?'var(--navy)':+avg>=75?'var(--green)':'var(--red)'}">${getHonors(avg)}</span>`;
+  const col=+avg>=90?'var(--navy)':+avg>=75?'var(--green)':'var(--red)';
+  el.innerHTML='GWA: <span style="color:var(--navy);font-size:16px">'+avg+'</span> &nbsp;·&nbsp; <span style="color:'+col+'">'+getHonors(avg)+'</span>';
 }
 
 async function saveHistoricalRecord(){
   if(!editingHistLRN||!editingHistGrade)return;
   const sy=document.getElementById('hist-sy').value.trim();
   const school=document.getElementById('hist-school').value.trim();
+  const schoolId=document.getElementById('hist-school-id').value.trim();
+  const district=document.getElementById('hist-district').value.trim();
+  const division=document.getElementById('hist-division').value.trim();
+  const region=document.getElementById('hist-region').value.trim();
   const section=document.getElementById('hist-section').value.trim();
   const adviser=document.getElementById('hist-adviser').value.trim();
   const strand=document.getElementById('hist-strand').value.trim();
   const subjects=histSubjectRows.filter(s=>s.name);
-  const vals=subjects.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
+  const mainSubjs=subjects.filter(s=>!MAPEH_SUB_SUBJS.has(s.name)&&!s.isSub);
+  const vals=mainSubjs.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
   const avg=vals.length>0?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):null;
-  const obj={lrn:editingHistLRN,grade_level:editingHistGrade,school_year:sy,school_name:school,section,adviser,strand,subjects,general_average:avg?parseFloat(avg):null,remarks:avg?getHonors(parseFloat(avg)):''};
+  const obj={lrn:editingHistLRN,grade_level:editingHistGrade,school_year:sy,school_name:school,school_id:schoolId,district,division,region,section,adviser,strand,subjects,general_average:avg?parseFloat(avg):null,remarks:avg?getHonors(parseFloat(avg)):''};
   if(!historicalCache[editingHistLRN])historicalCache[editingHistLRN]=[];
   const idx=historicalCache[editingHistLRN].findIndex(r=>r.grade_level===editingHistGrade);
   if(idx>=0)historicalCache[editingHistLRN][idx]=obj; else historicalCache[editingHistLRN].push(obj);
@@ -6279,9 +6429,8 @@ async function saveHistoricalRecord(){
   queueForSync('hist',editingHistLRN+'_'+editingHistGrade,obj);
   logAudit('SF10 RECORD','Saved Grade '+editingHistGrade+' records for LRN '+editingHistLRN);
   closeModal('hist-modal'); toast('✅ Historical record saved!');
-  // Refresh both the encoding list and the SF10 form
   loadHistoricalRecords();
-  const lrn = document.getElementById('sf10-student')?.value||'';
+  const lrn=document.getElementById('sf10-student')?.value||'';
   if(lrn) renderSF10(lrn);
 }
 
