@@ -5466,15 +5466,25 @@ function initAttendance(){
         <input type="hidden" id="att-section" value="">`;
     }
   } else if(role==='teacher'){
-    // Teacher — dropdown of their assigned sections only. Attendance is for their own records (NOT linked to SF2).
-    const assignedSects=CU?.sections||[];
+    // v12: sections come from subject_sections pairs; fall back to legacy sections array
+    const pairs = CU?.subject_sections || [];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))];
     const wrap=document.getElementById('att-section-wrap');
     if(wrap){
-      const sects=getSectionsFromStudents().filter(sect=>{
-        const n=sect.replace(/^G\d+-/,'');
-        const g=sect.match(/G(\d+)-/)?.[1];
-        return assignedSects.some(a=>sectionsMatch(n,a,g));
-      });
+      const allSects = getSectionsFromStudents();
+      let sects;
+      if(pairSects.length){
+        // v12: direct match on full section key (e.g. G8-ADAPTABLE)
+        sects = allSects.filter(s=>pairSects.some(ps=>ps.toUpperCase()===s.toUpperCase()));
+      } else {
+        // Legacy fallback: use sections array with sectionsMatch
+        const assignedSects = CU?.sections||[];
+        sects = allSects.filter(sect=>{
+          const n=sect.replace(/^G\d+-/,'');
+          const g=sect.match(/G(\d+)-/)?.[1];
+          return assignedSects.some(a=>sectionsMatch(n,a,g));
+        });
+      }
       const opts=sects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
       wrap.innerHTML=`<label class="form-label">Section <span style="font-size:10px;color:var(--blue)">(your assigned sections)</span></label>
         <select class="form-select" id="att-section" onchange="loadAttendance()">
@@ -5530,12 +5540,20 @@ function setAttSectionForTab(selectId, wrapId, cb){
       <div style="padding:6px 10px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:600;color:var(--navy)">${sectionKey.replace(/G(\d+)-/,'Grade $1 – ')}</div>
       <input type="hidden" id="${selectId}" value="${sectionKey}">`;
   } else if(role==='teacher'){
-    // Teacher: dropdown of assigned sections only
-    const assignedSects=CU?.sections||[];
-    const sects=getSectionsFromStudents().filter(sect=>{
-      const n=sect.replace(/^G\d+-/,'');const g=sect.match(/G(\d+)-/)?.[1];
-      return assignedSects.some(a=>sectionsMatch(n,a,g));
-    });
+    // v12: sections from subject_sections pairs; legacy fallback to sections array
+    const pairs = CU?.subject_sections || [];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))];
+    const allSects = getSectionsFromStudents();
+    let sects;
+    if(pairSects.length){
+      sects = allSects.filter(s=>pairSects.some(ps=>ps.toUpperCase()===s.toUpperCase()));
+    } else {
+      const assignedSects=CU?.sections||[];
+      sects=allSects.filter(sect=>{
+        const n=sect.replace(/^G\d+-/,'');const g=sect.match(/G(\d+)-/)?.[1];
+        return assignedSects.some(a=>sectionsMatch(n,a,g));
+      });
+    }
     const curVal=document.getElementById(selectId)?.value||'';
     wrap.innerHTML=`<label class="form-label">Section</label>
       <select class="form-select" id="${selectId}" onchange="${cb.name||'renderCalendar'}()" style="max-width:250px">
