@@ -418,8 +418,12 @@
     #sf9-grade-rows td    { padding:2px 4px !important; font-size:9px !important; }
     .sf9-grades th        { padding:4px 6px !important; font-size:9px !important; }
 
-    /* ── Page margins ── */
-    @page { margin:12mm 10mm; }
+    /* ── Page margins & paper size ── */
+    @page { size: 8.5in 13in; margin: 10mm; }
+
+    /* ── SF10: page 1 ends, page 2 starts fresh ── */
+    #sf10-page1           { page-break-after:always !important; }
+    #sf10-page2           { page-break-before:always !important; }
   }
 </style>
 </head>
@@ -1478,18 +1482,50 @@
         </div>
       </div>
 
-      <!-- SF10 HISTORICAL RECORDS -->
+      <!-- SF10 PERMANENT RECORD -->
       <div class="view" id="view-sf10history">
-        <div class="card" style="margin-bottom:1.25rem">
-          <div class="card-header"><div><div class="card-title">SF10 Historical Records</div><div class="card-sub">Encode previous year grades per student for SF10 generation</div></div></div>
-          <div style="padding:1rem 1.25rem;display:flex;gap:12px;align-items:flex-end">
-            <div style="flex:1;max-width:400px"><label class="form-label">Select Student</label>
-              <select class="form-select" id="hist-student" onchange="loadHistoricalRecords()"><option value="">Select student...</option></select>
+
+        <!-- Controls (no-print) -->
+        <div class="card no-print" style="margin-bottom:1.25rem;">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📜 SF10 — Learner Permanent Record (JHS)</div>
+              <div class="card-sub">Formerly Form 137 · Access: Admin &amp; Class Advisers only</div>
+            </div>
+            <button class="btn btn-gold" id="sf10-print-btn" style="display:none" onclick="window.print()">🖨️ Print SF10</button>
+          </div>
+          <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+            <div id="sf10-section-filter-wrap" class="hidden" style="flex:1;min-width:180px;">
+              <label class="form-label">Section</label>
+              <select class="form-select" id="sf10-section-filter" onchange="filterSF10BySection()" style="max-width:280px;">
+                <option value="">All Sections</option>
+              </select>
+            </div>
+            <div style="flex:2;min-width:200px;">
+              <label class="form-label">Student</label>
+              <select class="form-select" id="sf10-student" onchange="onSF10StudentChange()">
+                <option value="">Select student...</option>
+              </select>
             </div>
           </div>
         </div>
-        <div id="hist-placeholder" class="card"><div class="empty">📁 Select a student above to encode their historical grade records.</div></div>
-        <div id="hist-output" class="hidden"></div>
+
+        <!-- SF10 placeholder -->
+        <div id="sf10-placeholder" class="card">
+          <div class="empty">📜 Select a student above to generate their SF10 Permanent Record.</div>
+        </div>
+
+        <!-- SF10 Print-ready form -->
+        <div id="sf10-output" class="hidden"></div>
+
+        <!-- Historical Records Encoding (no-print, shown below form) -->
+        <div id="sf10-hist-section" class="no-print hidden" style="margin-top:1.5rem;">
+          <div style="font-size:13px;font-weight:600;color:var(--gray-800);padding:.6rem 1rem;background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:10px;margin-bottom:.75rem;">
+            ✏️ Encode Historical Grades (Previous School Years) — filled here, shown automatically on SF10
+          </div>
+          <div id="hist-output"></div>
+        </div>
+
       </div>
 
 
@@ -5822,34 +5858,378 @@ const SEM1_SUBJS=['Oral Communication','Komunikasyon at Pananaliksik','21st Cent
 const SEM2_SUBJS=['Reading and Writing','Pagbasa at Pagsusuri','English for Academic and Professional Purposes','Practical Research 1','Empowerment Technologies'];
 
 function initHistDropdown(){
-  const sel=document.getElementById('hist-student'); if(!sel)return;
-  sel.innerHTML='<option value="">Select student...</option>'+studentsCache.map(s=>`<option value="${s.lrn}">${s.name} — Grade ${s.grade} ${s.section}</option>`).join('');
+  // Populate sf10-student dropdown — admin sees all, adviser sees their section only
+  const sel = document.getElementById('sf10-student');
+  if(!sel) return;
+  let list = studentsCache;
+  if(isAdviser() && !isAdmin()){
+    const advSect = getAdvisorySection();
+    if(advSect) list = studentsCache.filter(s => sectionsMatch(s.section, advSect, s.grade));
+  }
+  sel.innerHTML = '<option value="">Select student...</option>' +
+    list.sort((a,b)=>a.name.localeCompare(b.name))
+        .map(s=>`<option value="${s.lrn}">${s.name} — Grade ${s.grade} · ${s.section}</option>`)
+        .join('');
+
+  // Admin: populate section filter too
+  if(isAdmin()){
+    const secFilter = document.getElementById('sf10-section-filter');
+    if(secFilter){
+      const sects = [...new Set(studentsCache.map(s=>`G${s.grade}-${s.section.toUpperCase()}`))].sort();
+      secFilter.innerHTML = '<option value="">All Sections</option>' +
+        sects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
+    }
+    document.getElementById('sf10-section-filter-wrap')?.classList.remove('hidden');
+  }
+}
+
+function filterSF10BySection(){
+  const sect = document.getElementById('sf10-section-filter')?.value||'';
+  const sel = document.getElementById('sf10-student');
+  if(!sel) return;
+  const list = sect
+    ? studentsCache.filter(s=>`G${s.grade}-${s.section.toUpperCase()}`===sect)
+    : studentsCache;
+  sel.innerHTML = '<option value="">Select student...</option>' +
+    list.sort((a,b)=>a.name.localeCompare(b.name))
+        .map(s=>`<option value="${s.lrn}">${s.name} — Grade ${s.grade} · ${s.section}</option>`)
+        .join('');
 }
 
 async function loadHistoricalRecords(){
-  const lrn=document.getElementById('hist-student').value;
-  if(!lrn){document.getElementById('hist-output').classList.add('hidden');document.getElementById('hist-placeholder').classList.remove('hidden');return}
+  const lrn = document.getElementById('sf10-student')?.value || '';
+  if(!lrn){document.getElementById('hist-output').innerHTML='';return;}
   const student=studentsCache.find(s=>s.lrn===lrn); if(!student)return;
   if(!historicalCache[lrn]){
     if(isOnline){try{const{data}=await sb.from('historical_records').select('*').eq('lrn',lrn).order('grade_level');historicalCache[lrn]=data||[];}catch{historicalCache[lrn]=lsGet('hist_'+lrn)||[];}}
     else historicalCache[lrn]=lsGet('hist_'+lrn)||[];
   }
   const records=historicalCache[lrn];
-  document.getElementById('hist-placeholder').classList.add('hidden');
-  document.getElementById('hist-output').classList.remove('hidden');
   const maxGrade=parseInt(student.grade)||10;
   const grades=[]; for(let g=7;g<=Math.min(maxGrade,10);g++)grades.push(String(g));
   if(maxGrade>=11)grades.push('11-SEM1','11-SEM2');
   if(maxGrade>=12)grades.push('12-SEM1','12-SEM2');
-  document.getElementById('hist-output').innerHTML=`<div style="margin-bottom:1rem;padding:.75rem 1.25rem;background:var(--blue-bg);border-radius:10px;font-size:13px;color:var(--blue)">📋 Historical records for <strong>${student.name}</strong> · Current Grade: ${student.grade} · Section: ${student.section}</div>`+
-  grades.map(gl=>{
+  document.getElementById('hist-output').innerHTML=grades.map(gl=>{
     const rec=records.find(r=>r.grade_level===gl)||{};
     const avg=rec.general_average?parseFloat(rec.general_average).toFixed(2):'—';
     const glLabel='Grade '+gl.replace('-SEM1',' – 1st Sem').replace('-SEM2',' – 2nd Sem');
+    const isCurr = gl===student.grade;
+    if(isCurr) return`<div class="card" style="margin-bottom:1rem;border-color:var(--green)"><div class="card-header"><div><div class="card-title" style="color:var(--green)">★ ${glLabel} — Current Enrolled Grade</div><div class="card-sub">Grades come from the Grade Encoding module automatically</div></div></div></div>`;
     const subHTML=(rec.subjects||[]).map(sub=>`<tr><td>${sub.name}</td><td style="text-align:center;font-weight:600">${sub.grade}</td><td style="text-align:center"><span class="badge ${parseFloat(sub.grade)>=75?'badge-green':'badge-red'}">${parseFloat(sub.grade)>=75?'Passed':'Failed'}</span></td></tr>`).join('');
     return`<div class="card" style="margin-bottom:1rem"><div class="card-header"><div><div class="card-title">${glLabel}</div><div class="card-sub">${rec.school_year||'S.Y. not set'} · ${rec.school_name||'School not set'} · GWA: ${avg}${avg!=='—'?' ('+getHonors(parseFloat(avg))+')':''}</div></div><button class="btn btn-sm btn-outline" onclick="openHistModal('${lrn}','${gl}')">${rec.school_year?'✏️ Edit':'➕ Encode'}</button></div>${subHTML?`<div class="table-wrap"><table><thead><tr><th>Subject</th><th style="text-align:center">Grade</th><th style="text-align:center">Remarks</th></tr></thead><tbody>${subHTML}</tbody></table></div>`:'<div class="empty" style="padding:1.5rem">No grades encoded yet. Click Encode to add.</div>'}</div>`;
   }).join('');
 }
+
+// ── SF10 STUDENT CHANGE HANDLER ───────────────────────────────────────
+async function onSF10StudentChange(){
+  const lrn = document.getElementById('sf10-student')?.value||'';
+  const printBtn = document.getElementById('sf10-print-btn');
+  const histSect = document.getElementById('sf10-hist-section');
+  if(!lrn){
+    document.getElementById('sf10-output').classList.add('hidden');
+    document.getElementById('sf10-placeholder').classList.remove('hidden');
+    if(printBtn) printBtn.style.display='none';
+    if(histSect) histSect.classList.add('hidden');
+    return;
+  }
+  // Load historical records first
+  if(!historicalCache[lrn]){
+    if(isOnline){try{const{data}=await sb.from('historical_records').select('*').eq('lrn',lrn).order('grade_level');historicalCache[lrn]=data||[];}catch{historicalCache[lrn]=lsGet('hist_'+lrn)||[];}}
+    else historicalCache[lrn]=lsGet('hist_'+lrn)||[];
+  }
+  await renderSF10(lrn);
+  await loadHistoricalRecords();
+  if(histSect) histSect.classList.remove('hidden');
+}
+
+// ── SF10 SUBJECTS DEFINITION ──────────────────────────────────────────
+const SF10_SUBJS_JHS = [
+  {name:'Filipino',                                  idx:0, sub:false},
+  {name:'English',                                   idx:1, sub:false},
+  {name:'Mathematics',                               idx:2, sub:false},
+  {name:'Science',                                   idx:3, sub:false},
+  {name:'Araling Panlipunan (AP)',                   idx:4, sub:false},
+  {name:'Edukasyon sa Pagpapakatao (EsP)',           idx:5, sub:false},
+  {name:'Technology and Livelihood Education (TLE)', idx:6, sub:false},
+  {name:'MAPEH',                                     idx:7, sub:false},
+  {name:'Music',                                     idx:8, sub:true},
+  {name:'Arts',                                      idx:8, sub:true},
+  {name:'Physical Education',                        idx:9, sub:true},
+  {name:'Health',                                    idx:9, sub:true},
+];
+
+// ── SF10 MAIN RENDERER ────────────────────────────────────────────────
+async function renderSF10(lrn){
+  const student = studentsCache.find(s=>s.lrn===lrn);
+  if(!student) return;
+
+  const currentGrade = parseInt(student.grade)||7;
+
+  // Get current year encoded grades
+  const sectionKey = 'G'+student.grade+'-'+student.section.toUpperCase();
+  const sectionStudents = studentsCache
+    .filter(st=>sectionsMatch(st.section, sectionKey, st.grade))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  const studentIdx = sectionStudents.findIndex(st=>st.lrn===lrn);
+  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade);
+
+  // Find adviser for current section
+  const adviserAcc = accountsCache.find(a=>
+    (a.role==='adviser'||a.role==='adviser-teacher') &&
+    a.advisory_section && sectionsMatch(student.section, a.advisory_section, student.grade)
+  );
+
+  // Build data for G7–G10
+  const blocks = [];
+  for(let g=7; g<=10; g++){
+    const isCurr = g===currentGrade;
+    const histRec = (historicalCache[lrn]||[]).find(r=>r.grade_level===String(g))||null;
+    if(isCurr){
+      blocks.push({grade:g,school:SCHOOL_NAME,schoolId:SCHOOL_ID,district:'Suarez',division:DIVISION,region:REGION,
+        section:student.section.toUpperCase(),sy:SY,adviser:adviserAcc?.name||'',isCurrent:true,enc:currentEnc,hist:null});
+    } else if(histRec){
+      blocks.push({grade:g,school:histRec.school_name||SCHOOL_NAME,schoolId:histRec.school_id||SCHOOL_ID,
+        district:histRec.district||'Suarez',division:histRec.division||DIVISION,region:histRec.region||'Region X',
+        section:(histRec.section||'').toUpperCase(),sy:histRec.school_year||'',adviser:histRec.adviser||'',
+        isCurrent:false,enc:null,hist:histRec.subjects||[],histGWA:histRec.general_average});
+    } else {
+      blocks.push({grade:g,empty:true});
+    }
+  }
+
+  // Parse name
+  const np=student.name.split(',');
+  const lastName=(np[0]||'').trim();
+  const rp=(np[1]||'').trim().split(' ');
+  const firstName=rp[0]||'';
+  const middleName=rp.slice(1).join(' ')||'';
+  const bday=student.bday||student.birthday||'';
+
+  const sf10HTML=`<div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:8.5px;color:#000;background:white;">
+
+  <!-- ═══ PAGE 1 ═══ -->
+  <div id="sf10-page1" style="padding:8px 10px;box-sizing:border-box;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;">
+      <div style="font-size:8px;font-weight:bold;">SF10-JHS</div>
+    </div>
+    <div style="text-align:center;border-top:2px solid #000;border-bottom:2px solid #000;padding:3px 0;margin-bottom:4px;">
+      <div style="font-size:8px;">Republic of the Philippines &nbsp;·&nbsp; Department of Education</div>
+      <div style="font-size:10.5px;font-weight:bold;font-style:italic;">Learner Permanent Record for Junior High School (SF10-JHS)</div>
+      <div style="font-size:7.5px;font-style:italic;">(Formerly Form 137)</div>
+    </div>
+
+    <!-- LEARNER'S INFORMATION -->
+    <div style="background:#ccc;font-weight:bold;padding:2px 4px;border:1px solid #000;font-size:8px;text-transform:uppercase;">LEARNER'S INFORMATION</div>
+    <table style="width:100%;border-collapse:collapse;font-size:8px;">
+      <tr>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:28%;">LAST NAME:<br><strong style="font-size:9px;">${lastName}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:27%;">FIRST NAME:<br><strong style="font-size:9px;">${firstName}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:15%;">NAME EXT. (Jr,I,II):<br>&nbsp;</td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;">MIDDLE NAME:<br><strong style="font-size:9px;">${middleName}</strong></td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Learner Reference Number (LRN): <strong>${student.lrn}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Birthdate: <strong>${bday}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Sex: <strong>${student.sex==='F'?'Female':'Male'}</strong></td>
+      </tr>
+    </table>
+
+    <!-- ELIGIBILITY -->
+    <div style="background:#ccc;font-weight:bold;padding:2px 4px;border:1px solid #000;border-top:0;font-size:8px;text-transform:uppercase;margin-top:4px;">ELIGIBILITY FOR JHS ENROLMENT</div>
+    <table style="width:100%;border-collapse:collapse;font-size:8px;">
+      <tr><td colspan="4" style="border:1px solid #000;border-top:0;padding:2px 4px;background:#eee;font-weight:bold;">Elementary School Completer</td></tr>
+      <tr>
+        <td style="border:1px solid #000;padding:2px 4px;width:25%;">General Average: <span style="border-bottom:1px solid #000;display:inline-block;min-width:35px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;width:25%;">School Year: <span style="border-bottom:1px solid #000;display:inline-block;min-width:50px;">&nbsp;</span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;"></td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name of Elementary School: <span style="border-bottom:1px solid #000;display:inline-block;min-width:130px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">School ID: <span style="border-bottom:1px solid #000;display:inline-block;min-width:60px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Address: <span style="border-bottom:1px solid #000;display:inline-block;min-width:80px;">&nbsp;</span></td>
+      </tr>
+      <tr><td colspan="4" style="border:1px solid #000;padding:2px 4px;background:#eee;font-weight:bold;">Other Credential Presented</td></tr>
+      <tr>
+        <td style="border:1px solid #000;padding:2px 4px;">☐ PEPT Passer &nbsp; Rating: <span style="border-bottom:1px solid #000;display:inline-block;min-width:28px;">&nbsp;</span></td>
+        <td style="border:1px solid #000;padding:2px 4px;">☐ ALS A &amp; E Passer &nbsp; Rating: <span style="border-bottom:1px solid #000;display:inline-block;min-width:28px;">&nbsp;</span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">☐ Others: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span></td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Date of Examination/Assessment: <span style="border-bottom:1px solid #000;display:inline-block;min-width:60px;">&nbsp;</span></td>
+        <td colspan="2" style="border:1px solid #000;padding:2px 4px;">Name &amp; Address of Testing Center: <span style="border-bottom:1px solid #000;display:inline-block;min-width:90px;">&nbsp;</span></td>
+      </tr>
+    </table>
+
+    <!-- GRADE 7 -->
+    ${buildSF10GradeBlock(blocks[0])}
+    <!-- GRADE 8 -->
+    ${buildSF10GradeBlock(blocks[1])}
+  </div>
+
+  <!-- ═══ PAGE 2 ═══ -->
+  <div id="sf10-page2" style="padding:8px 10px;box-sizing:border-box;">
+    <div style="display:flex;justify-content:space-between;font-size:8px;font-weight:bold;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:4px;">
+      <span>SF10-JHS</span><span>Page 2</span>
+    </div>
+    <!-- GRADE 9 -->
+    ${buildSF10GradeBlock(blocks[2])}
+    <!-- GRADE 10 -->
+    ${buildSF10GradeBlock(blocks[3])}
+  </div>
+
+</div>`;
+
+  document.getElementById('sf10-output').innerHTML = sf10HTML;
+  document.getElementById('sf10-output').classList.remove('hidden');
+  document.getElementById('sf10-placeholder').classList.add('hidden');
+  const printBtn = document.getElementById('sf10-print-btn');
+  if(printBtn) printBtn.style.display='inline-flex';
+}
+
+// ── SF10 GRADE BLOCK BUILDER ──────────────────────────────────────────
+function buildSF10GradeBlock(data){
+  if(!data) return '';
+  const g = data.grade;
+  const school = data.empty?'':data.school||'';
+  const schoolId = data.empty?'':data.schoolId||'';
+  const district = data.empty?'':data.district||'';
+  const division = data.empty?'':data.division||'';
+  const region = data.empty?'':data.region||'';
+  const section = data.empty?'':data.section||'';
+  const sy = data.empty?'':data.sy||'';
+  const adviser = data.empty?'':data.adviser||'';
+
+  return`<div style="margin-top:5px;">
+    <div style="background:#ccc;font-weight:bold;padding:2px 4px;border:1px solid #000;font-size:8px;text-transform:uppercase;">SCHOLASTIC RECORD</div>
+    <table style="width:100%;border-collapse:collapse;font-size:8px;">
+      <tr>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:30%;">School: <strong>${school}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:12%;">School ID: <strong>${schoolId}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:14%;">District: <strong>${district}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;width:24%;">Division: <strong>${division}</strong></td>
+        <td style="border:1px solid #000;border-top:0;padding:2px 4px;">Region: <strong>${region}</strong></td>
+      </tr>
+      <tr>
+        <td style="border:1px solid #000;padding:2px 4px;">Classified as Grade: <strong>${g}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Section: <strong>${section}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">S.Y.: <strong>${sy}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Name of Adviser/Teacher: <strong>${adviser}</strong></td>
+        <td style="border:1px solid #000;padding:2px 4px;">Signature: <span style="border-bottom:1px solid #000;display:inline-block;min-width:55px;">&nbsp;</span></td>
+      </tr>
+    </table>
+    ${buildSF10GradeTable(data)}
+    ${buildSF10RemedialTable()}
+  </div>`;
+}
+
+// ── SF10 GRADE TABLE ──────────────────────────────────────────────────
+function buildSF10GradeTable(data){
+  const isEmpty = data.empty;
+  const enc = data.enc||null;
+  const hist = data.hist||null;
+
+  // Compute GWA
+  let gwa=null, remarks='';
+  if(enc){
+    let sum=0,cnt=0;
+    [0,1,2,3,4,5,6,7].forEach(idx=>{const f=enc[idx]?.final;if(f!=null){sum+=f;cnt++;}});
+    if(cnt>0){gwa=(sum/cnt).toFixed(2);remarks=getHonors(parseFloat(gwa));}
+  } else if(data.histGWA){
+    gwa=parseFloat(data.histGWA).toFixed(2);
+    remarks=getHonors(parseFloat(gwa));
+  }
+
+  // Subject name matching for historical records
+  const HIST_MATCH={
+    'Filipino':['Filipino','Fil'],'English':['English','Eng'],
+    'Mathematics':['Mathematics','Math'],'Science':['Science','Sci'],
+    'Araling Panlipunan (AP)':['Araling','AP'],'Edukasyon sa Pagpapakatao (EsP)':['Edukasyon','EsP','ESP','Values'],
+    'Technology and Livelihood Education (TLE)':['TLE','Technology'],
+    'MAPEH':['MAPEH'],'Music':['Music'],'Arts':['Arts'],
+    'Physical Education':['Physical Education','PE'],'Health':['Health'],
+  };
+
+  const rows = SF10_SUBJS_JHS.map(subj=>{
+    let q1='',q2='',q3='',q4='',final='',rem='';
+    if(!isEmpty){
+      if(enc){
+        const gd=enc[subj.idx]||{};
+        if(gd.q1!=null)q1=gd.q1; if(gd.q2!=null)q2=gd.q2;
+        if(gd.q3!=null)q3=gd.q3; if(gd.q4!=null)q4=gd.q4;
+        if(gd.final!=null){final=gd.final;rem=final>=75?'Passed':'Failed';}
+      } else if(hist){
+        const variants=HIST_MATCH[subj.name]||[subj.name];
+        const found=(hist||[]).find(s=>variants.some(v=>
+          s.name.toLowerCase().includes(v.toLowerCase())||v.toLowerCase().includes(s.name.toLowerCase())
+        ));
+        if(found&&found.grade){final=found.grade;rem=parseFloat(found.grade)>=75?'Passed':'Failed';}
+      }
+    }
+    const nameCell=subj.sub
+      ?`<td style="border:1px solid #000;padding:1px 4px 1px 14px;font-style:italic;">${subj.name}</td>`
+      :`<td style="border:1px solid #000;padding:1px 4px;${subj.name==='MAPEH'?'font-weight:bold;':''}">${subj.name}</td>`;
+    return`<tr>
+      ${nameCell}
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q1}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q2}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q3}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;">${q4}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;font-weight:bold;">${final}</td>
+      <td style="border:1px solid #000;padding:1px 3px;text-align:center;font-size:7.5px;${rem==='Failed'?'color:red;':''}">${rem}</td>
+    </tr>`;
+  }).join('');
+
+  return`<table style="width:100%;border-collapse:collapse;font-size:8px;">
+    <thead>
+      <tr>
+        <th rowspan="2" style="border:1px solid #000;padding:2px 4px;width:43%;text-align:left;background:#ddd;">LEARNING AREAS</th>
+        <th colspan="4" style="border:1px solid #000;padding:2px 4px;text-align:center;background:#ddd;">Quarterly Rating</th>
+        <th rowspan="2" style="border:1px solid #000;padding:2px 3px;text-align:center;width:10%;background:#ddd;font-size:7.5px;">FINAL RATING</th>
+        <th rowspan="2" style="border:1px solid #000;padding:2px 3px;text-align:center;width:10%;background:#ddd;">REMARKS</th>
+      </tr>
+      <tr>
+        <th style="border:1px solid #000;padding:2px 3px;text-align:center;width:7%;background:#eee;">1</th>
+        <th style="border:1px solid #000;padding:2px 3px;text-align:center;width:7%;background:#eee;">2</th>
+        <th style="border:1px solid #000;padding:2px 3px;text-align:center;width:7%;background:#eee;">3</th>
+        <th style="border:1px solid #000;padding:2px 3px;text-align:center;width:7%;background:#eee;">4</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5" style="border:1px solid #000;padding:2px 4px;text-align:right;font-weight:bold;background:#eee;">General Average</td>
+        <td style="border:1px solid #000;padding:2px 3px;text-align:center;font-weight:bold;">${gwa||''}</td>
+        <td style="border:1px solid #000;padding:2px 3px;text-align:center;font-size:7.5px;">${remarks}</td>
+      </tr>
+    </tfoot>
+  </table>`;
+}
+
+// ── SF10 REMEDIAL CLASSES TABLE ───────────────────────────────────────
+function buildSF10RemedialTable(){
+  return`<div style="border:1px solid #000;border-top:0;padding:2px 4px;font-size:8px;">
+    <table style="width:100%;border-collapse:collapse;font-size:8px;margin-bottom:2px;">
+      <tr>
+        <td style="padding:1px 0;"><strong>Remedial Classes</strong></td>
+        <td style="padding:1px 4px;">Conducted from (mm/dd/yyyy): <span style="border-bottom:1px solid #000;display:inline-block;min-width:55px;">&nbsp;</span></td>
+        <td style="padding:1px 4px;">to (mm/dd/yyyy): <span style="border-bottom:1px solid #000;display:inline-block;min-width:55px;">&nbsp;</span></td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;font-size:8px;">
+      <tr>
+        <th style="border:1px solid #000;padding:2px 4px;background:#ddd;width:40%;text-align:left;">Learning Areas</th>
+        <th style="border:1px solid #000;padding:2px 4px;background:#ddd;width:15%;text-align:center;">Final Rating</th>
+        <th style="border:1px solid #000;padding:2px 4px;background:#ddd;width:15%;text-align:center;">Remedial Class Mark</th>
+        <th style="border:1px solid #000;padding:2px 4px;background:#ddd;width:15%;text-align:center;">Recomputed Final Grade</th>
+        <th style="border:1px solid #000;padding:2px 4px;background:#ddd;width:15%;text-align:center;">Remarks</th>
+      </tr>
+      <tr><td style="border:1px solid #000;padding:5px 4px;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td></tr>
+      <tr><td style="border:1px solid #000;padding:5px 4px;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td><td style="border:1px solid #000;"></td></tr>
+    </table>
+  </div>`;
+}
+
+
 
 function openHistModal(lrn,gradeLevel){
   editingHistLRN=lrn; editingHistGrade=gradeLevel;
@@ -5899,7 +6279,10 @@ async function saveHistoricalRecord(){
   queueForSync('hist',editingHistLRN+'_'+editingHistGrade,obj);
   logAudit('SF10 RECORD','Saved Grade '+editingHistGrade+' records for LRN '+editingHistLRN);
   closeModal('hist-modal'); toast('✅ Historical record saved!');
+  // Refresh both the encoding list and the SF10 form
   loadHistoricalRecords();
+  const lrn = document.getElementById('sf10-student')?.value||'';
+  if(lrn) renderSF10(lrn);
 }
 
 // ── INIT ────────────────────────────────────────────────────────────
