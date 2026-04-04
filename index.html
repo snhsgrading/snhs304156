@@ -3954,9 +3954,31 @@ function renderSF2(){
   const nlsT = nlsM+nlsF;
 
   // ── HELPER: summary table cell ──────────────────────────────────────
-  const sc=(v,bold=false)=>`<td style="border:1px solid #999;padding:3px 6px;text-align:center;font-size:9px;background:#f9f9f9;${bold?'font-weight:bold;color:#14532d;':''}">${v===0?'—':v}</td>`;
+  // sc: value cell — shows '—' only when truly no data (null/undefined/empty string), not for real 0
+  const sc=(v,bold=false)=>{
+    const empty = (v===null||v===undefined||v===''||v==='—'||v==='—%');
+    const display = empty ? '—' : v;
+    return `<td style="border:1px solid #999;padding:3px 6px;text-align:center;font-size:9px;background:#f9f9f9;${bold?'font-weight:bold;color:#14532d;':''}">${display}</td>`;
+  };
   const sh=(txt,extra='')=>`<th style="border:1px solid #999;padding:4px 6px;text-align:center;font-size:9px;background:#d4edda;${extra}">${txt}</th>`;
   const sl=(txt,italic=false)=>`<td style="border:1px solid #999;padding:4px 8px;font-size:9px;${italic?'font-style:italic;':''}background:#fff;">${txt}</td>`;
+  // Format percentage — show '—' if no data, otherwise show value with %
+  const pct=(v)=> (v===null||v===undefined||v==='—'||isNaN(parseFloat(v))) ? '—' : parseFloat(v).toFixed(2)+'%';
+  // Format number — show '—' if zero AND no attendance recorded at all
+  const num=(v,forceShow=false)=> (!forceShow && (v===0||v===null||v===undefined)) ? '—' : v;
+
+  // Recalculate pct values cleanly
+  const pctEnrolMv = enrol1stFriM>0 ? ((regM/enrol1stFriM)*100) : null;
+  const pctEnrolFv = enrol1stFriF>0 ? ((regF/enrol1stFriF)*100) : null;
+  const pctEnrolTv = enrol1stFriT>0 ? ((regT/enrol1stFriT)*100) : null;
+
+  const adaMv = daysOfClass>0 ? (totalPresMale/daysOfClass) : null;
+  const adaFv = daysOfClass>0 ? (totalPresFemale/daysOfClass) : null;
+  const adaTv = daysOfClass>0 ? (totalPresTotal/daysOfClass) : null;
+
+  const pctAttMv = regM>0&&daysOfClass>0 ? ((totalPresMale/(regM*daysOfClass))*100) : null;
+  const pctAttFv = regF>0&&daysOfClass>0 ? ((totalPresFemale/(regF*daysOfClass))*100) : null;
+  const pctAttTv = regT>0&&daysOfClass>0 ? ((totalPresTotal/(regT*daysOfClass))*100) : null;
 
   document.getElementById('sf2-output').innerHTML=`
   <div class="deped-page" style="font-family:Arial,sans-serif;font-size:10px;min-width:900px">
@@ -4002,73 +4024,74 @@ function renderSF2(){
     <div style="margin-top:16px">
       <div style="font-weight:bold;font-size:10px;background:#b7ddb7;padding:3px 6px;border:1px solid #999;margin-bottom:0">SF2 SUMMARY</div>
       <table style="width:100%;border-collapse:collapse;font-size:9px">
+        <colgroup>
+          <col style="width:55%">
+          <col style="width:11%">
+          <col style="width:11%">
+          <col style="width:11%">
+          <col style="width:12%">
+        </colgroup>
         <thead>
           <tr>
-            <th style="border:1px solid #999;padding:4px 8px;text-align:left;font-size:9px;background:#d4edda;width:55%">Month: <strong>${mNames[mo]} ${yr}</strong></th>
-            <th style="border:1px solid #999;padding:4px 6px;text-align:center;font-size:9px;background:#d4edda;width:10%">No. of Days of Classes: <strong>${daysOfClass}</strong></th>
-            ${sh('Summary','')}
-            <th colspan="3" style="border:1px solid #999;padding:0;background:#d4edda">
-              <table style="width:100%;border-collapse:collapse">
-                <tr>${sh('M')}${sh('F')}${sh('TOTAL')}</tr>
-              </table>
-            </th>
+            <th style="border:1px solid #999;padding:4px 8px;text-align:left;font-size:9px;background:#d4edda;">Month: <strong>${mNames[mo]} ${yr}</strong></th>
+            <th style="border:1px solid #999;padding:4px 6px;text-align:center;font-size:9px;background:#d4edda;" colspan="4">Summary for the Month</th>
+          </tr>
+          <tr>
+            <th style="border:1px solid #999;padding:3px 8px;text-align:left;font-size:9px;background:#d4edda;">No. of Days of Classes: <strong>${daysOfClass}</strong></th>
+            ${sh('M')}${sh('F')}${sh('TOTAL')}
+            <th style="border:1px solid #999;padding:3px 6px;text-align:center;font-size:9px;background:#d4edda;">Remarks</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             ${sl('* Enrolment as of (1st Friday of the SY)')}
-            <td style="border:1px solid #999;background:#eee"></td>
             ${sc(enrol1stFriM,true)}${sc(enrol1stFriF,true)}${sc(enrol1stFriT,true)}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
-            ${sl('<em>Late enrolment <strong>during the month</strong></em>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(lateEnrolM)}${sc(lateEnrolF)}${sc(lateEnrolM+lateEnrolF)}
+            ${sl('<em>Late enrolment <strong>during the month</strong><br>(beyond cut-off)</em>',true)}
+            ${sc(num(lateEnrolM))}${sc(num(lateEnrolF))}${sc(num(lateEnrolM+lateEnrolF))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
-            ${sl('<em>(beyond cut-off)</em>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            <td style="border:1px solid #999;background:#f9f9f9"></td><td style="border:1px solid #999;background:#f9f9f9"></td><td style="border:1px solid #999;background:#f9f9f9"></td>
-          </tr>
-          <tr>
-            ${sl('<em>Registered Learners as of</em><br><strong><em>end of month</em></strong>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
+            ${sl('<em>Registered Learners as of <strong>end of month</strong></em>',true)}
             ${sc(regM,true)}${sc(regF,true)}${sc(regT,true)}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
-            ${sl('<em>Percentage of Enrolment as of</em><br><strong><em>end of month</em></strong>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(pctEnrolM+'%')}${sc(pctEnrolF+'%')}${sc(pctEnrolT+'%')}
+            ${sl('<em>Percentage of Enrolment as of <strong>end of month</strong></em>',true)}
+            ${sc(pct(pctEnrolMv))}${sc(pct(pctEnrolFv))}${sc(pct(pctEnrolTv))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
             ${sl('<em>Average Daily Attendance</em>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(adaM,true)}${sc(adaF,true)}${sc(adaT,true)}
+            ${sc(adaMv!==null?adaMv.toFixed(2):'—',true)}${sc(adaFv!==null?adaFv.toFixed(2):'—',true)}${sc(adaTv!==null?adaTv.toFixed(2):'—',true)}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
             ${sl('<em>Percentage of Attendance for the month</em>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(pctAttM+'%',true)}${sc(pctAttF+'%',true)}${sc(pctAttT+'%',true)}
+            ${sc(pct(pctAttMv),true)}${sc(pct(pctAttFv),true)}${sc(pct(pctAttTv),true)}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
             ${sl('<em>Number of students absent for 5 consecutive days</em>',true)}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(abs5M)}${sc(abs5F)}${sc(abs5T)}
+            ${sc(num(abs5M))}${sc(num(abs5F))}${sc(num(abs5T))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
-            ${sl('<strong>NLS</strong> <span style="font-style:italic;font-weight:normal">(No Longer in School / Dropped)</span>')}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(nlsM)}${sc(nlsF)}${sc(nlsT)}
+            ${sl('<strong>NLS</strong> <em>(No Longer in School / Dropped)</em>')}
+            ${sc(num(nlsM))}${sc(num(nlsF))}${sc(num(nlsT))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
             ${sl('<strong>Transferred out</strong>')}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(transOutM)}${sc(transOutF)}${sc(transOutT)}
+            ${sc(num(transOutM))}${sc(num(transOutF))}${sc(num(transOutT))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
           <tr>
             ${sl('<strong>Transferred in</strong>')}
-            <td style="border:1px solid #999;background:#eee"></td>
-            ${sc(transInM)}${sc(transInF)}${sc(transInT)}
+            ${sc(num(transInM))}${sc(num(transInF))}${sc(num(transInT))}
+            <td style="border:1px solid #999;background:#f9f9f9"></td>
           </tr>
         </tbody>
       </table>
@@ -4076,51 +4099,56 @@ function renderSF2(){
 
     <!-- ── OFFICIAL FORMULAS SECTION ── -->
     <div style="margin-top:12px;border:1px solid #999">
-      <div style="font-weight:bold;font-size:9px;background:#d4edda;padding:3px 6px;border-bottom:1px solid #999">FORMULAS</div>
-      <table style="width:100%;border-collapse:collapse;font-size:9px">
-        <tr>
-          <td style="border:1px solid #999;padding:5px 8px;width:30%;vertical-align:middle">
-            <strong>a. Percentage of Enrolment =</strong>
-          </td>
-          <td style="border:1px solid #999;padding:0;width:55%">
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="text-align:center;padding:3px 8px;border-bottom:1px solid #999;font-size:9px">Registered Learners as of end of the month</td></tr>
-              <tr><td style="text-align:center;padding:3px 8px;font-size:9px">Enrolment as of 1st Friday of the school year</td></tr>
-            </table>
-          </td>
-          <td style="border:1px solid #999;padding:5px 8px;text-align:center;width:15%;vertical-align:middle">
-            × 100<br><strong style="color:#14532d;font-size:10px">${pctEnrolT}%</strong>
-          </td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #999;padding:5px 8px;vertical-align:middle">
-            <strong>b. Average Daily Attendance =</strong>
-          </td>
-          <td style="border:1px solid #999;padding:0">
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="text-align:center;padding:3px 8px;border-bottom:1px solid #999;font-size:9px">Total Daily Attendance <span style="color:#14532d;font-weight:bold">(${totalPresTotal})</span></td></tr>
-              <tr><td style="text-align:center;padding:3px 8px;font-size:9px">Number of School Days in reporting month <span style="color:#14532d;font-weight:bold">(${daysOfClass})</span></td></tr>
-            </table>
-          </td>
-          <td style="border:1px solid #999;padding:5px 8px;text-align:center;vertical-align:middle">
-            <strong style="color:#14532d;font-size:10px">${adaT}</strong>
-          </td>
-        </tr>
-        <tr>
-          <td style="border:1px solid #999;padding:5px 8px;vertical-align:middle">
-            <strong>c. Percentage of Attendance for the month =</strong>
-          </td>
-          <td style="border:1px solid #999;padding:0">
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="text-align:center;padding:3px 8px;border-bottom:1px solid #999;font-size:9px">Average daily attendance <span style="color:#14532d;font-weight:bold">(${adaT})</span></td></tr>
-              <tr><td style="text-align:center;padding:3px 8px;font-size:9px">Registered Learners as of end of the month <span style="color:#14532d;font-weight:bold">(${regT})</span></td></tr>
-            </table>
-          </td>
-          <td style="border:1px solid #999;padding:5px 8px;text-align:center;vertical-align:middle">
-            × 100<br><strong style="color:#14532d;font-size:10px">${pctAttT}%</strong>
-          </td>
-        </tr>
-      </table>
+      <div style="font-weight:bold;font-size:9px;background:#d4edda;padding:3px 6px;border-bottom:1px solid #999">GUIDELINES:</div>
+      <div style="padding:6px 8px;font-size:8.5px;line-height:1.7">
+        <div>1. The attendance shall be accomplished daily. Refer to the codes for checking learners' attendance.</div>
+        <div>2. Dates shall be written in the preceding columns beside Learner's Name.</div>
+        <div style="margin-top:4px;">3. To compute the following:</div>
+        <table style="width:100%;border-collapse:collapse;font-size:8.5px;margin-top:4px">
+          <tr>
+            <td style="padding:4px 8px;width:32%;vertical-align:middle">
+              <strong>a. Percentage of Enrolment =</strong>
+            </td>
+            <td style="padding:0;width:50%;vertical-align:middle">
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="text-align:center;padding:2px 8px;border-bottom:1px solid #333;font-size:8.5px">Registered Learner as of End of the Month <strong style="color:#14532d">(${regT})</strong></td></tr>
+                <tr><td style="text-align:center;padding:2px 8px;font-size:8.5px">Enrolment as of 1st Friday of June <strong style="color:#14532d">(${enrol1stFriT})</strong></td></tr>
+              </table>
+            </td>
+            <td style="padding:4px 8px;text-align:center;width:18%;vertical-align:middle">
+              × 100 = <strong style="color:#14532d">${pct(pctEnrolTv)}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;vertical-align:middle">
+              <strong>b. Average Daily Attendance =</strong>
+            </td>
+            <td style="padding:0;vertical-align:middle">
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="text-align:center;padding:2px 8px;border-bottom:1px solid #333;font-size:8.5px">Total Daily Attendance <strong style="color:#14532d">(${totalPresTotal})</strong></td></tr>
+                <tr><td style="text-align:center;padding:2px 8px;font-size:8.5px">Number of School Days in reporting month <strong style="color:#14532d">(${daysOfClass})</strong></td></tr>
+              </table>
+            </td>
+            <td style="padding:4px 8px;text-align:center;vertical-align:middle">
+              = <strong style="color:#14532d">${adaTv!==null?adaTv.toFixed(2):'—'}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;vertical-align:middle">
+              <strong>c. Percentage of Attendance for the month =</strong>
+            </td>
+            <td style="padding:0;vertical-align:middle">
+              <table style="width:100%;border-collapse:collapse">
+                <tr><td style="text-align:center;padding:2px 8px;border-bottom:1px solid #333;font-size:8.5px">Average daily attendance <strong style="color:#14532d">(${adaTv!==null?adaTv.toFixed(2):'—'})</strong></td></tr>
+                <tr><td style="text-align:center;padding:2px 8px;font-size:8.5px">Registered Learners as of end of the month <strong style="color:#14532d">(${regT})</strong></td></tr>
+              </table>
+            </td>
+            <td style="padding:4px 8px;text-align:center;vertical-align:middle">
+              × 100 = <strong style="color:#14532d">${pct(pctAttTv)}</strong>
+            </td>
+          </tr>
+        </table>
+      </div>
     </div>
 
     <!-- ── CERTIFICATION ── -->
