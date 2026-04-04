@@ -5624,29 +5624,56 @@ function initAttendance(){
   const role=CU?.role;
 
   if(role==='adviser'||role==='adviser-teacher'){
-    // Adviser — auto-locked to their ADVISORY section (linked to SF2)
-    // FIX: use advisory_section key directly — never do a student lookup
-    // Student lookup fails if students haven't loaded or section name mismatches
-    const advSect = getAdvisorySection(); // e.g. "G8-PEACEFUL"
-    const wrap = document.getElementById('att-section-wrap');
-    if(advSect && wrap){
-      // advSect is already in G8-PEACEFUL format — use directly
-      const sectionKey = advSect.toUpperCase().startsWith('G')
-        ? advSect.toUpperCase()
-        : 'G?-'+advSect.toUpperCase(); // fallback if no grade prefix
-      const label = sectionKey.replace(/G(\d+)-/,'Grade $1 – ');
-      wrap.innerHTML=`<label class="form-label">Advisory Section <span style="font-size:10px;color:var(--gray-400)">(linked to SF2)</span></label>
-        <div style="padding:6px 10px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:600;color:var(--navy)">${label}</div>
-        <input type="hidden" id="att-section" value="${sectionKey}">`;
-    } else if(wrap){
-      // No advisory section in account — show clear error
+    const advSect  = getAdvisorySection(); // e.g. "G10-THOUGHTFUL"
+    const pairs     = CU?.subject_sections || [];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))]; // teaching sections from pairs
+    const allSects  = getSectionsFromStudents();
+    const wrap      = document.getElementById('att-section-wrap');
+
+    if(!wrap) { updateSuspendBtnState(); loadAttendance(); return; }
+
+    if(!advSect && !pairSects.length){
       wrap.innerHTML=`<label class="form-label">Section</label>
         <div style="padding:6px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#991b1b">
           ⚠️ No advisory section set on your account.<br>
           <span style="font-size:11px">Ask your admin to edit your account and set the Advisory Section field.</span>
         </div>
         <input type="hidden" id="att-section" value="">`;
+      updateSuspendBtnState(); loadAttendance(); return;
     }
+
+    // Build option list: advisory first (if set), then teaching sections
+    const advKey = advSect
+      ? (advSect.toUpperCase().startsWith('G') ? advSect.toUpperCase() : 'G?-'+advSect.toUpperCase())
+      : '';
+    const advLabel = advKey ? advKey.replace(/G(\d+)-/,'Grade $1 – ') : '';
+
+    // Teaching sections (exclude advisory if it appears in pairs too)
+    const teachSects = allSects.filter(s =>
+      pairSects.some(ps => ps.toUpperCase() === s.toUpperCase()) &&
+      s.toUpperCase() !== advKey
+    );
+
+    let opts = '';
+    if(advKey){
+      opts += `<option value="${advKey}">⭐ ${advLabel} (Advisory — linked to SF2)</option>`;
+    }
+    teachSects.forEach(s=>{
+      const subj = pairs.find(p=>p.sect.toUpperCase()===s.toUpperCase())?.subj||'';
+      opts += `<option value="${s}">📚 ${s.replace(/G(\d+)-/,'Grade $1 – ')}${subj?' · '+subj:''} (Teaching only)</option>`;
+    });
+
+    // Hint line that updates based on selection
+    wrap.innerHTML=`
+      <label class="form-label">Section</label>
+      <select class="form-select" id="att-section" onchange="updateAdviserAttHint();loadAttendance()">
+        ${opts}
+      </select>
+      <div id="att-adviser-hint" style="font-size:11px;margin-top:4px;color:var(--gray-400)"></div>`;
+
+    // Set initial hint
+    updateAdviserAttHint();
+
   } else if(role==='teacher'){
     // v12: sections come from subject_sections pairs; fall back to legacy sections array
     const pairs = CU?.subject_sections || [];
@@ -5686,6 +5713,31 @@ function initAttendance(){
   loadAttendance();
 }
 
+function updateAdviserAttHint(){
+  const sel   = document.getElementById('att-section');
+  const hint  = document.getElementById('att-adviser-hint');
+  const suspBtn = document.getElementById('att-suspend-btn');
+  if(!sel||!hint) return;
+  const val = sel.value;
+  const advKey = getAdvisorySection()?.toUpperCase().startsWith('G')
+    ? getAdvisorySection().toUpperCase() : '';
+  const isAdvisory = val && val.toUpperCase() === advKey;
+  if(isAdvisory){
+    hint.innerHTML='⭐ <strong>Advisory section</strong> — attendance is linked to SF2 and used for the class register.';
+    hint.style.color='var(--green)';
+    if(suspBtn) suspBtn.style.display='inline-flex'; // No Class button shown for advisory
+  } else if(val){
+    hint.innerHTML='📚 <strong>Teaching section</strong> — attendance is for your own records only. <em>Not linked to SF2.</em>';
+    hint.style.color='var(--blue)';
+    if(suspBtn) suspBtn.style.display='none'; // No Class button hidden for teaching sections
+  } else {
+    hint.textContent='';
+    if(suspBtn) suspBtn.style.display='none';
+  }
+  updateSuspendBtnState();
+}
+
+
 function switchSession(session,el){
   currentSession=session;
   document.querySelectorAll('.att-session-tab').forEach(t=>t.classList.remove('active'));
@@ -5711,16 +5763,25 @@ function setAttSectionForTab(selectId, wrapId, cb){
   if(!wrap) return;
   const role=CU?.role;
   if(role==='adviser'||role==='adviser-teacher'){
-    // Adviser: locked to ADVISORY section
-    const advSect=getAdvisorySection();
-    let match=advSect
-      ? studentsCache.find(s=>sectionsMatch(s.section,advSect,s.grade))
-      : studentsCache.find(s=>(CU?.sections||[]).some(a=>sectionsMatch(s.section,a,s.grade)));
-    if(!match) return;
-    const sectionKey=`G${match.grade}-${match.section.toUpperCase()}`;
-    wrap.innerHTML=`<label class="form-label">Section <span style="font-size:10px;color:var(--gray-400)">(linked to SF2)</span></label>
-      <div style="padding:6px 10px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-weight:600;color:var(--navy)">${sectionKey.replace(/G(\d+)-/,'Grade $1 – ')}</div>
-      <input type="hidden" id="${selectId}" value="${sectionKey}">`;
+    const advSect   = getAdvisorySection();
+    const advKey    = advSect?.toUpperCase().startsWith('G') ? advSect.toUpperCase() : '';
+    const pairs     = CU?.subject_sections||[];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))];
+    const allSects  = getSectionsFromStudents();
+    const teachSects= allSects.filter(s=>pairSects.some(ps=>ps.toUpperCase()===s.toUpperCase())&&s.toUpperCase()!==advKey);
+    const curVal    = document.getElementById(selectId)?.value||advKey;
+
+    let opts='';
+    if(advKey) opts+=`<option value="${advKey}" ${curVal===advKey?'selected':''}>⭐ ${advKey.replace(/G(\d+)-/,'Grade $1 – ')} (Advisory)</option>`;
+    teachSects.forEach(s=>{
+      const subj=pairs.find(p=>p.sect.toUpperCase()===s.toUpperCase())?.subj||'';
+      opts+=`<option value="${s}" ${curVal===s?'selected':''}>📚 ${s.replace(/G(\d+)-/,'Grade $1 – ')}${subj?' · '+subj:''}</option>`;
+    });
+
+    wrap.innerHTML=`<label class="form-label">Section</label>
+      <select class="form-select" id="${selectId}" onchange="${cb.name||'renderCalendar'}()" style="max-width:320px">
+        ${opts}
+      </select>`;
   } else if(role==='teacher'){
     // v12: sections from subject_sections pairs; legacy fallback to sections array
     const pairs = CU?.subject_sections || [];
