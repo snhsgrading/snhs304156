@@ -4278,9 +4278,15 @@ async function buildReport(){
     }catch(e){ console.warn('fetchAllGrades error:',e); }
   }
 
-    const grade = list[0]?.grade||'10';
+  // Derive grade from section key first (reliable), then fall back to first student
+  const gradeFromSect = sect && sect !== 'All Sections'
+    ? (sect.match(/G(\d+)-/)?.[1] || '')
+    : '';
+  const grade = gradeFromSect || list[0]?.grade || '10';
   const subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
-  const advSectLabel = sect==='All Sections' ? 'All Sections' : 'Grade '+grade+' – '+sect.replace(/^G\d+-/,'');
+  const advSectLabel = sect==='All Sections'
+    ? 'All Sections'
+    : 'Grade '+grade+' – '+sect.replace(/^G\d+-/,'');
 
   // ── Report header controls ────────────────────────────────────────
   const rt = document.getElementById('report-title');
