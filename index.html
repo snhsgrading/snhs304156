@@ -695,10 +695,12 @@
         <div class="form-group">
           <label class="form-label">Grade Level *</label>
           <select class="form-select" id="subj-grade">
-            <option value="7">Grade 7</option>
-            <option value="8">Grade 8</option>
-            <option value="9">Grade 9</option>
-            <option value="10" selected>Grade 10</option>
+            <option value="7">Grade 7 (JHS)</option>
+            <option value="8">Grade 8 (JHS)</option>
+            <option value="9">Grade 9 (JHS)</option>
+            <option value="10" selected>Grade 10 (JHS)</option>
+            <option value="11">Grade 11 (SHS)</option>
+            <option value="12">Grade 12 (SHS)</option>
           </select>
         </div>
         <div class="form-group">
@@ -710,10 +712,10 @@
           <input type="number" class="form-input" id="subj-order" value="1" min="1"/>
         </div>
         <div class="form-group form-col-2">
-          <label class="form-label">Apply to all JHS grades (7–10)?</label>
+          <label class="form-label">Apply to all grades (7–12)?</label>
           <label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer">
             <input type="checkbox" id="subj-all-grades" style="width:16px;height:16px"/>
-            <span style="font-size:13px">Yes — add this subject to Grades 7, 8, 9, and 10</span>
+            <span style="font-size:13px">Yes — add this subject to Grades 7, 8, 9, 10, 11, and 12</span>
           </label>
         </div>
       </div>
@@ -993,11 +995,19 @@
         <div id="grade-table-wrap" class="card hidden">
           <div class="card-header">
             <div><div class="card-title" id="enc-card-title">Grades</div><div class="card-sub" id="enc-status">0 encoded</div></div>
-            <div class="quarter-selector">
+            <!-- JHS quarter buttons (Q1-Q4) -->
+            <div class="quarter-selector" id="jhs-qtr-btns">
               <button class="qtr-btn active" onclick="selectQtr(1,this)">Q1</button>
               <button class="qtr-btn" onclick="selectQtr(2,this)">Q2</button>
               <button class="qtr-btn" onclick="selectQtr(3,this)">Q3</button>
               <button class="qtr-btn" onclick="selectQtr(4,this)">Q4</button>
+            </div>
+            <!-- SHS semester/term buttons (shown for G11/G12) -->
+            <div class="quarter-selector hidden" id="shs-qtr-btns">
+              <button class="qtr-btn active" onclick="selectSHSTerm('S1MT',this)" title="Semester 1 Midterm">S1 Midterm</button>
+              <button class="qtr-btn" onclick="selectSHSTerm('S1FT',this)" title="Semester 1 Final Term">S1 Final</button>
+              <button class="qtr-btn" onclick="selectSHSTerm('S2MT',this)" title="Semester 2 Midterm">S2 Midterm</button>
+              <button class="qtr-btn" onclick="selectSHSTerm('S2FT',this)" title="Semester 2 Final Term">S2 Final</button>
             </div>
           </div>
           <div class="table-wrap"><table>
@@ -1569,6 +1579,8 @@
             <button class="tab" onclick="filterSubjectGrade('8',this)">Grade 8</button>
             <button class="tab" onclick="filterSubjectGrade('9',this)">Grade 9</button>
             <button class="tab" onclick="filterSubjectGrade('10',this)">Grade 10</button>
+            <button class="tab" onclick="filterSubjectGrade('11',this)" style="color:var(--gold);font-weight:600">G11 SHS</button>
+            <button class="tab" onclick="filterSubjectGrade('12',this)" style="color:var(--gold);font-weight:600">G12 SHS</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -1889,8 +1901,33 @@ function getEncodedGrade(studentIndex, subjIdx, sectionKey, gradeLevel, quarter)
 // Returns array of {q1,q2,q3,q4,final} per subject index 0-9
 // idx 7 (MAPEH) = auto-computed average of idx 8 (Music & Arts) and idx 9 (PE & Health)
 function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel){
+  const isSHS = gradeLevel==='11'||gradeLevel==='12';
   const result = {};
-  // Compute indices 0-6 and 8-9 directly from encoded data
+
+  if(isSHS){
+    // SHS: get grades for each subject from S1MT, S1FT, S2MT, S2FT keys
+    const subjects = getSubjectsForGrade(gradeLevel);
+    subjects.filter(s=>!s.subitem).forEach((subj,i)=>{
+      const terms = {};
+      ['S1MT','S1FT','S2MT','S2FT'].forEach(term=>{
+        const key = subj.id+'_'+sectionKey+'_'+term;
+        const rec = gradeCache[key]||lsGet('gr_'+key)||{};
+        const v = rec[studentIndex];
+        terms[term] = v ? parseFloat(v) : null;
+      });
+      // Sem 1 Final = avg(S1MT, S1FT); Sem 2 Final = avg(S2MT, S2FT); Overall = avg of both sems
+      const s1v = [terms.S1MT, terms.S1FT].filter(v=>v!==null);
+      const s2v = [terms.S2MT, terms.S2FT].filter(v=>v!==null);
+      const sem1Final = s1v.length>0 ? Math.round(s1v.reduce((a,b)=>a+b,0)/s1v.length) : null;
+      const sem2Final = s2v.length>0 ? Math.round(s2v.reduce((a,b)=>a+b,0)/s2v.length) : null;
+      const allVals = [sem1Final,sem2Final].filter(v=>v!==null);
+      const finalGrade = allVals.length>0 ? Math.round(allVals.reduce((a,b)=>a+b,0)/allVals.length) : null;
+      result[i] = { ...terms, sem1Final, sem2Final, final: finalGrade, hasData: allVals.length>0, isSHS:true };
+    });
+    return result;
+  }
+
+  // JHS: Q1-Q4
   for(let idx=0; idx<=9; idx++){
     if(idx===7) continue; // MAPEH computed below
     const quarters = {};
@@ -1905,28 +1942,21 @@ function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel){
     quarters.hasData = filled > 0;
     result[idx] = quarters;
   }
-  // Compute MAPEH (idx 7) = average of Music & Arts (idx 8) + PE & Health (idx 9)
-  // Falls back to directly-encoded MAPEH grade for backward compatibility
+  // MAPEH (idx 7) = average of Music & Arts (idx 8) + PE & Health (idx 9)
   const maData  = result[8] || {};
   const pehData = result[9] || {};
   const mapehQ  = {};
   for(let q=1; q<=4; q++){
     const ma  = maData['q'+q];
     const peh = pehData['q'+q];
-    if(ma!=null && peh!=null){
-      mapehQ['q'+q] = Math.round((ma+peh)/2);
-    } else if(ma!=null){
-      mapehQ['q'+q] = ma;
-    } else if(peh!=null){
-      mapehQ['q'+q] = peh;
-    } else {
-      // Backward compat: fall back to old single MAPEH encoded grade
-      mapehQ['q'+q] = getEncodedGrade(studentIndex, 7, sectionKey, gradeLevel, q);
-    }
+    if(ma!=null && peh!=null)      mapehQ['q'+q] = Math.round((ma+peh)/2);
+    else if(ma!=null)              mapehQ['q'+q] = ma;
+    else if(peh!=null)             mapehQ['q'+q] = peh;
+    else mapehQ['q'+q] = getEncodedGrade(studentIndex, 7, sectionKey, gradeLevel, q);
   }
   const mVals = [1,2,3,4].map(q=>mapehQ['q'+q]).filter(v=>v!==null);
-  mapehQ.final    = mVals.length>0 ? Math.round(mVals.reduce((a,b)=>a+b,0)/mVals.length) : null;
-  mapehQ.hasData  = mVals.length>0;
+  mapehQ.final   = mVals.length>0 ? Math.round(mVals.reduce((a,b)=>a+b,0)/mVals.length) : null;
+  mapehQ.hasData = mVals.length>0;
   result[7] = mapehQ;
   return result;
 }
@@ -2947,7 +2977,7 @@ function saveSubject(){
   const order=parseInt(document.getElementById('subj-order').value)||99;
   const allGrades=document.getElementById('subj-all-grades').checked;
   if(!name){toast('Subject name is required',true);return}
-  const gradesToApply=allGrades?['7','8','9','10']:[grade];
+  const gradesToApply=allGrades?['7','8','9','10','11','12']:[grade];
   gradesToApply.forEach(g=>{
     if(!subjectsCache[g])subjectsCache[g]=[];
     if(editingSubjectId&&editingSubjectId.grade===g){
@@ -2991,14 +3021,18 @@ function updateSubjectDropdown(){
   const pairsForSection = pairs.filter(p=>p.sect===sect || p.sect.toUpperCase()===sect.toUpperCase());
 
   if(isSHS){
-    let coreSubjs=SSHS_CORE_SUBJECTS_G11;
+    // SHS: use subjectsCache for G11/G12 just like JHS — admin adds subjects via Subject Manager
+    let shsSubjects = getSubjectsForGrade(grade);
     if(pairsForSection.length){
       const allowed=pairsForSection.map(p=>p.subj.toLowerCase());
-      const filtered=coreSubjs.filter(s=>allowed.some(a=>s.toLowerCase().includes(a)||s.toLowerCase()===a));
-      if(filtered.length) coreSubjs=filtered;
+      const filtered=shsSubjects.filter(s=>allowed.some(a=>s.name.toLowerCase().includes(a)||s.name.toLowerCase()===a));
+      if(filtered.length) shsSubjects=filtered;
     }
-    const coreOpts=coreSubjs.map(s=>`<option value="SSHS_CORE_${SSHS_CORE_SUBJECTS_G11.indexOf(s)}">${s} (Core)</option>`).join('');
-    subjEl.innerHTML='<option value="">Select subject...</option>'+coreOpts;
+    if(!shsSubjects.length){
+      subjEl.innerHTML='<option value="">No SHS subjects set — add via Subject Manager (Grade '+grade+')</option>';
+    } else {
+      subjEl.innerHTML='<option value="">Select subject...</option>'+shsSubjects.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    }
     return;
   }
 
@@ -3051,16 +3085,97 @@ function loadGradeTable(){
   document.getElementById('enc-placeholder').classList.add('hidden');
   document.getElementById('grade-table-wrap').classList.remove('hidden');
   const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
+  const isSHS = grade==='11'||grade==='12';
+
+  // Switch quarter/term buttons based on JHS vs SHS
+  const jhsBtns = document.getElementById('jhs-qtr-btns');
+  const shsBtns = document.getElementById('shs-qtr-btns');
+  if(jhsBtns) jhsBtns.classList.toggle('hidden', isSHS);
+  if(shsBtns) shsBtns.classList.toggle('hidden', !isSHS);
+
+  // Reset CQ to 1 / SHS term to S1MT when switching section types
+  if(isSHS){
+    if(!currentSHSTerm) currentSHSTerm='S1MT';
+    const termLabels={'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final'};
+    document.getElementById('enc-qtr-num').textContent=termLabels[currentSHSTerm]||currentSHSTerm;
+  } else {
+    const thead=document.querySelector('#grade-table-wrap thead tr');
+    if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th><th>Q<span id="enc-qtr-num">${CQ}</span> Grade</th><th>Remarks</th>`;
+  }
+
   const subjects=getSubjectsForGrade(grade);
-  const subjObj=subjects.find(s=>s.id===subj);
+  const subjObj=subjects.find(s=>s.id===subj)||{name:subj};
   const isMapeh = subj.replace(/_\d+$/,'') === 'mapeh';
   const subjLabel = isMapeh ? 'MAPEH (Music & Arts + PE & Health)' : (subjObj?subjObj.name:subj);
-  document.getElementById('enc-card-title').textContent=sect.replace(/G(\d+)-/,'G$1 – ')+' | '+subjLabel+' | Q'+CQ;
-  document.getElementById('enc-qtr-num').textContent=CQ;
-  // Reset thead to normal columns (MAPEH table overrides it)
-  const thead=document.querySelector('#grade-table-wrap thead tr');
-  if(thead&&!isMapeh) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th><th>Q<span id="enc-qtr-num">${CQ}</span> Grade</th><th>Remarks</th>`;
-  buildGradeTable(subj,sect);
+  const termLabel = isSHS ? ` | ${{'S1MT':'S1 Midterm','S1FT':'S1 Final','S2MT':'S2 Midterm','S2FT':'S2 Final'}[currentSHSTerm]||''}` : ` | Q${CQ}`;
+  document.getElementById('enc-card-title').textContent=sect.replace(/G(\d+)-/,'G$1 – ')+' | '+subjLabel+termLabel;
+  if(!isSHS) document.getElementById('enc-qtr-num').textContent=CQ;
+
+  if(isSHS){
+    buildSHSGradeTable(subj,sect);
+  } else if(isMapeh){
+    buildMAPEHTable(subj,sect);
+  } else {
+    buildGradeTable(subj,sect);
+  }
+}
+
+// SHS term selector
+let currentSHSTerm = 'S1MT'; // S1MT, S1FT, S2MT, S2FT
+function selectSHSTerm(term, el){
+  currentSHSTerm = term;
+  document.querySelectorAll('#shs-qtr-btns .qtr-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  loadGradeTable();
+}
+
+// SHS Grade Table — Midterm + Final Term per semester
+function buildSHSGradeTable(subj, sect){
+  const termKey = subj+'_'+sect+'_'+currentSHSTerm;
+  const rec = gradeCache[termKey]||lsGet('gr_'+termKey)||{};
+  const students = studentsCache
+    .filter(s=>{ const sn=sect.replace(/^G\d+-/,''); return s.section.toUpperCase()===sn.toUpperCase() && `G${s.grade}-${s.section.toUpperCase()}`===sect; })
+    .sort((a,b)=>a.name.localeCompare(b.name));
+
+  const thead = document.querySelector('#grade-table-wrap thead tr');
+  const termLabels={'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final Term','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final Term'};
+  if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th><th>${termLabels[currentSHSTerm]||currentSHSTerm} Grade</th><th>Remarks</th>`;
+
+  const tbody = document.getElementById('grade-tbody');
+  if(!students.length){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:1.5rem">No students in this section.</td></tr>'; updateEncStatus(); return; }
+
+  tbody.innerHTML = students.map((s,i)=>{
+    const v = rec[i]!==undefined ? rec[i] : '';
+    const passing = v!=='' && parseFloat(v)>=75;
+    const failing  = v!=='' && parseFloat(v)<75;
+    return `<tr>
+      <td>${i+1}</td>
+      <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
+      <td><strong>${s.name}</strong></td>
+      <td style="text-align:center">
+        <input type="number" class="grade-input${passing?' passing':failing?' failing':''}" min="60" max="100"
+          value="${v}" oninput="onGradeInput(this,${i},'${termKey}')"
+          style="width:70px;text-align:center"/>
+      </td>
+      <td id="rmk_${i}" style="text-align:center">
+        <span class="badge ${v===''?'badge-gray':passing?'badge-green':'badge-red'}">${v===''?'—':passing?'Passed':'Failed'}</span>
+      </td>
+    </tr>`;
+  }).join('');
+  updateEncStatus();
+}
+
+function onGradeInput(el, idx, termKey){
+  const v = el.value;
+  const vNum = parseFloat(v);
+  el.className = 'grade-input' + (v===''?'':(vNum>=75?' passing':' failing'));
+  const rmk = document.getElementById('rmk_'+idx);
+  if(rmk) rmk.innerHTML = `<span class="badge ${v===''?'badge-gray':vNum>=75?'badge-green':'badge-red'}">${v===''?'—':vNum>=75?'Passed':'Failed'}</span>`;
+  // Live-save to gradeCache for SHS terms
+  if(!gradeCache[termKey]) gradeCache[termKey]={};
+  if(v==='') delete gradeCache[termKey][idx];
+  else gradeCache[termKey][idx]=v;
+  updateEncStatus();
 }
 
 function buildGradeTable(subj,sect){
@@ -3318,7 +3433,11 @@ async function doSaveGrades(){
   }
 
   // ── Regular subject ───────────────────────────────────────────────
-  const key=subj+'_'+sect+'_Q'+CQ;
+  const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
+  const isSHS = grade==='11'||grade==='12';
+  const key = isSHS
+    ? subj+'_'+sect+'_'+currentSHSTerm
+    : subj+'_'+sect+'_Q'+CQ;
 
   // BUG-002 FIX: check for out-of-range grades before saving
   const invalidInputs=[];
@@ -3590,6 +3709,12 @@ async function renderSF9(){
   // FIX v11: always uppercase section so grade-cache key matches encoding key (encoding always saves uppercase)
   const sectionKey = 'G'+(s.grade||'10')+'-'+s.section.toUpperCase();
 
+  // ── SHS: show semester-based SF9 for Grade 11/12 ──────────────────
+  if(s.grade==='11'||s.grade==='12'){
+    renderSF9_SHS(s, sectionKey, adviserAcc);
+    return;
+  }
+
   // ── Attendance — from saved records, excluding suspended/holiday days ──
   const months=['jun','jul','aug','sep','oct','nov','dec','jan','feb','mar'];
   const mNums=['06','07','08','09','10','11','12','01','02','03'];
@@ -3694,7 +3819,133 @@ async function renderSF9(){
   showCoreValuesSaveBtn(isAdviser());
 }
 
-// ── SF2 WITH DepEd FORMULAS ──────────────────────────────────────
+// ── SF9 FOR SHS (Semester-based) ──────────────────────────────────
+function renderSF9_SHS(s, sectionKey, adviserAcc){
+  const np=s.name.split(',');
+  const lastName=(np[0]||'').trim();
+  const rp=(np[1]||'').trim().split(' ');
+  const firstName=rp[0]||'';
+  const middleName=rp.slice(1).join(' ')||'';
+  const adviserName = adviserAcc ? adviserAcc.name.toUpperCase() : '________________________';
+
+  // Get SHS subjects for this grade
+  const subjects = getSubjectsForGrade(s.grade).filter(sub=>!sub.subitem);
+
+  // Get student index in section
+  const sectionStudents = studentsCache
+    .filter(st=>sectionsMatch(st.section, sectionKey, st.grade))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  const studentIndex = sectionStudents.findIndex(st=>st.lrn===s.lrn);
+
+  // Get all semester/term grades
+  const TERMS = ['S1MT','S1FT','S2MT','S2FT'];
+  const TERM_LABELS = {'S1MT':'Midterm','S1FT':'Final Term','S2MT':'Midterm','S2FT':'Final Term'};
+
+  let gwaSum=0, gwaCnt=0;
+  const subjectRows = subjects.map(subj=>{
+    const termGrades = {};
+    TERMS.forEach(t=>{
+      const rec = gradeCache[subj.id+'_'+sectionKey+'_'+t]||lsGet('gr_'+subj.id+'_'+sectionKey+'_'+t)||{};
+      const v = rec[studentIndex];
+      termGrades[t] = v ? parseFloat(v) : null;
+    });
+    const s1v=[termGrades.S1MT,termGrades.S1FT].filter(v=>v!==null);
+    const s2v=[termGrades.S2MT,termGrades.S2FT].filter(v=>v!==null);
+    const sem1Final = s1v.length>0 ? Math.round(s1v.reduce((a,b)=>a+b)/s1v.length) : null;
+    const sem2Final = s2v.length>0 ? Math.round(s2v.reduce((a,b)=>a+b)/s2v.length) : null;
+    const allFinals = [sem1Final,sem2Final].filter(v=>v!==null);
+    const finalGrade = allFinals.length>0 ? Math.round(allFinals.reduce((a,b)=>a+b)/allFinals.length) : null;
+    if(finalGrade!==null){gwaSum+=finalGrade;gwaCnt++;}
+    const g=(v)=>v!==null?v:'<span class="grade-dash no-print-val">—</span>';
+    const rem=(v)=>v===null?'<span class="no-print-val">—</span>':v>=75?'Passed':'<span style="color:red">Failed</span>';
+    return `<tr>
+      <td style="border:1px solid #000;padding:3px 5px;font-size:9px">${subj.name}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${g(termGrades.S1MT)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${g(termGrades.S1FT)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;background:#f9f9f9">${g(sem1Final)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${g(termGrades.S2MT)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${g(termGrades.S2FT)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold;background:#f9f9f9">${g(sem2Final)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center;font-weight:bold">${g(finalGrade)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center;font-size:8px">${rem(finalGrade)}</td>
+    </tr>`;
+  }).join('');
+
+  const gwa = gwaCnt>0 ? (gwaSum/gwaCnt).toFixed(2) : '—';
+  const honors = gwaCnt>0 ? getHonors(parseFloat(gwa)) : '';
+
+  // Replace sf9-output with SHS-specific form
+  document.getElementById('sf9-output').innerHTML=`
+  <div class="deped-page" id="sf9-page1" style="font-family:'Arial Narrow',Arial,sans-serif;font-size:9px;">
+    <div style="font-size:8px;font-style:italic;margin-bottom:3px;">DEPED FORM 138-A (SHS Report Card)</div>
+    <div style="text-align:center;border-top:2px solid #14532d;border-bottom:2px solid #14532d;padding:3px 0;margin-bottom:6px;">
+      <div>Republic of the Philippines &nbsp;·&nbsp; Department of <em>Education</em></div>
+      <div>Region X – Northern Mindanao &nbsp;·&nbsp; Division of Iligan City</div>
+      <div style="font-size:13px;font-weight:bold;text-transform:uppercase;">Suarez National High School</div>
+      <div style="font-size:8px;">Zone Orchids, Suarez, Iligan City &nbsp;·&nbsp; School ID: 304156</div>
+      <div style="font-weight:bold;font-size:11px;margin-top:3px;">SENIOR HIGH SCHOOL REPORT CARD</div>
+      <div style="font-size:8px;font-style:italic;">S.Y. 2026–2027</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:9px;margin-bottom:6px;">
+      <tr>
+        <td style="width:50%;padding:2px 0"><strong>Name:</strong> ${lastName}, ${firstName} ${middleName}</td>
+        <td style="padding:2px 0"><strong>LRN:</strong> ${s.lrn}</td>
+      </tr>
+      <tr>
+        <td style="padding:2px 0"><strong>Grade Level:</strong> ${s.grade} &nbsp; <strong>Track:</strong> ${s.strand||'—'}</td>
+        <td style="padding:2px 0"><strong>Section:</strong> ${s.section} &nbsp; <strong>Sex:</strong> ${s.sex==='F'?'Female':'Male'}</td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;font-size:8.5px;">
+      <thead>
+        <tr>
+          <th rowspan="2" style="border:1px solid #000;padding:3px 5px;text-align:left;width:38%;background:#ddd">LEARNING AREAS</th>
+          <th colspan="3" style="border:1px solid #000;padding:2px;text-align:center;background:#ddd">Semester 1</th>
+          <th colspan="3" style="border:1px solid #000;padding:2px;text-align:center;background:#ddd">Semester 2</th>
+          <th rowspan="2" style="border:1px solid #000;padding:2px;text-align:center;background:#ddd;width:8%">Final Grade</th>
+          <th rowspan="2" style="border:1px solid #000;padding:2px;text-align:center;background:#ddd;width:9%">Remarks</th>
+        </tr>
+        <tr>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Midterm</th>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Final Term</th>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Sem Final</th>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Midterm</th>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Final Term</th>
+          <th style="border:1px solid #000;padding:2px;text-align:center;background:#eee;width:7%">Sem Final</th>
+        </tr>
+      </thead>
+      <tbody>${subjectRows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7" style="border:1px solid #000;padding:2px 5px;text-align:right;font-weight:bold;background:#eee;">General Average</td>
+          <td style="border:1px solid #000;padding:2px;text-align:center;font-weight:bold;">${gwa}</td>
+          <td style="border:1px solid #000;padding:2px;text-align:center;font-size:8px;font-style:italic;">${honors}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="margin-top:8px;font-size:9px;">
+      <div><strong>Track:</strong> ${s.strand||'—'} &nbsp;&nbsp; <strong>School Year:</strong> 2026–2027</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:9px;">
+      <div style="min-width:220px;">
+        <div style="font-weight:bold;">ROSEMARIE S. MACARANDAN, PhD</div>
+        <div style="font-size:8px;font-style:italic;">Principal III</div>
+      </div>
+      <div style="min-width:220px;text-align:right;">
+        <div style="font-weight:bold;border-bottom:1px solid #000;padding-bottom:1px;min-width:200px;display:inline-block;text-align:center;">${adviserName}</div>
+        <div style="font-size:8px;font-style:italic;text-align:center;">Class Adviser / Teacher</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:9px;">
+      <div style="font-weight:bold;margin-bottom:4px;">PARENT/GUARDIAN SIGNATURE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <div>Semester 1: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
+        <div>Semester 2: <span style="border-bottom:1px solid #000;display:inline-block;min-width:120px;">&nbsp;</span></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px;font-size:7.5px;font-style:italic;color:#555;">DepEd MATATAG</div>
+  </div>`;
+}
 function renderSF2(){
   const monthVal = document.getElementById('sf2-month')?.value||'2026-07';
   const [yr, mo] = monthVal.split('-').map(Number);
@@ -4338,11 +4589,20 @@ async function buildReport(){
     }
   }
 
+  const isSHSReport = grade==='11'||grade==='12';
   const thead = document.querySelector('#view-report thead tr');
-  const qtrLabel = qtr>0 ? `Q${qtr}` : 'GWA';
-  if(thead) thead.innerHTML = '<th>#</th><th>Student Name</th>' +
-    subjects.map(s=>`<th style="min-width:60px">${s.code||s.name.split(' ')[0]}</th>`).join('') +
-    `<th>${qtrLabel}</th><th>Honors</th>`;
+
+  if(isSHSReport){
+    // SHS: show Sem1 Final, Sem2 Final, GWA
+    if(thead) thead.innerHTML = '<th>#</th><th>Student Name</th>' +
+      subjects.map(s=>`<th style="min-width:55px;font-size:11px">${s.code||s.name.split(' ')[0]}</th>`).join('') +
+      `<th style="background:#fef9c3">GWA</th><th>Honors</th>`;
+  } else {
+    const qtrLabel = qtr>0 ? `Q${qtr}` : 'GWA';
+    if(thead) thead.innerHTML = '<th>#</th><th>Student Name</th>' +
+      subjects.map(s=>`<th style="min-width:60px">${s.code||s.name.split(' ')[0]}</th>`).join('') +
+      `<th>${qtrLabel}</th><th>Honors</th>`;
+  }
 
   if(!list || !list.length){
     document.getElementById('report-tbody').innerHTML =
@@ -4359,27 +4619,48 @@ async function buildReport(){
       .sort((a,b)=>a.name.localeCompare(b.name));
     const studentIdx = sectionMates.findIndex(st=>st.lrn===s.lrn);
 
-    const vals = subjects.map(subj=>{
-      const qtrs = qtr>0 ? [qtr] : [1,2,3,4];
-      const grades = [];
-      for(const q of qtrs){
-        const key1 = subj.id+'_'+sk+'_Q'+q;
-        const key2 = subj.id+'_'+grade+'_'+sk+'_Q'+q;
-        const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
-        const v = rec[studentIdx];
-        if(v!==undefined&&v!=='') grades.push(parseFloat(v));
-      }
-      return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
-    });
+    let vals, avg, passing;
 
-    const filled = vals.filter(v=>v!==null);
-    const avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
-    const passing = avg!=='—' && +avg>=75;
+    if(isSHSReport){
+      // SHS: get final grade per subject from S1MT/S1FT/S2MT/S2FT
+      vals = subjects.map(subj=>{
+        const terms = ['S1MT','S1FT','S2MT','S2FT'].map(t=>{
+          const rec = gradeCache[subj.id+'_'+sk+'_'+t]||lsGet('gr_'+subj.id+'_'+sk+'_'+t)||{};
+          const v = rec[studentIdx];
+          return v!==undefined&&v!=='' ? parseFloat(v) : null;
+        });
+        const s1 = [terms[0],terms[1]].filter(v=>v!==null);
+        const s2 = [terms[2],terms[3]].filter(v=>v!==null);
+        const sem1 = s1.length>0 ? Math.round(s1.reduce((a,b)=>a+b)/s1.length) : null;
+        const sem2 = s2.length>0 ? Math.round(s2.reduce((a,b)=>a+b)/s2.length) : null;
+        const all = [sem1,sem2].filter(v=>v!==null);
+        return all.length>0 ? Math.round(all.reduce((a,b)=>a+b)/all.length) : null;
+      });
+      const filled = vals.filter(v=>v!==null);
+      avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
+      passing = avg!=='—' && +avg>=75;
+    } else {
+      vals = subjects.map(subj=>{
+        const qtrs = qtr>0 ? [qtr] : [1,2,3,4];
+        const grades = [];
+        for(const q of qtrs){
+          const key1 = subj.id+'_'+sk+'_Q'+q;
+          const key2 = subj.id+'_'+grade+'_'+sk+'_Q'+q;
+          const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
+          const v = rec[studentIdx];
+          if(v!==undefined&&v!=='') grades.push(parseFloat(v));
+        }
+        return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
+      });
+      const filled = vals.filter(v=>v!==null);
+      avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
+      passing = avg!=='—' && +avg>=75;
+    }
 
     return`<tr>
       <td>${i+1}</td><td><strong>${s.name}</strong></td>
       ${vals.map(v=>`<td style="text-align:center">${v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
-      <td style="text-align:center"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
+      <td style="text-align:center;background:${isSHSReport?'#fefce8':''}"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
       <td>${avg!=='—'?honorsBadge(avg):''}</td>
     </tr>`;
   }).join('');
