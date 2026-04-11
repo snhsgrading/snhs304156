@@ -2919,7 +2919,12 @@ function loadSubjectsCache(){
 }
 
 function getSubjectsForGrade(grade){
-  return(subjectsCache[String(grade)]||DEFAULT_JHS_SUBJECTS.map(s=>({...s,grade:String(grade)}))).sort((a,b)=>a.order-b.order);
+  const g = String(grade);
+  const isSHS = g==='11'||g==='12';
+  // SHS: never fall back to JHS defaults — return only what admin has configured
+  if(isSHS) return (subjectsCache[g]||[]).sort((a,b)=>a.order-b.order);
+  // JHS: fall back to DEFAULT_JHS_SUBJECTS if nothing configured
+  return(subjectsCache[g]||DEFAULT_JHS_SUBJECTS.map(s=>({...s,grade:g}))).sort((a,b)=>a.order-b.order);
 }
 
 function saveSubjectsCache(){lsSet('jhs_subjects',subjectsCache);}
@@ -4534,7 +4539,6 @@ async function buildReport(){
     ? (sect.match(/G(\d+)-/)?.[1] || '')
     : '';
   const grade = gradeFromSect || list[0]?.grade || '10';
-  const subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
   const advSectLabel = sect==='All Sections'
     ? 'All Sections'
     : 'Grade '+grade+' – '+sect.replace(/^G\d+-/,'');
@@ -4543,16 +4547,22 @@ async function buildReport(){
   const rt = document.getElementById('report-title');
   if(rt) rt.textContent = 'Grade Summary — '+advSectLabel;
 
-  // Quarter filter — shown for all roles
+  // Quarter filter — JHS only; SHS uses semester terms (no dropdown needed)
   const qtrWrap = document.getElementById('report-qtr-filter-wrap');
-  if(qtrWrap && !qtrWrap.innerHTML.trim()){
-    qtrWrap.innerHTML = `<select class="form-select no-print" id="report-qtr-filter" onchange="buildReport()" style="width:160px;margin-right:8px">
-      <option value="0">All Quarters (GWA)</option>
-      <option value="1">Quarter 1</option>
-      <option value="2">Quarter 2</option>
-      <option value="3">Quarter 3</option>
-      <option value="4">Quarter 4</option>
-    </select>`;
+  if(qtrWrap){
+    if(isSHSReport){
+      // Hide quarter dropdown for SHS — semester info shown in column headers
+      qtrWrap.innerHTML = `<span class="no-print" style="font-size:11px;color:var(--gold);font-weight:600;padding:6px 10px;background:#fef9c3;border-radius:8px;border:1px solid #fde68a;">📘 SHS — Semester-based grading</span>`;
+    } else if(!qtrWrap.innerHTML.trim() || qtrWrap.querySelector('span')){
+      // Show JHS quarter dropdown (rebuild if it was replaced by SHS label)
+      qtrWrap.innerHTML = `<select class="form-select no-print" id="report-qtr-filter" onchange="buildReport()" style="width:160px;margin-right:8px">
+        <option value="0">All Quarters (GWA)</option>
+        <option value="1">Quarter 1</option>
+        <option value="2">Quarter 2</option>
+        <option value="3">Quarter 3</option>
+        <option value="4">Quarter 4</option>
+      </select>`;
+    }
   }
 
   // Section filter — admin only
@@ -4590,6 +4600,20 @@ async function buildReport(){
   }
 
   const isSHSReport = grade==='11'||grade==='12';
+  const subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
+
+  // SHS with no subjects configured yet — show clear guidance
+  if(isSHSReport && subjects.length===0){
+    const thead = document.querySelector('#view-report thead tr');
+    if(thead) thead.innerHTML='<th>#</th><th>Student Name</th><th>GWA</th><th>Honors</th>';
+    document.getElementById('report-tbody').innerHTML=
+      `<tr><td colspan="4" style="text-align:center;padding:2rem">
+        <div style="font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:8px">📚 No SHS subjects configured for Grade ${grade}</div>
+        <div style="font-size:12px;color:var(--gray-400)">Go to <strong>Admin → Subject Manager</strong> → click <strong>G${grade} SHS</strong> tab → add subjects for this grade level.</div>
+      </td></tr>`;
+    return;
+  }
+
   const thead = document.querySelector('#view-report thead tr');
 
   if(isSHSReport){
