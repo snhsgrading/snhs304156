@@ -1513,6 +1513,7 @@
           <div style="padding:0 1.25rem;border-bottom:1px solid var(--gray-200);display:flex;gap:0">
             <button class="tab active" id="mps-tab-grades-btn" onclick="switchMPSTab('grades',this)" style="border-radius:0;padding:10px 18px">📊 From Grades</button>
             <button class="tab" id="mps-tab-raw-btn" onclick="switchMPSTab('raw',this)" style="border-radius:0;padding:10px 18px">🔢 From Raw Scores</button>
+            <button class="tab" id="mps-tab-history-btn" onclick="switchMPSTab('history',this)" style="border-radius:0;padding:10px 18px">📋 Saved Tests</button>
           </div>
         </div>
 
@@ -1584,6 +1585,40 @@
             </div>
             <!-- Live MPS result card -->
             <div id="raw-mps-result" class="hidden"></div>
+          </div>
+        </div>
+
+        <!-- ── TAB 3: SAVED TESTS ── -->
+        <div id="mps-tab-history" class="hidden">
+          <div class="card no-print" style="margin-bottom:1rem">
+            <div style="padding:.75rem 1.25rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+              <div style="flex:1;min-width:180px">
+                <label class="form-label">Filter by Section</label>
+                <select class="form-select" id="hist-raw-section-filter" onchange="loadSavedRawTests()" style="max-width:260px">
+                  <option value="">All Sections</option>
+                </select>
+              </div>
+              <div style="min-width:150px">
+                <label class="form-label">Filter by Quarter</label>
+                <select class="form-select" id="hist-raw-qtr-filter" onchange="loadSavedRawTests()" style="max-width:180px">
+                  <option value="">All Quarters</option>
+                  <option value="1">Quarter 1</option>
+                  <option value="2">Quarter 2</option>
+                  <option value="3">Quarter 3</option>
+                  <option value="4">Quarter 4</option>
+                  <option value="S1MT">Sem 1 Midterm</option>
+                  <option value="S1FT">Sem 1 Final Term</option>
+                  <option value="S2MT">Sem 2 Midterm</option>
+                  <option value="S2FT">Sem 2 Final Term</option>
+                </select>
+              </div>
+              <div style="align-self:flex-end">
+                <button class="btn btn-outline btn-sm" onclick="loadSavedRawTests()">🔄 Refresh</button>
+              </div>
+            </div>
+          </div>
+          <div id="saved-raw-tests-output">
+            <div class="card"><div class="empty">📋 Loading saved tests...</div></div>
           </div>
         </div>
 
@@ -5082,7 +5117,204 @@ function switchMPSTab(tab, el){
   el.classList.add('active');
   document.getElementById('mps-tab-grades').classList.toggle('hidden', tab!=='grades');
   document.getElementById('mps-tab-raw').classList.toggle('hidden', tab!=='raw');
+  document.getElementById('mps-tab-history').classList.toggle('hidden', tab!=='history');
   if(tab==='raw') populateRawSectionDropdown();
+  if(tab==='history') loadSavedRawTests();
+}
+
+async function loadSavedRawTests(){
+  const out = document.getElementById('saved-raw-tests-output');
+  if(!out) return;
+  out.innerHTML = '<div class="card"><div class="empty">⏳ Loading...</div></div>';
+
+  // Populate section filter
+  const secFilter = document.getElementById('hist-raw-section-filter');
+  if(secFilter && secFilter.options.length <= 1){
+    const sects = getSectionsFromStudents();
+    secFilter.innerHTML = '<option value="">All Sections</option>' +
+      sects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
+  }
+
+  const filterSect = document.getElementById('hist-raw-section-filter')?.value||'';
+  const filterQtr  = document.getElementById('hist-raw-qtr-filter')?.value||'';
+
+  // Collect all raw score records — from localStorage + cloud
+  let allTests = [];
+
+  // From localStorage
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(!k) continue;
+    const stripped = k.startsWith(LS) ? k.slice(LS.length) : k;
+    if(stripped.startsWith('rawsc_raw_')){
+      const cacheKey = stripped.slice(6); // remove 'rawsc_'
+      const data = lsGet(stripped.slice(6)) || lsGet(stripped);
+      if(data) allTests.push({key: cacheKey, data});
+    }
+  }
+
+  // From cloud (fetch all raw_ grade_records)
+  if(isOnline){
+    try{
+      const {data} = await sb.from('grade_records')
+        .select('grade_key, data, updated_at')
+        .like('grade_key', 'raw_%');
+      if(data) data.forEach(rec=>{
+        if(!allTests.find(t=>t.key===rec.grade_key)){
+          allTests.push({key: rec.grade_key, data: rec.data, updated_at: rec.updated_at});
+        }
+        // Update local cache
+        rawScoreCache[rec.grade_key] = rec.data;
+      });
+    }catch(e){ console.warn('loadSavedRawTests cloud error:', e); }
+  }
+
+  // Parse key: raw_{sect}_{qtr}_{subj}
+  const parseKey = (key) => {
+    const parts = key.replace(/^raw_/,'').split('_');
+    // section is like G10-THOUGHTFUL (2 parts joined by -)
+    // Format: raw_G10-THOUGHTFUL_1_filipino_q1_periodical
+    const sectMatch = key.match(/^raw_(G\d+-[^_]+)_(.+?)_(.+)$/);
+    if(sectMatch) return {sect: sectMatch[1], qtr: sectMatch[2], subj: sectMatch[3].replace(/_/g,' ')};
+    return {sect:'Unknown', qtr:'?', subj: parts.slice(2).join(' ')};
+  };
+
+  // Filter
+  if(filterSect) allTests = allTests.filter(t=>t.key.includes(filterSect));
+  if(filterQtr)  allTests = allTests.filter(t=>{
+    const {qtr} = parseKey(t.key);
+    return qtr===filterQtr;
+  });
+
+  // Admin: sees all; others: filter to own sections
+  if(!isAdmin()){
+    const role = CU?.role;
+    let mySects = getSectionsFromStudents();
+    if(role==='teacher'){
+      const pairs = CU?.subject_sections||[];
+      const ps = [...new Set(pairs.map(p=>p.sect))];
+      mySects = mySects.filter(s=>ps.some(p=>p.toUpperCase()===s.toUpperCase()));
+    } else if(role==='adviser'||role==='adviser-teacher'){
+      const advKey = getAdvisorySection()?.toUpperCase();
+      const pairs  = CU?.subject_sections||[];
+      const ps     = [...new Set(pairs.map(p=>p.sect))];
+      const teach  = mySects.filter(s=>ps.some(p=>p.toUpperCase()===s.toUpperCase()));
+      const adv    = mySects.find(s=>s.toUpperCase()===advKey);
+      mySects      = [...new Set([...(adv?[adv]:[]),...teach])];
+    }
+    allTests = allTests.filter(t=> mySects.some(s=>t.key.includes(s)));
+  }
+
+  if(!allTests.length){
+    out.innerHTML = '<div class="card"><div class="empty">📋 No saved raw score tests found.' +
+      (isOnline ? '' : ' Connect to internet to load cloud-saved tests.') + '</div></div>';
+    return;
+  }
+
+  // Sort by saved_at descending
+  allTests.sort((a,b)=>{
+    const da = a.data?.saved_at||a.updated_at||'';
+    const db = b.data?.saved_at||b.updated_at||'';
+    return db.localeCompare(da);
+  });
+
+  const termLabels = {'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final Term','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final Term'};
+
+  out.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:1rem;margin-bottom:1rem">` +
+    allTests.map(t=>{
+      const {sect, qtr, subj} = parseKey(t.key);
+      const d = t.data||{};
+      const items    = d.items||0;
+      const scores   = d.scores||{};
+      const savedBy  = d.saved_by||'Unknown';
+      const savedAt  = d.saved_at ? new Date(d.saved_at).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      const termLabel = termLabels[qtr]||'Quarter '+qtr;
+      const sectLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
+      const subjLabel = subj.replace(/_/g,' ');
+
+      // Compute MPS from stored scores
+      const vals = Object.values(scores).map(v=>parseFloat(v)).filter(v=>!isNaN(v)&&v>=0);
+      const takers = vals.length;
+      let mpsHtml = '<span style="color:var(--gray-400)">No scores encoded</span>';
+      let badgeHtml = '';
+      if(takers>0 && items>0){
+        const mean = vals.reduce((a,b)=>a+b,0)/takers;
+        const mps  = ((mean/items)*100).toFixed(1);
+        const passed = vals.filter(v=>(v/items)*100>=75).length;
+        const pl   = ((passed/takers)*100).toFixed(1);
+        const mastery = getMasteryLevel(mps);
+        mpsHtml = `<span style="font-size:18px;font-weight:800;color:var(--navy)">${mps}%</span>
+          <span style="font-size:11px;color:var(--gray-500)"> MPS &nbsp;·&nbsp; </span>
+          <span style="font-size:14px;font-weight:700;color:${parseFloat(pl)>=75?'var(--green)':'var(--red)'}">${pl}%</span>
+          <span style="font-size:11px;color:var(--gray-500)"> PL</span>`;
+        badgeHtml = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color};margin-top:4px">${mastery.label}</span>`;
+      }
+
+      const canEdit = !isAdmin();
+      const editBtn = canEdit
+        ? `<button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${t.key}')" style="font-size:11px">✏️ Edit</button>`
+        : `<button class="btn btn-sm" style="font-size:11px;background:var(--gray-100);color:var(--gray-500);cursor:default" disabled>👁️ View Only</button>`;
+
+      return `<div class="card" style="padding:0">
+        <div style="padding:12px 14px;border-bottom:1px solid var(--gray-100)">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:var(--navy);margin-bottom:2px">${subjLabel||'Unnamed Test'}</div>
+              <div style="font-size:11px;color:var(--gray-500)">${sectLabel} &nbsp;·&nbsp; ${termLabel}</div>
+              <div style="font-size:10px;color:var(--gray-400);margin-top:2px">${items} items &nbsp;·&nbsp; ${takers} takers</div>
+            </div>
+            <div>${editBtn}</div>
+          </div>
+        </div>
+        <div style="padding:10px 14px">
+          <div>${mpsHtml}</div>
+          <div>${badgeHtml}</div>
+          <div style="font-size:10px;color:var(--gray-400);margin-top:6px">
+            💾 Saved by <strong>${savedBy}</strong> &nbsp;·&nbsp; ${savedAt}
+          </div>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function loadSavedTestIntoForm(cacheKey){
+  // Parse key and pre-fill the Raw Scores form, then switch to that tab
+  const match = cacheKey.match(/^raw_(G\d+-[^_]+)_(.+?)_(.+)$/);
+  if(!match) return;
+  const sect = match[1], qtr = match[2], subj = match[3].replace(/_/g,' ');
+
+  // Switch to Raw tab
+  const btn = document.getElementById('mps-tab-raw-btn');
+  switchMPSTab('raw', btn);
+
+  // Fill in dropdowns/inputs
+  setTimeout(()=>{
+    const sectEl = document.getElementById('raw-section');
+    const qtrEl  = document.getElementById('raw-qtr');
+    const subjEl = document.getElementById('raw-subject');
+    const itemsEl= document.getElementById('raw-items');
+    if(sectEl) sectEl.value = sect;
+
+    // Load data from cache
+    const data = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{};
+    if(itemsEl) itemsEl.value = data.items||'';
+    if(subjEl)  subjEl.value  = subj;
+
+    // Update qtr dropdown (may need SHS options)
+    const g = sect.match(/G(\d+)-/)?.[1]||'';
+    const isSHS = g==='11'||g==='12';
+    if(qtrEl){
+      const termLabels={'S1MT':'Sem 1 – Midterm','S1FT':'Sem 1 – Final Term','S2MT':'Sem 2 – Midterm','S2FT':'Sem 2 – Final Term'};
+      if(isSHS){
+        qtrEl.innerHTML = Object.entries(termLabels).map(([v,l])=>`<option value="${v}" ${v===qtr?'selected':''}>${l}</option>`).join('');
+      } else {
+        qtrEl.innerHTML = [1,2,3,4].map(q=>`<option value="${q}" ${String(q)===qtr?'selected':''}>Quarter ${q}</option>`).join('');
+      }
+    }
+
+    initRawScoreTable();
+    toast('✓ Test loaded — you can now edit the scores');
+  }, 150);
 }
 
 function populateRawSectionDropdown(){
