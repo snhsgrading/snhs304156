@@ -1500,6 +1500,8 @@
 
       <!-- MPS & PL REPORT -->
       <div class="view" id="view-mps">
+
+        <!-- ── TABS ── -->
         <div class="card no-print" style="margin-bottom:1.25rem">
           <div class="card-header">
             <div>
@@ -1508,13 +1510,83 @@
             </div>
             <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print</button>
           </div>
-          <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div id="mps-section-wrap" style="flex:1;min-width:200px"></div>
-            <div id="mps-qtr-wrap" style="min-width:160px"></div>
+          <div style="padding:0 1.25rem;border-bottom:1px solid var(--gray-200);display:flex;gap:0">
+            <button class="tab active" id="mps-tab-grades-btn" onclick="switchMPSTab('grades',this)" style="border-radius:0;padding:10px 18px">📊 From Grades</button>
+            <button class="tab" id="mps-tab-raw-btn" onclick="switchMPSTab('raw',this)" style="border-radius:0;padding:10px 18px">🔢 From Raw Scores</button>
           </div>
         </div>
-        <div id="mps-placeholder" class="card"><div class="empty">📈 Select a section to generate the MPS &amp; PL Report.</div></div>
-        <div id="mps-output" class="hidden"></div>
+
+        <!-- ── TAB 1: FROM GRADES ── -->
+        <div id="mps-tab-grades">
+          <div class="card no-print" style="margin-bottom:1.25rem">
+            <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+              <div id="mps-section-wrap" style="flex:1;min-width:200px"></div>
+              <div id="mps-qtr-wrap" style="min-width:160px"></div>
+            </div>
+          </div>
+          <div id="mps-placeholder" class="card"><div class="empty">📈 Select a section to generate the MPS &amp; PL Report.</div></div>
+          <div id="mps-output" class="hidden"></div>
+        </div>
+
+        <!-- ── TAB 2: FROM RAW SCORES ── -->
+        <div id="mps-tab-raw" class="hidden">
+          <div class="card no-print" style="margin-bottom:1.25rem">
+            <div style="padding:1rem 1.25rem">
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem">
+                <div style="flex:1;min-width:200px"><label class="form-label">Section</label>
+                  <select class="form-select" id="raw-section" onchange="initRawScoreTable()">
+                    <option value="">Select section...</option>
+                  </select>
+                </div>
+                <div style="min-width:160px"><label class="form-label">Quarter / Term</label>
+                  <select class="form-select" id="raw-qtr" onchange="initRawScoreTable()">
+                    <option value="1">Quarter 1</option>
+                    <option value="2">Quarter 2</option>
+                    <option value="3">Quarter 3</option>
+                    <option value="4">Quarter 4</option>
+                  </select>
+                </div>
+                <div style="min-width:200px"><label class="form-label">Subject / Test Name</label>
+                  <input type="text" class="form-input" id="raw-subject" placeholder="e.g. Filipino Q1 Periodical Test" oninput="initRawScoreTable()"/>
+                </div>
+                <div style="min-width:100px"><label class="form-label">No. of Items *</label>
+                  <input type="number" class="form-input" id="raw-items" min="1" max="200" placeholder="e.g. 50" oninput="onRawItemsChange()"/>
+                </div>
+              </div>
+              <div id="raw-hint" style="font-size:12px;color:var(--gray-400);margin-bottom:8px">Enter the number of items, then encode each student's raw score.</div>
+            </div>
+          </div>
+
+          <div id="raw-placeholder" class="card"><div class="empty">🔢 Select a section, quarter, subject and number of items to start encoding raw scores.</div></div>
+
+          <div id="raw-score-table-wrap" class="hidden">
+            <div class="card" style="margin-bottom:1.25rem">
+              <div class="card-header">
+                <div><div class="card-title" id="raw-table-title">Raw Score Entry</div>
+                  <div class="card-sub" id="raw-table-sub">Enter each student's raw score</div>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-outline btn-sm" onclick="clearRawScores()">✕ Clear All</button>
+                  <button class="btn btn-green" onclick="saveRawScores()">💾 Save &amp; Compute MPS</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr>
+                    <th>#</th><th>LRN</th><th>Student Name</th>
+                    <th style="text-align:center">Raw Score<br><span style="font-size:10px;font-weight:400;color:var(--gray-400)" id="raw-items-header">/ ?</span></th>
+                    <th style="text-align:center">%</th>
+                    <th style="text-align:center">Passed?</th>
+                  </tr></thead>
+                  <tbody id="raw-score-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+            <!-- Live MPS result card -->
+            <div id="raw-mps-result" class="hidden"></div>
+          </div>
+        </div>
+
       </div>
 
       <!-- STUDENTS MASTERLIST -->
@@ -5002,6 +5074,282 @@ async function buildMPSReport(){
   document.getElementById('mps-placeholder').classList.add('hidden');
 }
 
+
+// ── RAW SCORE MPS ─────────────────────────────────────────────────
+
+function switchMPSTab(tab, el){
+  document.querySelectorAll('#view-mps .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mps-tab-grades').classList.toggle('hidden', tab!=='grades');
+  document.getElementById('mps-tab-raw').classList.toggle('hidden', tab!=='raw');
+  if(tab==='raw') populateRawSectionDropdown();
+}
+
+function populateRawSectionDropdown(){
+  const sel = document.getElementById('raw-section');
+  if(!sel) return;
+  const role = CU?.role;
+  let sects = getSectionsFromStudents();
+  if(role==='teacher'){
+    const pairs = CU?.subject_sections||[];
+    const ps = [...new Set(pairs.map(p=>p.sect))];
+    sects = sects.filter(s=>ps.some(p=>p.toUpperCase()===s.toUpperCase()));
+  } else if(role==='adviser'||role==='adviser-teacher'){
+    const advKey = getAdvisorySection()?.toUpperCase();
+    const pairs = CU?.subject_sections||[];
+    const ps = [...new Set(pairs.map(p=>p.sect))];
+    const teach = sects.filter(s=>ps.some(p=>p.toUpperCase()===s.toUpperCase()));
+    const adv = sects.find(s=>s.toUpperCase()===advKey);
+    sects = [...new Set([...(adv?[adv]:[]),...teach])];
+  }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Select section...</option>' +
+    sects.map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
+
+  // Update quarter dropdown for SHS sections
+  const sect = sel.value;
+  if(sect){
+    const g = sect.match(/G(\d+)-/)?.[1]||'';
+    const isSHS = g==='11'||g==='12';
+    const qtrEl = document.getElementById('raw-qtr');
+    const curQ = qtrEl?.value||'1';
+    if(qtrEl){
+      if(isSHS){
+        qtrEl.innerHTML = `
+          <option value="S1MT" ${curQ==='S1MT'?'selected':''}>Sem 1 – Midterm</option>
+          <option value="S1FT" ${curQ==='S1FT'?'selected':''}>Sem 1 – Final Term</option>
+          <option value="S2MT" ${curQ==='S2MT'?'selected':''}>Sem 2 – Midterm</option>
+          <option value="S2FT" ${curQ==='S2FT'?'selected':''}>Sem 2 – Final Term</option>`;
+      } else {
+        qtrEl.innerHTML = `
+          <option value="1" ${curQ==='1'?'selected':''}>Quarter 1</option>
+          <option value="2" ${curQ==='2'?'selected':''}>Quarter 2</option>
+          <option value="3" ${curQ==='3'?'selected':''}>Quarter 3</option>
+          <option value="4" ${curQ==='4'?'selected':''}>Quarter 4</option>`;
+      }
+    }
+  }
+}
+
+// raw score data: rawScoreCache[cacheKey] = {items, scores:{lrn:rawScore}}
+let rawScoreCache = {};
+
+function getRawCacheKey(){
+  const sect = document.getElementById('raw-section')?.value||'';
+  const qtr  = document.getElementById('raw-qtr')?.value||'1';
+  const subj = (document.getElementById('raw-subject')?.value||'unnamed').trim().replace(/\s+/g,'_').toLowerCase();
+  return sect ? `raw_${sect}_${qtr}_${subj}` : '';
+}
+
+function onRawItemsChange(){
+  initRawScoreTable();
+}
+
+function initRawScoreTable(){
+  const sect   = document.getElementById('raw-section')?.value||'';
+  const qtr    = document.getElementById('raw-qtr')?.value||'1';
+  const subj   = document.getElementById('raw-subject')?.value.trim()||'';
+  const items  = parseInt(document.getElementById('raw-items')?.value)||0;
+
+  // Update quarter dropdown if section changed
+  populateRawSectionDropdown();
+
+  if(!sect||!items||items<1){
+    document.getElementById('raw-score-table-wrap').classList.add('hidden');
+    document.getElementById('raw-placeholder').classList.remove('hidden');
+    return;
+  }
+
+  const cacheKey = getRawCacheKey();
+  // Load saved data
+  const saved = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{items,scores:{}};
+
+  const sectName = sect.replace(/^G\d+-/,'');
+  const students = studentsCache
+    .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()
+      && `G${s.grade}-${s.section.toUpperCase()}`===sect
+      && s.status!=='Dropped')
+    .sort((a,b)=>a.name.localeCompare(b.name));
+
+  if(!students.length){
+    document.getElementById('raw-score-table-wrap').classList.add('hidden');
+    document.getElementById('raw-placeholder').classList.remove('hidden');
+    document.getElementById('raw-placeholder').querySelector('.empty').textContent = 'No enrolled students in this section.';
+    return;
+  }
+
+  const termLabels={'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final Term','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final Term'};
+  const termLabel = isNaN(parseInt(qtr)) ? (termLabels[qtr]||qtr) : 'Quarter '+qtr;
+  const sectLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
+
+  document.getElementById('raw-score-table-wrap').classList.remove('hidden');
+  document.getElementById('raw-placeholder').classList.add('hidden');
+  document.getElementById('raw-table-title').textContent = (subj||'Test') + ' — ' + sectLabel + ' · ' + termLabel;
+  document.getElementById('raw-table-sub').textContent = `${students.length} students · ${items} items`;
+  document.getElementById('raw-items-header').textContent = '/ '+items;
+
+  document.getElementById('raw-score-tbody').innerHTML = students.map((s,i)=>{
+    const raw = saved.scores?.[s.lrn]!==undefined ? saved.scores[s.lrn] : '';
+    const pct  = raw!=='' ? ((parseFloat(raw)/items)*100).toFixed(1) : '';
+    const pass = pct!=='' ? parseFloat(pct)>=75 : null;
+    return `<tr id="raw-row-${i}">
+      <td>${i+1}</td>
+      <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
+      <td><strong>${s.name}</strong></td>
+      <td style="text-align:center">
+        <input type="number" class="grade-input${pass===true?' passing':pass===false?' failing':''}"
+          min="0" max="${items}" value="${raw}"
+          oninput="onRawInput(this,'${s.lrn}',${items})"
+          style="width:70px;text-align:center"/>
+      </td>
+      <td style="text-align:center" id="raw-pct-${i}">
+        ${pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>'}
+      </td>
+      <td style="text-align:center" id="raw-pass-${i}">
+        ${pass===true ? '<span class="badge badge-green">Passed</span>' : pass===false ? '<span class="badge badge-red">Failed</span>' : '<span class="badge badge-gray">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  computeLiveRawMPS(students, items);
+}
+
+function onRawInput(el, lrn, items){
+  const raw = parseFloat(el.value);
+  const valid = !isNaN(raw) && raw>=0 && raw<=items;
+  const pct   = valid ? ((raw/items)*100).toFixed(1) : '';
+  const pass  = pct!=='' ? parseFloat(pct)>=75 : null;
+
+  // Update input color
+  el.className = 'grade-input'+(pass===true?' passing':pass===false?' failing':'');
+
+  // Find row index
+  const row = el.closest('tr');
+  const i   = row?.id.replace('raw-row-','');
+
+  const pctEl  = document.getElementById('raw-pct-'+i);
+  const passEl = document.getElementById('raw-pass-'+i);
+  if(pctEl)  pctEl.innerHTML  = pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>';
+  if(passEl) passEl.innerHTML = pass===true ? '<span class="badge badge-green">Passed</span>' : pass===false ? '<span class="badge badge-red">Failed</span>' : '<span class="badge badge-gray">—</span>';
+
+  // Update cache
+  const cacheKey = getRawCacheKey();
+  if(!rawScoreCache[cacheKey]) rawScoreCache[cacheKey]={items,scores:{}};
+  if(el.value==='') delete rawScoreCache[cacheKey].scores[lrn];
+  else rawScoreCache[cacheKey].scores[lrn] = parseFloat(el.value);
+
+  // Get students list for live MPS
+  const sect = document.getElementById('raw-section')?.value||'';
+  const sectName = sect.replace(/^G\d+-/,'');
+  const students = studentsCache
+    .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()
+      && `G${s.grade}-${s.section.toUpperCase()}`===sect
+      && s.status!=='Dropped')
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  computeLiveRawMPS(students, items);
+}
+
+function computeLiveRawMPS(students, items){
+  const cacheKey = getRawCacheKey();
+  const scores   = rawScoreCache[cacheKey]?.scores||{};
+
+  const rawVals = students
+    .map(s=>scores[s.lrn]!==undefined ? parseFloat(scores[s.lrn]) : null)
+    .filter(v=>v!==null);
+
+  const resultEl = document.getElementById('raw-mps-result');
+  if(!resultEl) return;
+
+  if(!rawVals.length){
+    resultEl.classList.add('hidden');
+    return;
+  }
+
+  const takers   = rawVals.length;
+  const totalRaw = rawVals.reduce((a,b)=>a+b,0);
+  const meanRaw  = totalRaw/takers;
+  const mps      = ((meanRaw/items)*100).toFixed(2);
+  const passed   = rawVals.filter(v=>(v/items)*100>=75).length;
+  const failed   = takers-passed;
+  const pl       = ((passed/takers)*100).toFixed(2);
+  const mastery  = getMasteryLevel(mps);
+
+  resultEl.classList.remove('hidden');
+  resultEl.innerHTML=`
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <div><div class="card-title">📊 Live MPS Result</div>
+          <div class="card-sub">${takers} of ${students.length} scores encoded · ${items} items</div>
+        </div>
+      </div>
+      <div style="padding:1rem 1.25rem">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px">
+          <div style="background:var(--navy);color:white;border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:10px;opacity:0.8;margin-bottom:2px">Mean Raw Score</div>
+            <div style="font-size:22px;font-weight:800">${meanRaw.toFixed(1)}</div>
+            <div style="font-size:9px;opacity:0.7">out of ${items}</div>
+          </div>
+          <div style="background:var(--navy);color:white;border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:10px;opacity:0.8;margin-bottom:2px">MPS</div>
+            <div style="font-size:22px;font-weight:800">${mps}%</div>
+            <div style="font-size:9px;opacity:0.7">(Mean Score ÷ ${items}) × 100</div>
+          </div>
+          <div style="background:${passed/takers>=0.75?'var(--green)':'#f59e0b'};color:white;border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:10px;opacity:0.8;margin-bottom:2px">Proficiency Level</div>
+            <div style="font-size:22px;font-weight:800">${pl}%</div>
+            <div style="font-size:9px;opacity:0.7">${passed} of ${takers} met 75%</div>
+          </div>
+          <div style="background:${mastery.bg};border:1px solid ${mastery.color};border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:10px;color:${mastery.color};font-weight:600;margin-bottom:2px">Mastery Level</div>
+            <div style="font-size:12px;font-weight:700;color:${mastery.color}">${mastery.label}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px">
+          <span>✓ Passed: <strong style="color:var(--green)">${passed}</strong></span>
+          <span>✗ Failed: <strong style="color:var(--red)">${failed}</strong></span>
+          <span>Total Takers: <strong>${takers}</strong></span>
+          <span>Not yet encoded: <strong style="color:var(--gray-400)">${students.length-takers}</strong></span>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function saveRawScores(){
+  const cacheKey = getRawCacheKey();
+  if(!cacheKey){ toast('Please fill all fields first',true); return; }
+  const items = parseInt(document.getElementById('raw-items')?.value)||0;
+  if(!items){ toast('Enter number of items first',true); return; }
+
+  const obj = rawScoreCache[cacheKey]||{items,scores:{}};
+  obj.items = items;
+  obj.saved_by = CU?.name||'';
+  obj.saved_at = new Date().toISOString();
+  rawScoreCache[cacheKey] = obj;
+  lsSet('rawsc_'+cacheKey, obj);
+
+  if(isOnline){
+    try{
+      await sb.from('grade_records').upsert({
+        grade_key: cacheKey, data: obj, updated_at: obj.saved_at
+      },{onConflict:'grade_key'});
+      toast('✅ Raw scores saved & synced!');
+    } catch(e){
+      queueForSync('grades', cacheKey, obj);
+      toast('✅ Raw scores saved (syncing...)');
+    }
+  } else {
+    queueForSync('grades', cacheKey, obj);
+    toast('✅ Raw scores saved offline — syncs when online');
+  }
+  logAudit('RAW SCORES','Saved raw scores: '+cacheKey);
+}
+
+function clearRawScores(){
+  if(!confirm('Clear all raw scores for this test?')) return;
+  const cacheKey = getRawCacheKey();
+  if(rawScoreCache[cacheKey]) rawScoreCache[cacheKey].scores = {};
+  initRawScoreTable();
+}
 
 // ── STUDENTS ───────────────────────────────────────────────────────
 // v9 fast version below: function buildStudentsList
