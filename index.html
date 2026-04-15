@@ -861,6 +861,7 @@
       <div class="nav-item hidden" onclick="showView('sf9',this)" id="nav-sf9"><span class="nav-icon">📄</span> Generate SF9</div>
       <div class="nav-item hidden" onclick="showView('sf2',this)" id="nav-sf2"><span class="nav-icon">📋</span> Generate SF2</div>
       <div class="nav-item hidden" onclick="showView('report',this);buildReport()" id="nav-report"><span class="nav-icon">📊</span> Grade Summary</div>
+      <div class="nav-item hidden" onclick="showView('mps',this);buildMPSReport()" id="nav-mps"><span class="nav-icon">📈</span> MPS &amp; PL Report</div>
       <div class="nav-item hidden" onclick="showView('students',this);buildStudentsList()" id="nav-students"><span class="nav-icon">👥</span> Students</div>
       <div class="nav-item hidden" onclick="showView('accounts',this)" id="nav-accounts"><span class="nav-icon">👨‍🏫</span> Accounts</div>
       <div class="nav-item hidden" onclick="showView('subjects',this);buildSubjectList()" id="nav-subjects"><span class="nav-icon">📖</span> JHS Subjects</div>
@@ -1495,6 +1496,25 @@
             <tbody id="report-tbody"></tbody>
           </table></div>
         </div>
+      </div>
+
+      <!-- MPS & PL REPORT -->
+      <div class="view" id="view-mps">
+        <div class="card no-print" style="margin-bottom:1.25rem">
+          <div class="card-header">
+            <div>
+              <div class="card-title">📈 MPS &amp; Proficiency Level Report</div>
+              <div class="card-sub">Mean Percentage Score · Proficiency Level · Mastery Level per Subject</div>
+            </div>
+            <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print</button>
+          </div>
+          <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div id="mps-section-wrap" style="flex:1;min-width:200px"></div>
+            <div id="mps-qtr-wrap" style="min-width:160px"></div>
+          </div>
+        </div>
+        <div id="mps-placeholder" class="card"><div class="empty">📈 Select a section to generate the MPS &amp; PL Report.</div></div>
+        <div id="mps-output" class="hidden"></div>
       </div>
 
       <!-- STUDENTS MASTERLIST -->
@@ -2465,11 +2485,11 @@ function setupRole(){
   // adviser:  encode grades, attendance, class list, SF9, SF2, report history
   // admin:    everything EXCEPT grade encoding (views grade summary + all forms read-only)
   const map={
-    'adviser-teacher': ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-sf10history'],
+    'adviser-teacher': ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps','nav-sf10history'],
     // Keep 'adviser' entry for backward compat with any existing accounts that still have role='adviser'
-    adviser: ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-sf10history'],
-    teacher: ['nav-encode','nav-attendance'],
-    admin:   ['nav-classlist','nav-sf9','nav-sf2','nav-report','nav-students','nav-accounts','nav-subjects','nav-strands','nav-sf10history','nav-audit','nav-backup']
+    adviser: ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps','nav-sf10history'],
+    teacher: ['nav-encode','nav-attendance','nav-mps'],
+    admin:   ['nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps','nav-students','nav-accounts','nav-subjects','nav-strands','nav-sf10history','nav-audit','nav-backup']
   };
   document.querySelectorAll('.nav-item').forEach(el=>{if(el.id!=='nav-dashboard')el.classList.add('hidden')});
   (map[r]||[]).forEach(id=>document.getElementById(id)?.classList.remove('hidden'));
@@ -2572,6 +2592,7 @@ function showView(name,el){
     sf9:         ['Generate SF9','DepEd Form 138 — Report Card'],
     sf2:         ['Generate SF2','Daily Attendance Report with Formulas'],
     report:      ['Grade Summary','Class performance overview'],
+    mps:         ['MPS & Proficiency Level Report','Mean Percentage Score per subject — all sections'],
     students:    ['Student Masterlist','School-wide enrollment'],
     accounts:    ['Teacher Accounts','Manage faculty accounts'],
     subjects:    ['JHS Subject Manager','Configure subjects per grade level'],
@@ -2589,6 +2610,7 @@ function showView(name,el){
     students:()=>{updateFilterSectionDropdown();buildStudentsList();},
     classlist:()=>buildClassList(),
     report:()=>buildReport(),
+    mps:()=>buildMPSReport(),
     accounts:()=>loadAccountsView(),
     strands:()=>buildStrandList(),
     subjects:()=>buildSubjectList(),
@@ -4688,6 +4710,522 @@ async function buildReport(){
       <td>${avg!=='—'?honorsBadge(avg):''}</td>
     </tr>`;
   }).join('');
+}
+
+// ── MPS & PROFICIENCY LEVEL REPORT ────────────────────────────────
+// MPS = (Mean Score / 100) × 100 = class average (grades already on 100-pt scale)
+// PL  = (Students with grade ≥ 75 / Total takers) × 100
+// Mastery levels per DepEd standard
+
+function getMasteryLevel(mps){
+  const v = parseFloat(mps);
+  if(v>=96) return {label:'Mastered',           color:'#14532d', bg:'#dcfce7'};
+  if(v>=86) return {label:'Closely Approximating Mastery', color:'#1e40af', bg:'#dbeafe'};
+  if(v>=66) return {label:'Moving Towards Mastery',        color:'#065f46', bg:'#d1fae5'};
+  if(v>=35) return {label:'Average Mastery',               color:'#92400e', bg:'#fef3c7'};
+  if(v>=15) return {label:'Low Mastery',                   color:'#b45309', bg:'#fff7ed'};
+  if(v>=5)  return {label:'Very Low Mastery',              color:'#dc2626', bg:'#fee2e2'};
+  return       {label:'Absolutely No Mastery',             color:'#7f1d1d', bg:'#fca5a5'};
+}
+
+async function buildMPSReport(){
+  // ── Determine section and quarter ────────────────────────────────
+  const role = CU?.role;
+  const isSHSSection = (sect) => {
+    const g = sect?.match(/G(\d+)-/)?.[1];
+    return g==='11'||g==='12';
+  };
+
+  // Build section dropdown
+  const sectionWrap = document.getElementById('mps-section-wrap');
+  const qtrWrap = document.getElementById('mps-qtr-wrap');
+  if(!sectionWrap||!qtrWrap) return;
+
+  // Populate section dropdown based on role
+  let allSects = getSectionsFromStudents();
+  if(role==='teacher'){
+    const pairs = CU?.subject_sections||[];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))];
+    allSects = allSects.filter(s=>pairSects.some(ps=>ps.toUpperCase()===s.toUpperCase()));
+  } else if(role==='adviser'||role==='adviser-teacher'){
+    const advKey = getAdvisorySection()?.toUpperCase();
+    const pairs = CU?.subject_sections||[];
+    const pairSects = [...new Set(pairs.map(p=>p.sect))];
+    const teachSects = allSects.filter(s=>pairSects.some(ps=>ps.toUpperCase()===s.toUpperCase()));
+    const advSect = allSects.find(s=>s.toUpperCase()===advKey);
+    allSects = [...new Set([...(advSect?[advSect]:[]), ...teachSects])];
+  }
+
+  // Build section select if not yet built
+  if(!sectionWrap.querySelector('select')){
+    sectionWrap.innerHTML=`<label class="form-label">Section</label>
+      <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="min-width:220px">
+        <option value="">Select section...</option>
+        ${allSects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
+      </select>`;
+  }
+
+  const sectEl = document.getElementById('mps-section');
+  const sect = sectEl?.value||'';
+  if(!sect){
+    document.getElementById('mps-output').classList.add('hidden');
+    document.getElementById('mps-placeholder').classList.remove('hidden');
+    // Ensure qtr wrap is built even before section selected
+    if(!qtrWrap.querySelector('select')){
+      qtrWrap.innerHTML=`<label class="form-label">Quarter / Term</label>
+        <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="min-width:160px">
+          <option value="1">Quarter 1</option>
+          <option value="2">Quarter 2</option>
+          <option value="3">Quarter 3</option>
+          <option value="4">Quarter 4</option>
+        </select>`;
+    }
+    return;
+  }
+
+  const grade = sect.match(/G(\d+)-/)?.[1]||'10';
+  const shsSect = isSHSSection(sect);
+
+  // Build quarter/term selector
+  const curQtr = document.getElementById('mps-qtr')?.value||'1';
+  if(shsSect){
+    qtrWrap.innerHTML=`<label class="form-label">Semester Term</label>
+      <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="min-width:160px">
+        <option value="S1MT" ${curQtr==='S1MT'?'selected':''}>Sem 1 – Midterm</option>
+        <option value="S1FT" ${curQtr==='S1FT'?'selected':''}>Sem 1 – Final Term</option>
+        <option value="S2MT" ${curQtr==='S2MT'?'selected':''}>Sem 2 – Midterm</option>
+        <option value="S2FT" ${curQtr==='S2FT'?'selected':''}>Sem 2 – Final Term</option>
+      </select>`;
+  } else {
+    qtrWrap.innerHTML=`<label class="form-label">Quarter</label>
+      <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="min-width:160px">
+        <option value="1" ${curQtr==='1'?'selected':''}>Quarter 1</option>
+        <option value="2" ${curQtr==='2'?'selected':''}>Quarter 2</option>
+        <option value="3" ${curQtr==='3'?'selected':''}>Quarter 3</option>
+        <option value="4" ${curQtr==='4'?'selected':''}>Quarter 4</option>
+      </select>`;
+  }
+
+  const term = document.getElementById('mps-qtr')?.value||'1';
+  const termLabel = shsSect
+    ? {'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final Term','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final Term'}[term]||term
+    : 'Quarter '+term;
+
+  // ── Load grades from cloud ────────────────────────────────────────
+  if(isOnline) await fetchGradesForSection(sect);
+
+  // ── Get students in this section ──────────────────────────────────
+  const sectName = sect.replace(/^G\d+-/,'');
+  const students = studentsCache
+    .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()&&`G${s.grade}-${s.section.toUpperCase()}`===sect&&s.status!=='Dropped')
+    .sort((a,b)=>a.name.localeCompare(b.name));
+
+  if(!students.length){
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No enrolled students found in ${sect}.</div></div>`;
+    document.getElementById('mps-output').classList.remove('hidden');
+    document.getElementById('mps-placeholder').classList.add('hidden');
+    return;
+  }
+
+  // ── Get subjects ──────────────────────────────────────────────────
+  let subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
+
+  // For teacher role: filter to only their assigned subjects for this section
+  if(role==='teacher'){
+    const pairs = (CU?.subject_sections||[]).filter(p=>p.sect.toUpperCase()===sect.toUpperCase());
+    if(pairs.length){
+      const allowed = pairs.map(p=>p.subj.toLowerCase());
+      const filtered = subjects.filter(s=>allowed.some(a=>s.name.toLowerCase().includes(a)||s.name.toLowerCase()===a));
+      if(filtered.length) subjects=filtered;
+    }
+  }
+
+  if(!subjects.length){
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.</div></div>`;
+    document.getElementById('mps-output').classList.remove('hidden');
+    document.getElementById('mps-placeholder').classList.add('hidden');
+    return;
+  }
+
+  // ── Compute MPS & PL per subject ──────────────────────────────────
+  const rows = subjects.map(subj=>{
+    const gradeKey = shsSect
+      ? subj.id+'_'+sect+'_'+term
+      : subj.id+'_'+sect+'_Q'+term;
+
+    const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
+
+    // Collect all encoded grades for this subject
+    const encodedGrades = students.map((_,i)=>{
+      const v = rec[i];
+      return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
+    }).filter(v=>v!==null);
+
+    const takers = encodedGrades.length;
+    if(takers===0) return {subj:subj.name, takers:0, mps:null, passed:0, failed:0, pl:null};
+
+    const totalScore = encodedGrades.reduce((a,b)=>a+b,0);
+    const meanScore  = totalScore/takers;
+    // MPS: since grades are on 100-pt scale, MPS = mean score
+    const mps        = meanScore.toFixed(2);
+    const passed     = encodedGrades.filter(v=>v>=75).length;
+    const failed     = takers - passed;
+    const pl         = ((passed/takers)*100).toFixed(2);
+
+    return {subj:subj.name, takers, mps, passed, failed, pl};
+  });
+
+  // ── Compute overall MPS & PL across all subjects ──────────────────
+  const allMPS = rows.filter(r=>r.mps!==null).map(r=>parseFloat(r.mps));
+  const overallMPS = allMPS.length>0 ? (allMPS.reduce((a,b)=>a+b)/allMPS.length).toFixed(2) : null;
+  const totalTakers = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.takers,0);
+  const totalPassed = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.passed,0);
+  const overallPL   = totalTakers>0 ? ((totalPassed/totalTakers)*100).toFixed(2) : null;
+
+  // ── Render ────────────────────────────────────────────────────────
+  const tableRows = rows.map(r=>{
+    if(r.takers===0){
+      return`<tr>
+        <td><strong>${r.subj}</strong></td>
+        <td colspan="5" style="text-align:center;color:var(--gray-400);font-style:italic">No grades encoded yet</td>
+      </tr>`;
+    }
+    const mastery = getMasteryLevel(r.mps);
+    return`<tr>
+      <td><strong>${r.subj}</strong></td>
+      <td style="text-align:center">${r.takers}</td>
+      <td style="text-align:center;font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</td>
+      <td style="text-align:center">
+        <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color}">${mastery.label}</span>
+      </td>
+      <td style="text-align:center">
+        <span style="font-weight:600;color:${r.pl>=75?'var(--green)':'var(--red)'}">${r.pl}%</span>
+      </td>
+      <td style="text-align:center">
+        <span style="color:var(--green);font-weight:600">${r.passed} ✓</span>
+        &nbsp;/&nbsp;
+        <span style="color:var(--red)">${r.failed} ✗</span>
+        &nbsp;
+        <span style="font-size:11px;color:var(--gray-400)">of ${r.takers}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const overallMastery = overallMPS ? getMasteryLevel(overallMPS) : null;
+  const sectionLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
+
+  document.getElementById('mps-output').innerHTML=`
+    <div class="deped-page">
+      <!-- Header -->
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="font-weight:700;font-size:13px;">${SCHOOL_NAME}</div>
+        <div style="font-size:11px;color:var(--gray-600)">${DIVISION} &nbsp;·&nbsp; ${REGION}</div>
+        <div style="font-size:12px;font-weight:600;margin-top:4px;">MPS &amp; Proficiency Level Report</div>
+        <div style="font-size:11px;color:var(--gray-500)">${sectionLabel} &nbsp;·&nbsp; ${termLabel} &nbsp;·&nbsp; S.Y. ${SY}</div>
+      </div>
+
+      <!-- Overall Summary Cards -->
+      ${overallMPS ? `
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
+        <div style="background:var(--navy);color:white;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall MPS</div>
+          <div style="font-size:28px;font-weight:800">${overallMPS}%</div>
+          <div style="font-size:10px;opacity:0.75;margin-top:4px">${overallMastery.label}</div>
+        </div>
+        <div style="background:var(--green);color:white;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Proficiency Level</div>
+          <div style="font-size:28px;font-weight:800">${overallPL}%</div>
+          <div style="font-size:10px;opacity:0.75;margin-top:4px">Students meeting 75%</div>
+        </div>
+        <div style="background:#6366f1;color:white;border-radius:12px;padding:16px;text-align:center">
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Students Passed (≥75)</div>
+          <div style="font-size:28px;font-weight:800">${totalPassed}</div>
+          <div style="font-size:10px;opacity:0.75;margin-top:4px">out of ${students.length} enrolled</div>
+        </div>
+      </div>` : ''}
+
+      <!-- Subject Table -->
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:var(--navy);color:white;">
+            <th style="padding:10px 12px;text-align:left;border-radius:8px 0 0 0">Subject</th>
+            <th style="padding:10px 8px;text-align:center">Takers</th>
+            <th style="padding:10px 8px;text-align:center">MPS</th>
+            <th style="padding:10px 8px;text-align:center">Mastery Level</th>
+            <th style="padding:10px 8px;text-align:center">PL (%)</th>
+            <th style="padding:10px 12px;text-align:center;border-radius:0 8px 0 0">Passed ✓ / Failed ✗</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+        ${overallMPS ? `<tfoot>
+          <tr style="background:var(--gray-50);font-weight:700;border-top:2px solid var(--navy)">
+            <td style="padding:10px 12px">OVERALL</td>
+            <td style="text-align:center;padding:10px 8px">${students.length}</td>
+            <td style="text-align:center;padding:10px 8px;font-size:15px;color:var(--navy)">${overallMPS}%</td>
+            <td style="text-align:center;padding:10px 8px">
+              <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${overallMastery.bg};color:${overallMastery.color}">${overallMastery.label}</span>
+            </td>
+            <td style="text-align:center;padding:10px 8px;color:${overallPL>=75?'var(--green)':'var(--red)'}">${overallPL}%</td>
+            <td style="text-align:center;padding:10px 12px">${totalPassed} ✓ / ${totalTakers-totalPassed} ✗</td>
+          </tr>
+        </tfoot>` : ''}
+      </table>
+
+      <!-- Mastery Level Legend -->
+      <div style="margin-top:16px;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;">
+        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference (DepEd)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">
+          ${[
+            {range:'96–100',label:'Mastered',color:'#14532d',bg:'#dcfce7'},
+            {range:'86–95',label:'Closely Approximating Mastery',color:'#1e40af',bg:'#dbeafe'},
+            {range:'66–85',label:'Moving Towards Mastery',color:'#065f46',bg:'#d1fae5'},
+            {range:'35–65',label:'Average Mastery',color:'#92400e',bg:'#fef3c7'},
+            {range:'15–34',label:'Low Mastery',color:'#b45309',bg:'#fff7ed'},
+            {range:'5–14',label:'Very Low Mastery',color:'#dc2626',bg:'#fee2e2'},
+            {range:'0–4',label:'Absolutely No Mastery',color:'#7f1d1d',bg:'#fca5a5'},
+          ].map(m=>`<div style="padding:6px 10px;background:${m.bg};border:1px solid ${m.bg};margin:2px;">
+            <div style="font-size:10px;font-weight:700;color:${m.color}">${m.range}%</div>
+            <div style="font-size:9px;color:${m.color};opacity:0.85">${m.label}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Formulas reference -->
+      <div style="margin-top:12px;font-size:10px;color:var(--gray-400);text-align:center;font-style:italic;">
+        MPS = (Mean Score ÷ 100) × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; DepEd Standard
+      </div>
+    </div>`;
+
+  document.getElementById('mps-output').classList.remove('hidden');
+  document.getElementById('mps-placeholder').classList.add('hidden');
+}
+
+}
+
+// ── MPS & PROFICIENCY LEVEL REPORT ──────────────────────────────────────
+
+function getMasteryLevel(mps){
+  const v=parseFloat(mps);
+  if(v>=96) return{label:'Mastered',color:'#14532d',bg:'#dcfce7'};
+  if(v>=86) return{label:'Closely Approximating Mastery',color:'#166534',bg:'#bbf7d0'};
+  if(v>=66) return{label:'Moving Towards Mastery',color:'#1d4ed8',bg:'#dbeafe'};
+  if(v>=35) return{label:'Average Mastery',color:'#92400e',bg:'#fef3c7'};
+  if(v>=15) return{label:'Low Mastery',color:'#b45309',bg:'#fde68a'};
+  if(v>=5)  return{label:'Very Low Mastery',color:'#dc2626',bg:'#fee2e2'};
+  return    {label:'Absolutely No Mastery',color:'#7f1d1d',bg:'#fecaca'};
+}
+
+async function buildMPSReport(){
+  const role=CU?.role;
+  const secWrap=document.getElementById('mps-section-wrap');
+  const qtrWrap=document.getElementById('mps-qtr-wrap');
+  if(!secWrap||!qtrWrap) return;
+
+  const allSects=getSectionsFromStudents();
+  let availableSects=[];
+  if(isAdmin()){
+    availableSects=allSects;
+  } else if(role==='adviser'||role==='adviser-teacher'){
+    const advKey=getAdvisorySection()?.toUpperCase().startsWith('G')?getAdvisorySection().toUpperCase():'';
+    const pairSects=[...new Set((CU?.subject_sections||[]).map(p=>p.sect.toUpperCase()))];
+    availableSects=allSects.filter(s=>s.toUpperCase()===advKey||pairSects.includes(s.toUpperCase()));
+  } else if(role==='teacher'){
+    const pairSects=[...new Set((CU?.subject_sections||[]).map(p=>p.sect.toUpperCase()))];
+    availableSects=allSects.filter(s=>pairSects.includes(s.toUpperCase()));
+  }
+
+  const curSect=document.getElementById('mps-section')?.value||availableSects[0]||'';
+  secWrap.innerHTML=`<label class="form-label">Section</label>
+    <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="max-width:280px">
+      <option value="">Select section...</option>
+      ${availableSects.map(s=>`<option value="${s}" ${s===curSect?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
+    </select>`;
+
+  const sect=document.getElementById('mps-section')?.value||'';
+  const grade=sect.match(/G(\d+)-/)?.[1]||'';
+  const isSHS=grade==='11'||grade==='12';
+  const curQtr=document.getElementById('mps-qtr')?.value||'0';
+
+  if(isSHS){
+    qtrWrap.innerHTML=`<label class="form-label">Term</label>
+      <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="max-width:190px">
+        <option value="0">All Terms (Final)</option>
+        <option value="S1MT" ${curQtr==='S1MT'?'selected':''}>Sem 1 Midterm</option>
+        <option value="S1FT" ${curQtr==='S1FT'?'selected':''}>Sem 1 Final Term</option>
+        <option value="S2MT" ${curQtr==='S2MT'?'selected':''}>Sem 2 Midterm</option>
+        <option value="S2FT" ${curQtr==='S2FT'?'selected':''}>Sem 2 Final Term</option>
+      </select>`;
+  } else {
+    qtrWrap.innerHTML=`<label class="form-label">Quarter</label>
+      <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="max-width:180px">
+        <option value="0">All Quarters (Final)</option>
+        <option value="1" ${curQtr==='1'?'selected':''}>Quarter 1</option>
+        <option value="2" ${curQtr==='2'?'selected':''}>Quarter 2</option>
+        <option value="3" ${curQtr==='3'?'selected':''}>Quarter 3</option>
+        <option value="4" ${curQtr==='4'?'selected':''}>Quarter 4</option>
+      </select>`;
+  }
+
+  if(!sect){
+    document.getElementById('mps-placeholder').classList.remove('hidden');
+    document.getElementById('mps-output').classList.add('hidden');
+    return;
+  }
+
+  await fetchGradesForSection(sect);
+
+  const students=studentsCache
+    .filter(s=>{const sn=sect.replace(/^G\d+-/,'');return s.section.toUpperCase()===sn&&`G${s.grade}-${s.section.toUpperCase()}`===sect;})
+    .sort((a,b)=>a.name.localeCompare(b.name));
+
+  if(!students.length){
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No students found in ${sect.replace(/G(\d+)-/,'Grade $1 – ')}.</div></div>`;
+    document.getElementById('mps-placeholder').classList.add('hidden');
+    document.getElementById('mps-output').classList.remove('hidden');
+    return;
+  }
+
+  const subjects=getSubjectsForGrade(grade).filter(s=>!s.subitem);
+  const qtrVal=document.getElementById('mps-qtr')?.value||'0';
+  const takers=students.length;
+
+  if(!subjects.length){
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No subjects configured for Grade ${grade}. Add them via Subject Manager.</div></div>`;
+    document.getElementById('mps-placeholder').classList.add('hidden');
+    document.getElementById('mps-output').classList.remove('hidden');
+    return;
+  }
+
+  const rows=subjects.map(subj=>{
+    const grades=students.map((_,i)=>{
+      if(isSHS){
+        if(qtrVal!=='0'){
+          const rec=gradeCache[subj.id+'_'+sect+'_'+qtrVal]||lsGet('gr_'+subj.id+'_'+sect+'_'+qtrVal)||{};
+          const v=rec[i]; return v?parseFloat(v):null;
+        } else {
+          const terms=['S1MT','S1FT','S2MT','S2FT'].map(t=>{const rec=gradeCache[subj.id+'_'+sect+'_'+t]||lsGet('gr_'+subj.id+'_'+sect+'_'+t)||{};const v=rec[i];return v?parseFloat(v):null;});
+          const s1=[terms[0],terms[1]].filter(v=>v!==null);
+          const s2=[terms[2],terms[3]].filter(v=>v!==null);
+          const sem1=s1.length>0?s1.reduce((a,b)=>a+b)/s1.length:null;
+          const sem2=s2.length>0?s2.reduce((a,b)=>a+b)/s2.length:null;
+          const all=[sem1,sem2].filter(v=>v!==null);
+          return all.length>0?all.reduce((a,b)=>a+b)/all.length:null;
+        }
+      } else {
+        if(qtrVal!=='0'){
+          const rec=gradeCache[subj.id+'_'+sect+'_Q'+qtrVal]||lsGet('gr_'+subj.id+'_'+sect+'_Q'+qtrVal)||{};
+          const v=rec[i]; return v?parseFloat(v):null;
+        } else {
+          const qVals=[1,2,3,4].map(q=>{const rec=gradeCache[subj.id+'_'+sect+'_Q'+q]||lsGet('gr_'+subj.id+'_'+sect+'_Q'+q)||{};const v=rec[i];return v?parseFloat(v):null;}).filter(v=>v!==null);
+          return qVals.length>0?qVals.reduce((a,b)=>a+b)/qVals.length:null;
+        }
+      }
+    });
+    const encoded=grades.filter(v=>v!==null);
+    if(!encoded.length) return null;
+    const totalRaw=encoded.reduce((a,b)=>a+b,0);
+    const meanScore=totalRaw/takers;
+    const mps=meanScore.toFixed(2);
+    const passed=grades.filter(v=>v!==null&&v>=75).length;
+    const pl=((passed/takers)*100).toFixed(2);
+    const mastery=getMasteryLevel(mps);
+    return{subj,takers,totalRaw:totalRaw.toFixed(0),meanScore:meanScore.toFixed(2),mps,passed,pl,mastery};
+  }).filter(r=>r!==null);
+
+  const allMPS=rows.map(r=>parseFloat(r.mps));
+  const overallMPS=allMPS.length>0?(allMPS.reduce((a,b)=>a+b)/allMPS.length).toFixed(2):'—';
+  const overallPL=rows.length>0?(rows.reduce((a,b)=>a+(parseFloat(b.pl)),0)/rows.length).toFixed(2):'—';
+  const overallMastery=overallMPS!=='—'?getMasteryLevel(overallMPS):null;
+  const termLabel=isSHS?(qtrVal==='0'?'All Terms (Final)':{'S1MT':'Sem 1 Midterm','S1FT':'Sem 1 Final','S2MT':'Sem 2 Midterm','S2FT':'Sem 2 Final'}[qtrVal]):(qtrVal==='0'?'All Quarters (Final)':'Quarter '+qtrVal);
+
+  const tableRows=rows.map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><strong>${r.subj.name}</strong></td>
+    <td style="text-align:center">${r.takers}</td>
+    <td style="text-align:center">${r.totalRaw}</td>
+    <td style="text-align:center;font-weight:600">${r.meanScore}</td>
+    <td style="text-align:center;font-weight:700;color:#1d4ed8">${r.mps}%</td>
+    <td style="text-align:center;font-weight:700;color:${parseFloat(r.pl)>=75?'var(--green)':'var(--red)'}">${r.passed}</td>
+    <td style="text-align:center;font-weight:600;color:${parseFloat(r.pl)>=75?'var(--green)':'var(--red)'}">${r.pl}%</td>
+    <td style="text-align:center"><span style="background:${r.mastery.bg};color:${r.mastery.color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${r.mastery.label}</span></td>
+  </tr>`).join('');
+
+  const legendItems=[
+    {r:'96–100',l:'Mastered',c:'#14532d',bg:'#dcfce7'},
+    {r:'86–95', l:'Closely Approximating Mastery',c:'#166534',bg:'#bbf7d0'},
+    {r:'66–85', l:'Moving Towards Mastery',c:'#1d4ed8',bg:'#dbeafe'},
+    {r:'35–65', l:'Average Mastery',c:'#92400e',bg:'#fef3c7'},
+    {r:'15–34', l:'Low Mastery',c:'#b45309',bg:'#fde68a'},
+    {r:'5–14',  l:'Very Low Mastery',c:'#dc2626',bg:'#fee2e2'},
+    {r:'0–4',   l:'Absolutely No Mastery',c:'#7f1d1d',bg:'#fecaca'},
+  ];
+
+  document.getElementById('mps-output').innerHTML=`
+  <div class="deped-page">
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-weight:bold;font-size:13px">MEAN PERCENTAGE SCORE (MPS) &amp; PROFICIENCY LEVEL (PL) REPORT</div>
+      <div style="font-size:11px">${SCHOOL_NAME} &nbsp;·&nbsp; S.Y. ${SY}</div>
+      <div style="font-size:11px">${sect.replace(/G(\d+)-/,'Grade $1 – ')} &nbsp;·&nbsp; ${termLabel}</div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;text-align:center">
+        <div style="font-size:11px;color:#1d4ed8;font-weight:600;margin-bottom:4px">OVERALL MPS</div>
+        <div style="font-size:28px;font-weight:700;color:#1d4ed8">${overallMPS}${overallMPS!=='—'?'%':''}</div>
+        ${overallMastery?`<div style="font-size:10px;margin-top:4px;color:${overallMastery.color};font-weight:600">${overallMastery.label}</div>`:''}
+      </div>
+      <div style="flex:1;min-width:140px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:12px 16px;text-align:center">
+        <div style="font-size:11px;color:var(--green);font-weight:600;margin-bottom:4px">OVERALL PL</div>
+        <div style="font-size:28px;font-weight:700;color:var(--green)">${overallPL}${overallPL!=='—'?'%':''}</div>
+        <div style="font-size:10px;margin-top:4px;color:var(--gray-400)">avg % passing across subjects</div>
+      </div>
+      <div style="flex:1;min-width:140px;background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;text-align:center">
+        <div style="font-size:11px;color:#92400e;font-weight:600;margin-bottom:4px">TOTAL STUDENTS</div>
+        <div style="font-size:28px;font-weight:700;color:#92400e">${takers}</div>
+        <div style="font-size:10px;margin-top:4px;color:var(--gray-400)">enrolled in section</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-header"><div class="card-title">Subject MPS &amp; PL Breakdown</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr style="background:#dbeafe">
+          <th style="width:30px">#</th>
+          <th>Subject</th>
+          <th style="text-align:center;min-width:55px">No. of<br>Takers</th>
+          <th style="text-align:center;min-width:65px">Total<br>Raw Score</th>
+          <th style="text-align:center;min-width:65px">Mean<br>Score</th>
+          <th style="text-align:center;min-width:60px;color:#1d4ed8">MPS (%)</th>
+          <th style="text-align:center;min-width:75px">No. Passed<br>(≥75)</th>
+          <th style="text-align:center;min-width:60px">PL (%)</th>
+          <th style="text-align:center;min-width:160px">Mastery Level</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+        <tfoot><tr style="background:#f8fafc;font-weight:700">
+          <td colspan="5" style="text-align:right;padding:6px 8px">OVERALL AVERAGE</td>
+          <td style="text-align:center;color:#1d4ed8">${overallMPS}${overallMPS!=='—'?'%':''}</td>
+          <td></td>
+          <td style="text-align:center;color:${parseFloat(overallPL)>=75?'var(--green)':'var(--red)'}">${overallPL}${overallPL!=='—'?'%':''}</td>
+          <td style="text-align:center">${overallMastery?`<span style="background:${overallMastery.bg};color:${overallMastery.color};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">${overallMastery.label}</span>`:''}</td>
+        </tr></tfoot>
+      </table></div>
+    </div>
+    <div style="border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;margin-bottom:12px">
+      <div style="background:#f8fafc;padding:8px 14px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">MPS Mastery Level Reference (DepEd)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--gray-200)">
+        ${legendItems.map(m=>`<div style="background:${m.bg};padding:8px 12px"><span style="font-weight:700;color:${m.c};font-size:12px">${m.r}</span><span style="font-size:11px;color:${m.c};margin-left:8px">${m.l}</span></div>`).join('')}
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--gray-400);display:flex;gap:20px;flex-wrap:wrap">
+      <span><strong>MPS</strong> = (Mean Score ÷ 100) × 100</span>
+      <span><strong>Mean Score</strong> = Total Raw Score ÷ No. of Takers</span>
+      <span><strong>PL</strong> = (No. Passed ÷ Total Takers) × 100</span>
+      <span><strong>Passing</strong> = 75 and above</span>
+    </div>
+  </div>`;
+
+  document.getElementById('mps-placeholder').classList.add('hidden');
+  document.getElementById('mps-output').classList.remove('hidden');
 }
 
 // ── STUDENTS ───────────────────────────────────────────────────────
