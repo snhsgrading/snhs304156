@@ -898,7 +898,7 @@
           <div class="card">
             <div class="card-header"><div><div class="card-title">My Subject Assignments</div><div class="card-sub">Click Encode to enter grades</div></div></div>
             <div class="table-wrap"><table>
-              <thead><tr><th>Subject</th><th>Section</th><th>Students</th><th>Quarter</th><th></th></tr></thead>
+              <thead><tr><th>Subject</th><th>Section</th><th>Students</th><th>Term</th><th></th></tr></thead>
               <tbody id="dash-teacher-sections"><tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:1.5rem">Loading assignments...</td></tr></tbody>
             </table></div>
           </div>
@@ -937,7 +937,7 @@
                 </div>
                 <div class="table-wrap">
                   <table>
-                    <thead><tr><th>Subject</th><th>Section</th><th>Students</th><th>Quarter</th><th></th></tr></thead>
+                    <thead><tr><th>Subject</th><th>Section</th><th>Students</th><th>Term</th><th></th></tr></thead>
                     <tbody id="da-subject-sections"><tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:1.5rem">Loading...</td></tr></tbody>
                   </table>
                 </div>
@@ -1332,10 +1332,10 @@
               <div style="margin-top:8px;font-size:9.5px;">
                 <div style="font-weight:bold;margin-bottom:4px;">PARENT/GUARDIAN SIGNATURE</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-                  <div>1st Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
-                  <div>3rd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
-                  <div>2nd Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
-                  <div>4th Quarter: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>Term 1: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>Term 3: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>Term 2: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
+                  <div>Term 3: <span style="border-bottom:1px solid #000;display:inline-block;min-width:110px;">&nbsp;</span></div>
                 </div>
               </div>
               <div style="display:flex;justify-content:flex-end;margin-top:6px;font-size:7.5px;font-style:italic;color:#555;">DepEd MATATAG</div>
@@ -1348,7 +1348,7 @@
                 <thead>
                   <tr>
                     <th rowspan="2" style="border:1px solid #000;text-align:left;padding:4px 6px;width:220px;background:#ddd;color:#000;">LEARNING AREAS</th>
-                    <th colspan="4" style="border:1px solid #000;text-align:center;padding:4px;background:#ddd;color:#000;">Quarter</th>
+                    <th colspan="4" style="border:1px solid #000;text-align:center;padding:4px;background:#ddd;color:#000;">Term Rating</th>
                     <th rowspan="2" style="border:1px solid #000;text-align:center;padding:4px;background:#ddd;color:#000;">Final<br>Grade</th>
                     <th rowspan="2" style="border:1px solid #000;text-align:center;padding:4px;background:#ddd;color:#000;">Remarks</th>
                   </tr>
@@ -1404,7 +1404,7 @@
                   <tr>
                     <th style="border:1px solid #000;padding:3px 5px;width:100px;background:#ddd;color:#000;">Core Values</th>
                     <th style="border:1px solid #000;padding:3px 5px;background:#ddd;color:#000;">Behavioral Statements</th>
-                    <th colspan="4" style="border:1px solid #000;padding:3px;text-align:center;background:#ddd;color:#000;">Quarter</th>
+                    <th colspan="4" style="border:1px solid #000;padding:3px;text-align:center;background:#ddd;color:#000;">Term Rating</th>
                   </tr>
                   <tr>
                     <th style="border:1px solid #000;background:#eee;"></th>
@@ -1536,7 +1536,6 @@
                     <option value="1">Term 1</option>
                     <option value="2">Term 2</option>
                     <option value="3">Term 3</option>
-                    <option value="4">Term 3</option>
                   </select>
                 </div>
                 <div style="min-width:200px"><label class="form-label">Subject / Test Name</label>
@@ -1591,9 +1590,9 @@
                 </select>
               </div>
               <div style="min-width:150px">
-                <label class="form-label">Filter by Quarter</label>
+                <label class="form-label">Filter by Term</label>
                 <select class="form-select" id="hist-raw-qtr-filter" onchange="loadSavedRawTests()" style="max-width:180px">
-                  <option value="">All Quarters</option>
+                  <option value="">All Terms</option>
                   <option value="1">Term 1</option>
                   <option value="2">Term 2</option>
                   <option value="3">Term 3</option>
@@ -4406,7 +4405,6 @@ async function buildReport(){
         <option value="1">Term 1</option>
         <option value="2">Term 2</option>
         <option value="3">Term 3</option>
-        <option value="4">Term 3</option>
       </select>`;
     }
   }
@@ -4597,12 +4595,11 @@ async function buildMPSReport(){
         <option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option>
       </select>`;
   } else {
-    qtrWrap.innerHTML=`<label class="form-label">Quarter</label>
+    qtrWrap.innerHTML=`<label class="form-label">Term</label>
       <select class="form-select" id="mps-qtr" onchange="buildMPSReport()" style="min-width:160px">
         <option value="1" ${curQtr==='1'?'selected':''}>Term 1</option>
         <option value="2" ${curQtr==='2'?'selected':''}>Term 2</option>
         <option value="3" ${curQtr==='3'?'selected':''}>Term 3</option>
-        <option value="4" ${curQtr==='4'?'selected':''}>Term 3</option>
       </select>`;
   }
 
@@ -5039,8 +5036,7 @@ function populateRawSectionDropdown(){
         qtrEl.innerHTML = `
           <option value="1" ${curQ==='1'?'selected':''}>Term 1</option>
           <option value="2" ${curQ==='2'?'selected':''}>Term 2</option>
-          <option value="3" ${curQ==='3'?'selected':''}>Term 3</option>
-          <option value="4" ${curQ==='4'?'selected':''}>Term 3</option>`;
+          <option value="3" ${curQ==='3'?'selected':''}>Term 3</option>`;
       }
     }
   }
