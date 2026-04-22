@@ -1541,6 +1541,11 @@
                 <div style="min-width:200px"><label class="form-label">Subject / Test Name</label>
                   <input type="text" class="form-input" id="raw-subject" placeholder="e.g. Filipino T1 Periodical Test" oninput="initRawScoreTable()"/>
                 </div>
+                <div style="min-width:200px"><label class="form-label">Link to Subject <span style="font-size:10px;color:var(--gray-400)">(for grade sync)</span></label>
+                  <select class="form-select" id="raw-subject-link" title="Optional: link this test to a configured subject so raw scores are auto-transmuted into Term grades">
+                    <option value="">— None (manual grade entry) —</option>
+                  </select>
+                </div>
                 <div style="min-width:100px"><label class="form-label">No. of Items *</label>
                   <input type="number" class="form-input" id="raw-items" min="1" max="200" placeholder="e.g. 50" oninput="onRawItemsChange()"/>
                 </div>
@@ -3164,6 +3169,10 @@ function onGradeInput(el, idx, termKey){
 }
 
 function buildGradeTable(subj,sect){
+  // F-04 FIX: Pure adviser role cannot edit subject grades — only subject teachers and admin can.
+  // Adviser sees grades read-only; they may only edit Core Values (via SF9).
+  const adviserReadOnly = CU?.role === 'adviser';
+
   // MAPEH: show split table — Music & Arts + PE & Health inputs, MAPEH computed
   if(subj && subj.replace(/_\d+$/,'') === 'mapeh'){
     buildMAPEHTable(subj,sect); return;
@@ -3175,14 +3184,42 @@ function buildGradeTable(subj,sect){
   const key=subj+'_'+sect+'_T'+CQ;
   const saved=gradeCache[key]||lsGet('gr_'+key)||{};
   gradeCache[key]=saved;
+
+  // Show read-only notice for pure adviser
+  const adviserBanner = adviserReadOnly
+    ? `<div style="margin-bottom:10px;padding:8px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
+        🔒 <strong>View Only:</strong> Subject grades are encoded by the assigned subject teacher. As class adviser, you can view but not modify these grades. To update a grade, ask the subject teacher.
+       </div>`
+    : '';
+
+  document.getElementById('grade-table-wrap').insertAdjacentHTML('beforebegin', '');
+  // Inject banner above the table container if not already there
+  const bannerEl = document.getElementById('adviser-grade-banner');
+  if(bannerEl) bannerEl.remove();
+  if(adviserReadOnly){
+    const wrap = document.getElementById('grade-table-wrap');
+    if(wrap){
+      const div = document.createElement('div');
+      div.id = 'adviser-grade-banner';
+      div.innerHTML = adviserBanner;
+      wrap.parentNode.insertBefore(div, wrap);
+    }
+  } else {
+    const old = document.getElementById('adviser-grade-banner');
+    if(old) old.remove();
+  }
+
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
     const v=saved[i]||'';
     const cls=v?(+v>=75?'passing':'failing'):'';
+    const inputAttrs = adviserReadOnly
+      ? `readonly style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px" title="Read-only — encoded by subject teacher"`
+      : `oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')"`;
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
-      <td><input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}" oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')" placeholder="—"></td>
+      <td><input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}" ${inputAttrs} placeholder="—"></td>
       <td><span id="rmk_${i}" class="badge ${v?(+v>=75?'badge-green':'badge-red'):'badge-gray'}">${v?(+v>=75?'Passed':'Failed'):'—'}</span></td>
     </tr>`;
   }).join('');
@@ -3192,6 +3229,9 @@ function buildGradeTable(subj,sect){
 // ── MAPEH SPLIT TABLE ─────────────────────────────────────────────
 // Shows Music & Arts + PE & Health inputs; MAPEH auto-computed as their average
 function buildMAPEHTable(subjId, sect){
+  // F-04 FIX: pure adviser cannot edit
+  const adviserReadOnly = CU?.role === 'adviser';
+
   const grade = sect.match(/^G(\d+)-/)?.[1]||'10';
   const maId  = 'ma_'+grade;
   const pehId = 'peh_'+grade;
@@ -3224,14 +3264,18 @@ function buildMAPEHTable(subjId, sect){
     const mapehTxt = mapeh!=='' ? (mapeh>=75?'Passed':'Failed') : '—';
     const maCls  = ma !==''?( +ma >=75?'passing':'failing'):'';
     const pehCls = peh!==''?(+peh>=75?'passing':'failing'):'';
+    const roStyle = adviserReadOnly ? 'background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;' : '';
+    const roAttr  = adviserReadOnly ? 'readonly title="Read-only — encoded by subject teacher"' : '';
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
       <td style="background:#fef9c3"><input type="number" class="grade-input ${maCls}" id="ma_${i}" min="60" max="100" value="${ma}"
-        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
+        ${adviserReadOnly ? roAttr : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`}
+        placeholder="—" style="width:64px;${roStyle}"></td>
       <td style="background:#eff6ff"><input type="number" class="grade-input ${pehCls}" id="peh_${i}" min="60" max="100" value="${peh}"
-        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
+        ${adviserReadOnly ? roAttr : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`}
+        placeholder="—" style="width:64px;${roStyle}"></td>
       <td style="background:#f0fdf4;text-align:center;font-weight:600" id="mapeh_avg_${i}">${mapeh!==''?mapeh:'—'}</td>
       <td><span id="rmk_${i}" class="badge ${mapehCls}">${mapehTxt}</span></td>
     </tr>`;
@@ -3361,6 +3405,11 @@ function clearGrades(){
 function selectQtr(q,el){CQ=Math.min(q,3);document.querySelectorAll('.qtr-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');loadGradeTable();}
 
 async function doSaveGrades(){
+  // F-04 FIX: pure adviser cannot save subject grades
+  if(CU?.role === 'adviser'){
+    toast('🔒 Grade saving is restricted to subject teachers. As class adviser, you can view grades but not modify them.', true);
+    return;
+  }
   const subj=document.getElementById('enc-subject').value;
   const sect=document.getElementById('enc-section').value;
   const isMapeh = subj.replace(/_\d+$/,'') === 'mapeh';
@@ -3691,6 +3740,12 @@ async function renderSF9(){
   // FIX v11: always uppercase section so grade-cache key matches encoding key (encoding always saves uppercase)
   const sectionKey = 'G'+(s.grade||'10')+'-'+s.section.toUpperCase();
 
+  // ── F-10 FIX: warn if viewing Term 3 but not all terms are encoded ──
+  const incompleteWarningEl = document.getElementById('sf9-incomplete-warning') ||
+    (() => { const d=document.createElement('div'); d.id='sf9-incomplete-warning'; d.className='no-print';
+      document.getElementById('sf9-output').prepend(d); return d; })();
+  incompleteWarningEl.innerHTML = '';
+
 
   // ── Attendance — from saved records, excluding suspended/holiday days ──
   const months=['jun','jul','aug','sep','oct','nov','dec','jan','feb','mar'];
@@ -3737,6 +3792,30 @@ async function renderSF9(){
 
   const encodedGrades = getStudentGradesFromCache(studentIndex, sectionKey, s.grade||'10');
 
+  // ── F-10 FIX: detect subjects where Final Grade is shown from < 3 terms ──
+  if(qtr === 3){
+    const incompSubjs = [];
+    SUBJS_SF9.filter(r=>!r.sub).forEach(row=>{
+      const gData = encodedGrades[row.idx]||{};
+      const filledTerms = [gData.t1, gData.t2, gData.t3].filter(v=>v!==null&&v!==undefined).length;
+      if(filledTerms > 0 && filledTerms < 3) incompSubjs.push(row.name);
+    });
+    if(incompSubjs.length){
+      incompleteWarningEl.innerHTML=`
+        <div style="margin-bottom:10px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
+          ⚠️ <strong>Incomplete term grades detected.</strong> The following subjects are missing one or more term grades:
+          <strong>${incompSubjs.join(', ')}</strong>.
+          Final Grade shown for these subjects is computed from available terms only — it is <em>not yet official</em>.
+          Please have the subject teacher complete all 3 terms before printing.
+          <div style="margin-top:6px">
+            <button class="btn btn-sm" onclick="window.print()"
+              style="background:#fcd34d;color:#92400e;border:none;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer"
+              disabled title="Disabled until all terms are complete">🖨️ Print blocked — complete all terms first</button>
+          </div>
+        </div>`;
+    }
+  }
+
   let sum=0, cnt=0;
 
   // Helper: blank on print for missing values (never show '—' on printed form)
@@ -3749,19 +3828,28 @@ async function renderSF9(){
   document.getElementById('sf9-grade-rows').innerHTML=SUBJS_SF9.map(row=>{
     // Sub-rows (Music & Arts, PE & Health) share the same MAPEH grade data (idx:7)
     const gData = encodedGrades[row.idx] || {};
-    const q1=gData.t1, q2=gData.t2, q3=gData.t3, q4=gData.t4;
+    const q1=gData.t1, q2=gData.t2, q3=gData.t3;
     const final = gData.final;
 
-    const finalDisplay = final!==null && final!==undefined
-      ? `<strong>${final}</strong>`
+    // F-10 FIX: final is "official" only when all 3 terms have been encoded
+    const filledTermCount = [q1,q2,q3].filter(v=>v!==null&&v!==undefined).length;
+    const finalIsPending  = qtr === 3 && filledTermCount > 0 && filledTermCount < 3;
+    const finalIsReady    = final !== null && final !== undefined;
+
+    const finalDisplay = finalIsReady
+      ? (finalIsPending
+          ? `<strong style="color:#b45309" title="Based on ${filledTermCount}/3 terms only">${final}*</strong>`
+          : `<strong>${final}</strong>`)
       : '<span class="grade-dash no-print-val">—</span>';
 
-    const rem = final!==null && final!==undefined
-      ? (final>=75?'Passed':'<span style="color:red">Failed</span>')
+    const rem = finalIsReady
+      ? (finalIsPending
+          ? '<span style="color:#b45309;font-size:9px">Pending</span>'
+          : (final>=75?'Passed':'<span style="color:red">Failed</span>'))
       : '<span class="no-print-val">—</span>';
 
-    // Only add to GWA for main subjects (not sub-rows)
-    if(final!==null && final!==undefined && !row.sub){ sum+=final; cnt++; }
+    // Only add to GWA for main subjects (not sub-rows) AND only if final is not pending
+    if(final!==null && final!==undefined && !row.sub && !finalIsPending){ sum+=final; cnt++; }
 
     // Sub-rows: italic, indented label — same grade columns as MAPEH
     const nameCell = row.sub
@@ -3770,15 +3858,16 @@ async function renderSF9(){
 
     return`<tr>
       ${nameCell}
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t1,1)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t2,2)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t3,3)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t4,4)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q1,1)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q2,2)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q3,3)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center"></td>
       <td style="border:1px solid #000;padding:3px;text-align:center">${finalDisplay}</td>
       <td style="border:1px solid #000;padding:3px;text-align:center">${rem}</td>
     </tr>`;
   }).join('');
 
+  // F-10: only include non-pending finals in GWA
   if(cnt>0){
     const avg=(sum/cnt).toFixed(2);
     document.getElementById('sf9-avg').textContent=avg;
@@ -4518,9 +4607,19 @@ async function buildReport(){
 }
 
 // ── MPS & PROFICIENCY LEVEL REPORT ────────────────────────────────
-// MPS = (Mean Score / 100) × 100 = class average (grades already on 100-pt scale)
+// TRUE MPS (Tab 2)  = (Σ raw scores) ÷ (n students × total items) × 100
+// APPROX MPS (Tab 1)= reverse-transmute the mean transmuted grade back to a 0–100 % basis
+//   Formula: approxMPS = ((meanGrade − 40) / 60) × 100
+//   This is the inverse of DepEd's transmutation: transmuted = (rawPct × 60) + 40
 // PL  = (Students with grade ≥ 75 / Total takers) × 100
-// Mastery levels per DepEd standard
+// Mastery descriptors are applied to the MPS % (not the transmuted grade)
+
+// Reverse-transmute a DepEd grade (60–100) to approximate raw MPS % (0–100)
+function reverseTransmute(grade){
+  const g = parseFloat(grade);
+  if(isNaN(g)) return null;
+  return Math.max(0, Math.min(100, ((g - 40) / 60) * 100));
+}
 
 function getMasteryLevel(mps){
   const v = parseFloat(mps);
@@ -4558,14 +4657,12 @@ async function buildMPSReport(){
     allSects = [...new Set([...(advSect?[advSect]:[]), ...teachSects])];
   }
 
-  // Build section select if not yet built
-  if(!sectionWrap.querySelector('select')){
-    sectionWrap.innerHTML=`<label class="form-label">Section</label>
-      <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="min-width:220px">
-        <option value="">Select section...</option>
-        ${allSects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
-      </select>`;
-  }
+  // Always rebuild section dropdown to reflect current enrolled students (including SHS)
+  sectionWrap.innerHTML=`<label class="form-label">Section</label>
+    <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="min-width:220px">
+      <option value="">Select section...</option>
+      ${allSects.map(s=>`<option value="${s}" ${s===sect?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
+    </select>`;
 
   const sectEl = document.getElementById('mps-section');
   const sect = sectEl?.value||'';
@@ -4638,17 +4735,21 @@ async function buildMPSReport(){
   }
 
   if(!subjects.length){
-    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.</div></div>`;
+    const isSHS = grade==='11'||grade==='12';
+    const msg = isSHS
+      ? `No subjects configured for Grade ${grade} (SHS). Go to <strong>Subject Manager</strong> and add subjects for Grade ${grade}, or use the <strong>Strand Manager</strong> to configure strand subjects.`
+      : `No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.`;
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">${msg}</div></div>`;
     document.getElementById('mps-output').classList.remove('hidden');
     document.getElementById('mps-placeholder').classList.add('hidden');
     return;
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
+  // F-08 FIX: grade encoding ALWAYS saves with _T{term} key (DepEd Trimester SY2026-2027).
+  // The old _Q{term} key format is no longer used. Use _T{term} for ALL grades including SHS.
   const rows = subjects.map(subj=>{
-    const gradeKey = shsSect
-      ? subj.id+'_'+sect+'_'+term
-      : subj.id+'_'+sect+'_Q'+term;
+    const gradeKey = subj.id+'_'+sect+'_T'+term;
 
     const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
 
@@ -4659,22 +4760,35 @@ async function buildMPSReport(){
     }).filter(v=>v!==null);
 
     const takers = encodedGrades.length;
-    if(takers===0) return {subj:subj.name, takers:0, mps:null, passed:0, failed:0, pl:null};
+    if(takers===0) return {subj:subj.name, takers:0, mps:null, gradeAvg:null, passed:0, failed:0, pl:null};
 
     const totalScore = encodedGrades.reduce((a,b)=>a+b,0);
-    const meanScore  = totalScore/takers;
-    // MPS: since grades are on 100-pt scale, MPS = mean score
-    const mps        = meanScore.toFixed(2);
+    // F-05 FIX: use enrolled count (not just takers) as denominator for class average
+    // so un-encoded slots are treated as 0 contribution rather than excluded
+    // However since Tab 1 grades are transmuted (60–100) and absent = no entry, we use takers
+    // for grade avg but flag when takers < enrolled (partial encoding)
+    const meanScore  = totalScore / takers;  // mean of those encoded
+    const enrolled   = students.length;
+    const notEncoded = enrolled - takers;
+    // gradeAvg: mean of the 60–100 transmuted grades (what teachers encoded)
+    const gradeAvg   = meanScore.toFixed(2);
+    // approxMPS: reverse-transmute back to a 0–100 % basis for correct mastery labelling
+    const approxMPS  = reverseTransmute(meanScore);
+    const mps        = approxMPS !== null ? approxMPS.toFixed(2) : gradeAvg;
     const passed     = encodedGrades.filter(v=>v>=75).length;
     const failed     = takers - passed;
     const pl         = ((passed/takers)*100).toFixed(2);
 
-    return {subj:subj.name, takers, mps, passed, failed, pl};
+    return {subj:subj.name, takers, enrolled, notEncoded, mps, gradeAvg, passed, failed, pl};
   });
 
   // ── Compute overall MPS & PL across all subjects ──────────────────
+  // overallMPS = mean of per-subject approx MPS (already reverse-transmuted)
   const allMPS = rows.filter(r=>r.mps!==null).map(r=>parseFloat(r.mps));
   const overallMPS = allMPS.length>0 ? (allMPS.reduce((a,b)=>a+b)/allMPS.length).toFixed(2) : null;
+  // overallGradeAvg = mean of per-subject grade averages (for display reference)
+  const allGA = rows.filter(r=>r.gradeAvg!==null).map(r=>parseFloat(r.gradeAvg));
+  const overallGradeAvg = allGA.length>0 ? (allGA.reduce((a,b)=>a+b)/allGA.length).toFixed(2) : null;
   const totalTakers = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.takers,0);
   const totalPassed = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.passed,0);
   const overallPL   = totalTakers>0 ? ((totalPassed/totalTakers)*100).toFixed(2) : null;
@@ -4688,10 +4802,19 @@ async function buildMPSReport(){
       </tr>`;
     }
     const mastery = getMasteryLevel(r.mps);
+    const partialWarn = r.notEncoded > 0
+      ? `<div style="font-size:10px;color:#b45309;margin-top:1px">⚠️ ${r.notEncoded} not yet encoded</div>`
+      : '';
     return`<tr>
       <td><strong>${r.subj}</strong></td>
-      <td style="text-align:center">${r.takers}</td>
-      <td style="text-align:center;font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</td>
+      <td style="text-align:center">
+        ${r.takers}${r.notEncoded>0?`<div style="font-size:10px;color:#b45309">of ${r.enrolled}</div>`:''}
+      </td>
+      <td style="text-align:center">
+        <span style="font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</span>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:1px">Grade avg: ${r.gradeAvg}</div>
+        ${partialWarn}
+      </td>
       <td style="text-align:center">
         <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color}">${mastery.label}</span>
       </td>
@@ -4710,24 +4833,33 @@ async function buildMPSReport(){
 
   const overallMastery = overallMPS ? getMasteryLevel(overallMPS) : null;
   const sectionLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
+  const generatedAt  = new Date().toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   document.getElementById('mps-output').innerHTML=`
     <div class="deped-page">
       <!-- Header -->
-      <div style="text-align:center;margin-bottom:12px;">
+      <div style="text-align:center;margin-bottom:8px;">
         <div style="font-weight:700;font-size:13px;">${SCHOOL_NAME}</div>
         <div style="font-size:11px;color:var(--gray-600)">${DIVISION} &nbsp;·&nbsp; ${REGION}</div>
         <div style="font-size:12px;font-weight:600;margin-top:4px;">MPS &amp; Proficiency Level Report</div>
         <div style="font-size:11px;color:var(--gray-500)">${sectionLabel} &nbsp;·&nbsp; ${termLabel} &nbsp;·&nbsp; S.Y. ${SY}</div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:3px;">Generated: ${generatedAt}</div>
+      </div>
+
+      <!-- F-01/F-02 notice: MPS is approx from transmuted grades -->
+      <div style="margin-bottom:12px;padding:7px 12px;background:#fef9c3;border:1px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;">
+        ℹ️ <strong>MPS values here are approximated</strong> from encoded transmuted grades using the reverse of DepEd's transmutation formula: <em>Approx MPS = (Grade − 40) ÷ 60 × 100</em>.
+        For true raw-score MPS, use the <strong>From Raw Scores</strong> tab.
       </div>
 
       <!-- Overall Summary Cards -->
       ${overallMPS ? `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
         <div style="background:var(--navy);color:white;border-radius:12px;padding:16px;text-align:center">
-          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall MPS</div>
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall Approx MPS</div>
           <div style="font-size:28px;font-weight:800">${overallMPS}%</div>
-          <div style="font-size:10px;opacity:0.75;margin-top:4px">${overallMastery.label}</div>
+          <div style="font-size:10px;opacity:0.75;margin-top:2px">${overallMastery.label}</div>
+          <div style="font-size:10px;opacity:0.6;margin-top:1px">Grade avg: ${overallGradeAvg}</div>
         </div>
         <div style="background:var(--green);color:white;border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Proficiency Level</div>
@@ -4747,7 +4879,7 @@ async function buildMPSReport(){
           <tr style="background:var(--navy);color:white;">
             <th style="padding:10px 12px;text-align:left;border-radius:8px 0 0 0">Subject</th>
             <th style="padding:10px 8px;text-align:center">Takers</th>
-            <th style="padding:10px 8px;text-align:center">MPS</th>
+            <th style="padding:10px 8px;text-align:center">Approx MPS<br><span style="font-size:9px;font-weight:400;opacity:0.75">(Grade Avg)</span></th>
             <th style="padding:10px 8px;text-align:center">Mastery Level</th>
             <th style="padding:10px 8px;text-align:center">PL (%)</th>
             <th style="padding:10px 12px;text-align:center;border-radius:0 8px 0 0">Passed ✓ / Failed ✗</th>
@@ -4760,7 +4892,10 @@ async function buildMPSReport(){
           <tr style="background:var(--gray-50);font-weight:700;border-top:2px solid var(--navy)">
             <td style="padding:10px 12px">OVERALL</td>
             <td style="text-align:center;padding:10px 8px">${students.length}</td>
-            <td style="text-align:center;padding:10px 8px;font-size:15px;color:var(--navy)">${overallMPS}%</td>
+            <td style="text-align:center;padding:10px 8px">
+              <span style="font-size:15px;color:var(--navy)">${overallMPS}%</span>
+              <div style="font-size:10px;color:var(--gray-400)">avg: ${overallGradeAvg}</div>
+            </td>
             <td style="text-align:center;padding:10px 8px">
               <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${overallMastery.bg};color:${overallMastery.color}">${overallMastery.label}</span>
             </td>
@@ -4772,7 +4907,7 @@ async function buildMPSReport(){
 
       <!-- Mastery Level Legend -->
       <div style="margin-top:16px;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;">
-        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference (DepEd)</div>
+        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference (DepEd) — applied to MPS %</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">
           ${[
             {range:'96–100',label:'Mastered',color:'#14532d',bg:'#dcfce7'},
@@ -4791,7 +4926,7 @@ async function buildMPSReport(){
 
       <!-- Formulas reference -->
       <div style="margin-top:12px;font-size:10px;color:var(--gray-400);text-align:center;font-style:italic;">
-        MPS = (Mean Score ÷ 100) × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; DepEd Standard
+        Approx MPS = (Mean Grade − 40) ÷ 60 × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; True MPS requires raw scores (use Tab 2)
       </div>
     </div>`;
 
@@ -4973,6 +5108,12 @@ function loadSavedTestIntoForm(cacheKey){
   if(!match) return;
   const sect = match[1], qtr = match[2], subj = match[3].replace(/_/g,' ');
 
+  // F-07 FIX: scan for duplicate keys (same sect+qtr+subj, multiple records)
+  // Since we use upsert on grade_key, true duplicates shouldn't exist in Supabase,
+  // but we tag the active edit key so saveRawScores always does an upsert (UPDATE),
+  // never a second INSERT for the same logical test.
+  window._editingRawKey = cacheKey; // flag: this is an edit, not a new test
+
   // Switch to Raw tab
   const btn = document.getElementById('mps-tab-raw-btn');
   switchMPSTab('raw', btn);
@@ -4995,7 +5136,16 @@ function loadSavedTestIntoForm(cacheKey){
       qtrEl.innerHTML = [1,2,3].map(q=>`<option value="${q}" ${String(q)===qtr?'selected':''}>Term ${q}</option>`).join('');
     }
 
+    // F-07: Pre-load scores from the canonical key into rawScoreCache
+    // so that saveRawScores upserts to the SAME key (no duplicate insert)
+    rawScoreCache[cacheKey] = data;
+
     initRawScoreTable();
+
+    // Show edit-mode banner
+    const hint = document.getElementById('raw-hint');
+    if(hint) hint.innerHTML = `<span style="color:#1e40af;font-weight:600">✏️ Editing saved test — <code style="background:#eff6ff;padding:1px 5px;border-radius:4px;font-size:11px">${cacheKey}</code>. Saving will overwrite (upsert) the existing record.</span>`;
+
     toast('✓ Test loaded — you can now edit the scores');
   }, 150);
 }
@@ -5040,6 +5190,17 @@ function populateRawSectionDropdown(){
       }
     }
   }
+
+  // F-03: Populate subject-link dropdown based on section's grade level
+  const linkSel = document.getElementById('raw-subject-link');
+  if(linkSel && sect){
+    const grade = sect.match(/G(\d+)-/)?.[1]||'';
+    const subjList = grade ? getSubjectsForGrade(grade).filter(s=>!s.subitem) : [];
+    linkSel.innerHTML = '<option value="">— None (manual grade entry) —</option>' +
+      subjList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  } else if(linkSel){
+    linkSel.innerHTML = '<option value="">— Select a section first —</option>';
+  }
 }
 
 // raw score data: rawScoreCache[cacheKey] = {items, scores:{lrn:rawScore}}
@@ -5057,6 +5218,15 @@ function onRawItemsChange(){
 }
 
 function initRawScoreTable(){
+  // F-07: if user changes any field manually (not via loadSavedTestIntoForm),
+  // clear the edit-mode flag so saveRawScores treats this as a new / different key.
+  const newKey = getRawCacheKey();
+  if(window._editingRawKey && window._editingRawKey !== newKey){
+    window._editingRawKey = null;
+    const hint = document.getElementById('raw-hint');
+    if(hint) hint.innerHTML = 'Enter the number of items, then encode each student\'s raw score.';
+  }
+
   const sect   = document.getElementById('raw-section')?.value||'';
   const qtr    = document.getElementById('raw-qtr')?.value||'1';
   const subj   = document.getElementById('raw-subject')?.value.trim()||'';
@@ -5228,6 +5398,14 @@ function computeLiveRawMPS(students, items){
 async function saveRawScores(){
   const cacheKey = getRawCacheKey();
   if(!cacheKey){ toast('Please fill all fields first',true); return; }
+
+  // F-06 FIX: require a non-empty subject/test name
+  const subjName = document.getElementById('raw-subject')?.value.trim();
+  if(!subjName){
+    toast('❌ Please enter a Subject / Test Name before saving.',true);
+    return;
+  }
+
   const items = parseInt(document.getElementById('raw-items')?.value)||0;
   if(!items){ toast('Enter number of items first',true); return; }
 
@@ -5253,6 +5431,51 @@ async function saveRawScores(){
     toast('✅ Raw scores saved offline — syncs when online');
   }
   logAudit('RAW SCORES','Saved raw scores: '+cacheKey);
+
+  // ── F-03 FIX: Auto-transmute raw scores → Term grades if subject is linked ──
+  const linkedSubjId = document.getElementById('raw-subject-link')?.value||'';
+  if(linkedSubjId){
+    const sect   = document.getElementById('raw-section')?.value||'';
+    const term   = document.getElementById('raw-qtr')?.value||'1';
+    const gradeKey = linkedSubjId + '_' + sect + '_T' + term;
+    const sectName = sect.replace(/^G\d+-/,'');
+    const students = studentsCache
+      .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()
+        && `G${s.grade}-${s.section.toUpperCase()}`===sect
+        && s.status!=='Dropped')
+      .sort((a,b)=>a.name.localeCompare(b.name));
+
+    if(students.length && items > 0){
+      const scores = obj.scores||{};
+      const gradeObj = {};
+      students.forEach((s, idx)=>{
+        const raw = scores[s.lrn];
+        if(raw !== undefined && raw !== null && raw !== ''){
+          const pct = parseFloat(raw) / items;
+          // DepEd transmutation: transmuted = (rawPct × 60) + 40, clamped 60–100
+          const transmuted = Math.max(60, Math.min(100, Math.round(pct * 60 + 40)));
+          gradeObj[idx] = String(transmuted);
+        }
+      });
+
+      // Push to gradeCache + localStorage
+      gradeCache[gradeKey] = gradeObj;
+      lsSet('gr_'+gradeKey, gradeObj);
+
+      // Push to Supabase
+      if(isOnline){
+        try{
+          await sb.from('grade_records').upsert({
+            grade_key: gradeKey, data: gradeObj, updated_at: new Date().toISOString()
+          },{onConflict:'grade_key'});
+        } catch(e){ queueForSync('grades', gradeKey, gradeObj); }
+      } else {
+        queueForSync('grades', gradeKey, gradeObj);
+      }
+      logAudit('AUTO-TRANSMUTE','Raw→Grade sync: '+gradeKey+' ('+Object.keys(gradeObj).length+' students)');
+      toast('🔄 Transmuted grades pushed to Term '+term+' grade record for linked subject!');
+    }
+  }
 }
 
 function clearRawScores(){
