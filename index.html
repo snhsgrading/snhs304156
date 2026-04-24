@@ -1541,8 +1541,8 @@
                 <div style="min-width:200px"><label class="form-label">Subject / Test Name</label>
                   <input type="text" class="form-input" id="raw-subject" placeholder="e.g. Filipino T1 Periodical Test" oninput="initRawScoreTable()"/>
                 </div>
-                <div style="min-width:200px"><label class="form-label">Link to Subject <span style="font-size:10px;color:var(--gray-400)">(for grade sync)</span></label>
-                  <select class="form-select" id="raw-subject-link" title="Optional: link this test to a configured subject so raw scores are auto-transmuted into Term grades">
+                <div style="min-width:200px"><label class="form-label">Link to Grade Subject <span style="font-size:10px;color:var(--gray-400)">(auto-sync)</span></label>
+                  <select class="form-select" id="raw-subject-link" title="Optional: link this test to a subject so raw scores are auto-transmuted into the Term grade record when saved">
                     <option value="">— None (manual grade entry) —</option>
                   </select>
                 </div>
@@ -1717,6 +1717,27 @@
 
       <!-- AUDIT LOG -->
       <div class="view" id="view-audit">
+
+        <!-- ── GRADING PERIOD LOCK (Admin) ── -->
+        <div class="card" id="term-lock-card" style="margin-bottom:1.25rem">
+          <div class="card-header">
+            <div>
+              <div class="card-title">🔒 Grading Period Lock — S.Y. 2026-2027</div>
+              <div class="card-sub">Lock closes all grade and attendance editing for that term across every device. Synced to cloud.</div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="renderTermLockPanel()">🔄 Refresh</button>
+          </div>
+          <div style="padding:1rem 1.25rem">
+            <div id="term-lock-panel">
+              <div style="color:var(--gray-400);font-size:13px;padding:8px 0">Loading lock status...</div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--gray-400)">
+              ⚙️ Non-admin users are auto-locked after each term end date. Admin can manually override above. Lock state is synced across all devices via Supabase.
+            </div>
+          </div>
+        </div>
+
+        <!-- ── AUDIT LOG ── -->
         <div class="card">
           <div class="card-header">
             <div>
@@ -1899,6 +1920,118 @@ const PRINCIPAL_TITLE = 'PRINCIPAL III';
 const DIVISION = 'Division of Iligan City';
 const REGION = 'Region X – Northern Mindanao';
 
+// ── TERM CALENDAR & GRADING PERIOD LOCK ───────────────────────────
+// DepEd Trimester SY 2026-2027 official calendar.
+// After each term END date, grades and attendance for that term are LOCKED.
+// Admin can override via Audit Log → Grading Period Lock panel.
+const TERM_DATES = {
+  1: { label:'Term 1', start:'2026-06-08', end:'2026-09-15' },
+  2: { label:'Term 2', start:'2026-09-16', end:'2026-12-18' },
+  3: { label:'Term 3', start:'2027-01-04', end:'2027-04-08' },
+};
+
+// Returns true if the given term number is past its end date
+function isTermOver(term){
+  const t = TERM_DATES[parseInt(term)];
+  if(!t) return false;
+  return new Date().toISOString().slice(0,10) > t.end;
+}
+
+// Returns which term a date (YYYY-MM-DD) belongs to, or null if outside all terms
+function getTermFromDate(dateStr){
+  if(!dateStr) return null;
+  for(const [num, td] of Object.entries(TERM_DATES)){
+    if(dateStr >= td.start && dateStr <= td.end) return parseInt(num);
+  }
+  return null;
+}
+
+// Returns true if a term is LOCKED for the current user.
+// Lock state is cloud-synced; admin can always override.
+function isTermLocked(term){
+  const termNum = parseInt(term);
+  const adminLocks = lsGet('term_locks') || {};
+  if(typeof adminLocks[termNum] === 'boolean') return adminLocks[termNum];
+  if(isAdmin()) return false; // admin auto-unlocked unless manually locked
+  return isTermOver(termNum);
+}
+
+// Returns true if a specific date's term is locked (for attendance)
+function isDateTermLocked(dateStr){
+  const term = getTermFromDate(dateStr);
+  if(!term) return false;
+  return isTermLocked(term);
+}
+
+// Admin toggle — lock/unlock a term; syncs to Supabase so all devices see it
+async function adminToggleTermLock(term){
+  if(!isAdmin()){ toast('Only admin can change term locks', true); return; }
+  const locks = lsGet('term_locks') || {};
+  const cur = typeof locks[term] === 'boolean' ? locks[term] : isTermOver(term);
+  locks[term] = !cur;
+  lsSet('term_locks', locks);
+  logAudit('TERM LOCK', `Term ${term} ${locks[term] ? 'LOCKED' : 'UNLOCKED'} by admin`);
+  toast(locks[term]
+    ? `🔒 Term ${term} locked — no further edits allowed.`
+    : `🔓 Term ${term} unlocked — editing re-enabled.`);
+  // Cloud-sync so other devices get the lock instantly
+  if(isOnline){
+    try{
+      await sb.from('grade_records').upsert(
+        { grade_key:'__term_locks__', data:locks, updated_at:new Date().toISOString() },
+        { onConflict:'grade_key' }
+      );
+    } catch(e){ console.warn('Term lock cloud sync failed:', e); }
+  }
+  renderTermLockPanel();
+  loadGradeTable();
+}
+
+// Load term locks from Supabase on every login so all users share the same state
+async function loadTermLocksFromCloud(){
+  if(!isOnline) return;
+  try{
+    const {data} = await sb.from('grade_records')
+      .select('data').eq('grade_key','__term_locks__').single();
+    if(data?.data && typeof data.data === 'object'){
+      const cloudLocks = {};
+      Object.entries(data.data).forEach(([k,v])=>{ cloudLocks[parseInt(k)] = v; });
+      lsSet('term_locks', cloudLocks);
+    }
+  } catch(e){ /* no lock record yet — defaults to auto-lock */ }
+}
+
+// Render the term lock admin panel in Audit Log view
+function renderTermLockPanel(){
+  const el = document.getElementById('term-lock-panel');
+  if(!el) return;
+  const locks = lsGet('term_locks') || {};
+  el.innerHTML = [1,2,3].map(t=>{
+    const td = TERM_DATES[t];
+    const over = isTermOver(t);
+    const locked = isTermLocked(t);
+    const adminOverride = typeof locks[t] === 'boolean';
+    const statusColor = locked ? '#dc2626' : '#16a34a';
+    const statusLabel = locked ? '🔒 LOCKED' : '🔓 OPEN';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:8px;background:${locked?'#fef2f2':'#f0fdf4'}">
+      <div>
+        <div style="font-weight:600;font-size:13px">${td.label} &nbsp;<span style="color:${statusColor};font-size:12px">${statusLabel}</span></div>
+        <div style="font-size:11px;color:var(--gray-500)">${td.start} → ${td.end}
+          ${over ? '<span style="color:#b45309;margin-left:6px">(period ended)</span>' : '<span style="color:#16a34a;margin-left:6px">(active)</span>'}
+        </div>
+        ${adminOverride
+          ? `<div style="font-size:10px;color:#6366f1;margin-top:2px">⚙️ Manually ${locked?'locked':'unlocked'} by admin (synced to all devices)</div>`
+          : '<div style="font-size:10px;color:var(--gray-400);margin-top:2px">Auto-locks after end date for all non-admin users</div>'}
+      </div>
+      <button onclick="adminToggleTermLock(${t})"
+        style="background:${locked?'#16a34a':'#dc2626'};color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">
+        ${locked ? '🔓 Unlock' : '🔒 Lock Now'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+
 const FALLBACK_ACCOUNTS = [
   {username:'admin01', password:'snhs2026', name:'School Administrator', role:'admin', label:'School Administrator', sections:[], subjects:''},
 ];
@@ -1986,7 +2119,15 @@ function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel){
       if(v !== null) filled++;
     }
     const vals = [1,2,3].map(t=>terms['t'+t]).filter(v=>v!==null);
-    terms.final = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    // F-10: Final Grade is OFFICIAL only when ALL THREE terms are encoded.
+    // If only 1 or 2 terms exist, store provisional (for display) but mark incomplete.
+    terms.final = vals.length === 3
+      ? Math.round(vals.reduce((a,b)=>a+b,0)/3)
+      : vals.length > 0
+        ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)  // provisional
+        : null;
+    terms.allTermsFilled = vals.length === 3;
+    terms.filledTerms    = vals.length;
     terms.hasData = filled > 0;
     result[idx] = terms;
   }
@@ -2463,6 +2604,8 @@ async function doLogin(isAutoLogin=false){
   updateSyncBadge();
   processSyncQueue();
   logAudit('LOGIN','Logged in successfully');
+  // Load cloud-synced term locks so this device matches admin's lock state
+  loadTermLocksFromCloud().then(()=>{ renderTermLockPanel(); });
   // Build performance indexes in background
   setTimeout(()=>{ buildSearchIndex(); buildAttKeyIndex(); },500);
   showView('dashboard',document.getElementById('nav-dashboard'));
@@ -2640,7 +2783,7 @@ function showView(name,el){
     accounts:()=>loadAccountsView(),
     strands:()=>buildStrandList(),
     subjects:()=>buildSubjectList(),
-    audit:()=>buildAuditLog(),
+    audit:()=>{ buildAuditLog(); renderTermLockPanel(); },
     attendance:()=>initAttendance(),
     sf2:()=>{ initSF2View(); renderSF2(); },
     sf9:()=>populateDropdowns(),
@@ -3136,7 +3279,6 @@ function loadGradeTable(){
   document.getElementById('enc-placeholder').classList.add('hidden');
   document.getElementById('grade-table-wrap').classList.remove('hidden');
   const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
-  // All grades use T1/T2/T3 (DepEd Trimester SY2026-2027)
   const thead=document.querySelector('#grade-table-wrap thead tr');
   if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th><th>T<span id="enc-qtr-num">${CQ}</span> Grade</th><th>Remarks</th>`;
 
@@ -3147,79 +3289,99 @@ function loadGradeTable(){
   document.getElementById('enc-card-title').textContent=sect.replace(/G(\d+)-/,'G$1 – ')+' | '+subjLabel+' | T'+CQ;
   document.getElementById('enc-qtr-num').textContent=CQ;
 
-  if(isMapeh){
-    buildMAPEHTable(subj,sect);
-  } else {
-    buildGradeTable(subj,sect);
+  // ── TERM LOCK: style term buttons ──────────────────────────────────
+  document.querySelectorAll('.qtr-btn').forEach((btn,idx)=>{
+    const t=idx+1;
+    const locked=isTermLocked(t);
+    btn.textContent = locked ? `T${t} 🔒` : `T${t}`;
+    btn.title = locked ? `Term ${t} is locked — grading period ended ${TERM_DATES[t]?.end}` : `Switch to Term ${t}`;
+    btn.style.opacity = locked ? '0.6' : '';
+    if(t===CQ) btn.classList.add('active'); else btn.classList.remove('active');
+  });
+  // Auto-fill demo button: only show for admin, never in production for teachers
+  const autoFillBtn = document.querySelector('[onclick="autoFill()"]');
+  if(autoFillBtn) autoFillBtn.style.display = isAdmin() ? '' : 'none';
+
+  const termLocked = isTermLocked(CQ);
+  const saveBtn = document.getElementById('save-grades-btn');
+  if(saveBtn){
+    saveBtn.disabled = termLocked || CU?.role==='adviser';
+    saveBtn.textContent = termLocked ? `🔒 Term ${CQ} Locked` : '💾 Save Grades';
+    saveBtn.style.opacity = (termLocked || CU?.role==='adviser') ? '0.5' : '';
+    saveBtn.title = termLocked ? `Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}` : '';
   }
-}
 
+  // Lock banner
+  const existingBanner = document.getElementById('term-lock-banner');
+  if(existingBanner) existingBanner.remove();
+  if(termLocked){
+    const banner = document.createElement('div');
+    banner.id='term-lock-banner';
+    banner.style.cssText='margin-bottom:10px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;';
+    banner.innerHTML=`🔒 <strong>Term ${CQ} is locked.</strong> The grading period ended on <strong>${TERM_DATES[CQ]?.end||''}</strong>. All grades for this term are read-only.`
+      +(isAdmin()?` <a href="#" onclick="showView('audit',document.getElementById('nav-audit'));renderTermLockPanel();return false;" style="color:#6366f1;font-weight:600;margin-left:8px">⚙️ Manage Lock</a>`:'');
+    const wrap=document.getElementById('grade-table-wrap');
+    if(wrap) wrap.parentNode.insertBefore(banner,wrap);
+  }
 
-function onGradeInput(el, idx, termKey){
-  const v = el.value;
-  const vNum = parseFloat(v);
-  el.className = 'grade-input' + (v===''?'':(vNum>=75?' passing':' failing'));
-  const rmk = document.getElementById('rmk_'+idx);
-  if(rmk) rmk.innerHTML = `<span class="badge ${v===''?'badge-gray':vNum>=75?'badge-green':'badge-red'}">${v===''?'—':vNum>=75?'Passed':'Failed'}</span>`;
-  // Live-save to gradeCache for SHS terms
-  if(!gradeCache[termKey]) gradeCache[termKey]={};
-  if(v==='') delete gradeCache[termKey][idx];
-  else gradeCache[termKey][idx]=v;
-  updateEncStatus();
+  if(isMapeh){ buildMAPEHTable(subj,sect); } else { buildGradeTable(subj,sect); }
 }
 
 function buildGradeTable(subj,sect){
-  // F-04 FIX: Pure adviser role cannot edit subject grades — only subject teachers and admin can.
-  // Adviser sees grades read-only; they may only edit Core Values (via SF9).
-  const adviserReadOnly = CU?.role === 'adviser';
+  // Route MAPEH to dedicated builder
+  if(subj && subj.replace(/_\d+$/,'') === 'mapeh'){ buildMAPEHTable(subj,sect); return; }
 
-  // MAPEH: show split table — Music & Arts + PE & Health inputs, MAPEH computed
-  if(subj && subj.replace(/_\d+$/,'') === 'mapeh'){
-    buildMAPEHTable(subj,sect); return;
+  // Lock state: term lock OR adviser read-only
+  const termLocked     = isTermLocked(CQ);
+  const adviserReadOnly = CU?.role === 'adviser';
+  const readOnly       = termLocked || adviserReadOnly;
+
+  // Remove any leftover adviser banner
+  const oldBanner = document.getElementById('adviser-grade-banner');
+  if(oldBanner) oldBanner.remove();
+
+  // Show adviser notice
+  if(adviserReadOnly && !termLocked){
+    const wrap = document.getElementById('grade-table-wrap');
+    if(wrap){
+      const div=document.createElement('div');
+      div.id='adviser-grade-banner';
+      div.style.cssText='margin-bottom:10px;padding:8px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;';
+      div.innerHTML='🔒 <strong>View Only:</strong> Subject grades are encoded by the assigned subject teacher. As class adviser, you can view but not edit these grades.';
+      wrap.parentNode.insertBefore(div,wrap);
+    }
   }
+
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
+
+  // F-08 FIX: always use _T{term} key — encoding saves with _T not _Q
   const key=subj+'_'+sect+'_T'+CQ;
   const saved=gradeCache[key]||lsGet('gr_'+key)||{};
   gradeCache[key]=saved;
 
-  // Show read-only notice for pure adviser
-  const adviserBanner = adviserReadOnly
-    ? `<div style="margin-bottom:10px;padding:8px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
-        🔒 <strong>View Only:</strong> Subject grades are encoded by the assigned subject teacher. As class adviser, you can view but not modify these grades. To update a grade, ask the subject teacher.
-       </div>`
-    : '';
-
-  document.getElementById('grade-table-wrap').insertAdjacentHTML('beforebegin', '');
-  // Inject banner above the table container if not already there
-  const bannerEl = document.getElementById('adviser-grade-banner');
-  if(bannerEl) bannerEl.remove();
-  if(adviserReadOnly){
-    const wrap = document.getElementById('grade-table-wrap');
-    if(wrap){
-      const div = document.createElement('div');
-      div.id = 'adviser-grade-banner';
-      div.innerHTML = adviserBanner;
-      wrap.parentNode.insertBefore(div, wrap);
-    }
-  } else {
-    const old = document.getElementById('adviser-grade-banner');
-    if(old) old.remove();
-  }
-
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
     const v=saved[i]||'';
     const cls=v?(+v>=75?'passing':'failing'):'';
-    const inputAttrs = adviserReadOnly
-      ? `readonly style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px" title="Read-only — encoded by subject teacher"`
-      : `oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')"`;
+    const roTitle = termLocked
+      ? `Term ${CQ} locked — grading period ended`
+      : adviserReadOnly
+        ? 'Read-only — encoded by subject teacher'
+        : '';
+    const inputHtml = readOnly
+      ? `<input type="number" class="grade-input ${cls}" value="${v}" readonly
+           style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px;text-align:center"
+           title="${roTitle}" placeholder="—">`
+      : `<input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}"
+           oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')"
+           placeholder="—">`;
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
-      <td><input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}" ${inputAttrs} placeholder="—"></td>
+      <td>${inputHtml}</td>
       <td><span id="rmk_${i}" class="badge ${v?(+v>=75?'badge-green':'badge-red'):'badge-gray'}">${v?(+v>=75?'Passed':'Failed'):'—'}</span></td>
     </tr>`;
   }).join('');
@@ -3227,10 +3389,10 @@ function buildGradeTable(subj,sect){
 }
 
 // ── MAPEH SPLIT TABLE ─────────────────────────────────────────────
-// Shows Music & Arts + PE & Health inputs; MAPEH auto-computed as their average
 function buildMAPEHTable(subjId, sect){
-  // F-04 FIX: pure adviser cannot edit
+  const termLocked     = isTermLocked(CQ);
   const adviserReadOnly = CU?.role === 'adviser';
+  const readOnly       = termLocked || adviserReadOnly;
 
   const grade = sect.match(/^G(\d+)-/)?.[1]||'10';
   const maId  = 'ma_'+grade;
@@ -3241,19 +3403,23 @@ function buildMAPEHTable(subjId, sect){
   if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
+  // F-08: use _T key
   const maKey  = maId +'_'+sect+'_T'+CQ;
   const pehKey = pehId+'_'+sect+'_T'+CQ;
   const maSaved  = gradeCache[maKey] ||lsGet('gr_'+maKey) ||{};
   const pehSaved = gradeCache[pehKey]||lsGet('gr_'+pehKey)||{};
   gradeCache[maKey]=maSaved; gradeCache[pehKey]=pehSaved;
 
-  // Override table header for MAPEH split view
   const thead = document.querySelector('#grade-table-wrap thead tr');
   if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th>
     <th style="background:#fef3c7">Music &amp; Arts</th>
     <th style="background:#eff6ff">PE &amp; Health</th>
     <th style="background:#f0fdf4;font-weight:700">MAPEH (avg)</th>
     <th>Remarks</th>`;
+
+  const roStyle = readOnly ? 'background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;' : '';
+  const roAttr  = readOnly ? 'readonly' : '';
+  const roTitle = termLocked ? `Term ${CQ} locked` : adviserReadOnly ? 'Read-only — subject teacher only' : '';
 
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
     const ma  = maSaved[i]||'';
@@ -3262,20 +3428,18 @@ function buildMAPEHTable(subjId, sect){
                 : ma!=='' ? +ma : peh!=='' ? +peh : '';
     const mapehCls = mapeh!=='' ? (mapeh>=75?'badge-green':'badge-red') : 'badge-gray';
     const mapehTxt = mapeh!=='' ? (mapeh>=75?'Passed':'Failed') : '—';
-    const maCls  = ma !==''?( +ma >=75?'passing':'failing'):'';
+    const maCls  = ma !==''?(+ma >=75?'passing':'failing'):'';
     const pehCls = peh!==''?(+peh>=75?'passing':'failing'):'';
-    const roStyle = adviserReadOnly ? 'background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;' : '';
-    const roAttr  = adviserReadOnly ? 'readonly title="Read-only — encoded by subject teacher"' : '';
+    const maEvt  = readOnly ? '' : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`;
+    const pehEvt = readOnly ? '' : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`;
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
       <td style="background:#fef9c3"><input type="number" class="grade-input ${maCls}" id="ma_${i}" min="60" max="100" value="${ma}"
-        ${adviserReadOnly ? roAttr : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`}
-        placeholder="—" style="width:64px;${roStyle}"></td>
+        ${maEvt} ${roAttr} placeholder="—" style="width:64px;${roStyle}" title="${roTitle}"></td>
       <td style="background:#eff6ff"><input type="number" class="grade-input ${pehCls}" id="peh_${i}" min="60" max="100" value="${peh}"
-        ${adviserReadOnly ? roAttr : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`}
-        placeholder="—" style="width:64px;${roStyle}"></td>
+        ${pehEvt} ${roAttr} placeholder="—" style="width:64px;${roStyle}" title="${roTitle}"></td>
       <td style="background:#f0fdf4;text-align:center;font-weight:600" id="mapeh_avg_${i}">${mapeh!==''?mapeh:'—'}</td>
       <td><span id="rmk_${i}" class="badge ${mapehCls}">${mapehTxt}</span></td>
     </tr>`;
@@ -3283,14 +3447,30 @@ function buildMAPEHTable(subjId, sect){
   updateEncStatus();
 }
 
+
 // Live update MAPEH avg when either MA or PEH input changes
 function mapehChanged(i, lrn, studentName, sect){
+  // LOCK GUARD: term lock and adviser read-only
+  if(isTermLocked(CQ) || CU?.role==='adviser'){
+    toast(`🔒 Term ${CQ} is locked — grades cannot be edited.`, true);
+    // revert both inputs
+    const grade = (sect||'').match(/^G(\d+)-/)?.[1]||'10';
+    const maKey  = 'ma_'  +grade+'_'+(sect||'')+'_T'+CQ;
+    const pehKey = 'peh_' +grade+'_'+(sect||'')+'_T'+CQ;
+    const maSaved  = gradeCache[maKey] ||lsGet('gr_'+maKey) ||{};
+    const pehSaved = gradeCache[pehKey]||lsGet('gr_'+pehKey)||{};
+    const maEl  = document.getElementById('ma_'+i);
+    const pehEl = document.getElementById('peh_'+i);
+    if(maEl)  maEl.value  = maSaved[i]||'';
+    if(pehEl) pehEl.value = pehSaved[i]||'';
+    return;
+  }
   const maEl  = document.getElementById('ma_'+i);
   const pehEl = document.getElementById('peh_'+i);
   const ma  = maEl?.value ===''?null:+maEl.value;
   const peh = pehEl?.value===''?null:+pehEl.value;
 
-  // Validate range on each input
+  // Validate range 60–100
   [maEl, pehEl].forEach(el=>{
     if(!el||el.value==='') return;
     const v=+el.value;
@@ -3315,39 +3495,47 @@ function mapehChanged(i, lrn, studentName, sect){
 }
 
 function gradeChanged(el,i,lrn,studentName,subj,sect){
+  // LOCK GUARD: block any edits on locked term or for pure adviser
+  if(isTermLocked(CQ)){
+    const key=subj+'_'+sect+'_T'+CQ;
+    el.value=(gradeCache[key]||{})[i]||'';
+    toast(`🔒 Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}. Grades cannot be changed.`, true);
+    return;
+  }
+  if(CU?.role==='adviser'){
+    const key=subj+'_'+sect+'_T'+CQ;
+    el.value=(gradeCache[key]||{})[i]||'';
+    toast('🔒 Grade editing is restricted to the assigned subject teacher.', true);
+    return;
+  }
   const raw=el.value;
   const v=parseFloat(raw);
   const key=subj+'_'+sect+'_T'+CQ;
   const oldVal=(gradeCache[key]||{})[i]||'';
 
-  // BUG-002 FIX: enforce 60–100 range
+  // Range validation: 60–100
   if(raw!==''&&!isNaN(v)){
     if(v<60||v>100){
-      el.style.borderColor='var(--red)';
-      el.style.background='var(--red-bg)';
-      el.title='Grade must be between 60 and 100';
+      el.style.borderColor='var(--red)'; el.style.background='var(--red-bg)';
+      el.title='Grade must be 60–100';
       const r=document.getElementById('rmk_'+i);
       if(r){r.className='badge badge-red';r.textContent='Invalid';}
-      updateEncStatus();
-      return; // don't update cache or audit with invalid value
-    } else {
-      el.style.borderColor='';
-      el.style.background='';
-      el.title='';
-    }
-  } else {
-    el.style.borderColor='';
-    el.style.background='';
-    el.title='';
-  }
+      updateEncStatus(); return;
+    } else { el.style.borderColor=''; el.style.background=''; el.title=''; }
+  } else { el.style.borderColor=''; el.style.background=''; el.title=''; }
 
   el.className='grade-input '+(isNaN(v)?'':(v>=75?'passing':'failing'));
   const r=document.getElementById('rmk_'+i);
-  r.className='badge '+(isNaN(v)?'badge-gray':(v>=75?'badge-green':'badge-red'));
-  r.textContent=isNaN(v)?'—':(v>=75?'Passed':'Failed');
-  // Audit log on grade change
+  if(r){
+    r.className='badge '+(isNaN(v)?'badge-gray':(v>=75?'badge-green':'badge-red'));
+    r.textContent=isNaN(v)?'—':(v>=75?'Passed':'Failed');
+  }
+  // Cache live update
+  if(!gradeCache[key]) gradeCache[key]={};
+  if(raw===''||isNaN(v)) delete gradeCache[key][i]; else gradeCache[key][i]=raw;
+  // Audit on actual change
   if(!isNaN(v)&&oldVal&&String(oldVal)!==String(v)){
-    logAudit('GRADE CHANGE',`${studentName} (${lrn}): Q${CQ} grade changed from ${oldVal} to ${v} in ${subj} — ${sect}`);
+    logAudit('GRADE CHANGE',`${studentName} (${lrn}): T${CQ} changed ${oldVal}→${v} in ${subj} — ${sect}`);
   }
   updateEncStatus();
 }
@@ -3370,27 +3558,31 @@ function updateEncStatus(){
 }
 
 function autoFill(){
+  if(isTermLocked(CQ)){ toast(`🔒 Term ${CQ} is locked — auto-fill blocked.`, true); return; }
+  if(!isAdmin()){ toast('Auto-fill is for admin demo only.', true); return; }
   const isMapeh=document.querySelectorAll('[id^="ma_"]').length>0;
   if(isMapeh){
-    document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach((inp,i)=>{
-      const g=Math.floor(Math.random()*26)+75;
-      inp.value=g;
+    document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach(inp=>{
+      if(inp.readOnly) return;
+      inp.value=Math.floor(Math.random()*26)+75;
     });
-    // Trigger update for all rows
     document.querySelectorAll('[id^="ma_"]').forEach(inp=>{
       const idx=inp.id.split('_')[1];
       mapehChanged(+idx,'','','');
     });
   } else {
     document.querySelectorAll('.grade-input').forEach((inp,i)=>{
-      const g=Math.floor(Math.random()*26)+75;
-      inp.value=g;
+      if(inp.readOnly) return;
+      inp.value=Math.floor(Math.random()*26)+75;
       gradeChanged(inp,i,'','','','');
     });
   }
 }
 
 function clearGrades(){
+  if(isTermLocked(CQ)){ toast(`🔒 Term ${CQ} is locked — cannot clear grades.`, true); return; }
+  if(CU?.role==='adviser'){ toast('🔒 Grade editing is restricted to the assigned subject teacher.', true); return; }
+  if(!confirm('Clear all grades currently shown in the table?')) return;
   const isMapeh=document.querySelectorAll('[id^="ma_"]').length>0;
   if(isMapeh){
     document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach(inp=>{inp.value='';inp.className='grade-input';inp.style.borderColor='';inp.style.background='';});
@@ -3405,9 +3597,14 @@ function clearGrades(){
 function selectQtr(q,el){CQ=Math.min(q,3);document.querySelectorAll('.qtr-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');loadGradeTable();}
 
 async function doSaveGrades(){
-  // F-04 FIX: pure adviser cannot save subject grades
-  if(CU?.role === 'adviser'){
-    toast('🔒 Grade saving is restricted to subject teachers. As class adviser, you can view grades but not modify them.', true);
+  // ── HARD SERVER-SIDE LOCK CHECKS (cannot be bypassed by UI) ──────
+  if(isTermLocked(CQ)){
+    toast(`🔒 Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}. No changes allowed.`, true);
+    logAudit('BLOCKED SAVE', `Attempted grade save on locked Term ${CQ} by ${CU?.name||'unknown'}`);
+    return;
+  }
+  if(CU?.role==='adviser'){
+    toast('🔒 Grade saving is restricted to the assigned subject teacher.', true);
     return;
   }
   const subj=document.getElementById('enc-subject').value;
@@ -3740,12 +3937,6 @@ async function renderSF9(){
   // FIX v11: always uppercase section so grade-cache key matches encoding key (encoding always saves uppercase)
   const sectionKey = 'G'+(s.grade||'10')+'-'+s.section.toUpperCase();
 
-  // ── F-10 FIX: warn if viewing Term 3 but not all terms are encoded ──
-  const incompleteWarningEl = document.getElementById('sf9-incomplete-warning') ||
-    (() => { const d=document.createElement('div'); d.id='sf9-incomplete-warning'; d.className='no-print';
-      document.getElementById('sf9-output').prepend(d); return d; })();
-  incompleteWarningEl.innerHTML = '';
-
 
   // ── Attendance — from saved records, excluding suspended/holiday days ──
   const months=['jun','jul','aug','sep','oct','nov','dec','jan','feb','mar'];
@@ -3792,66 +3983,44 @@ async function renderSF9(){
 
   const encodedGrades = getStudentGradesFromCache(studentIndex, sectionKey, s.grade||'10');
 
-  // ── F-10 FIX: detect subjects where Final Grade is shown from < 3 terms ──
-  if(qtr === 3){
-    const incompSubjs = [];
-    SUBJS_SF9.filter(r=>!r.sub).forEach(row=>{
-      const gData = encodedGrades[row.idx]||{};
-      const filledTerms = [gData.t1, gData.t2, gData.t3].filter(v=>v!==null&&v!==undefined).length;
-      if(filledTerms > 0 && filledTerms < 3) incompSubjs.push(row.name);
-    });
-    if(incompSubjs.length){
-      incompleteWarningEl.innerHTML=`
-        <div style="margin-bottom:10px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;">
-          ⚠️ <strong>Incomplete term grades detected.</strong> The following subjects are missing one or more term grades:
-          <strong>${incompSubjs.join(', ')}</strong>.
-          Final Grade shown for these subjects is computed from available terms only — it is <em>not yet official</em>.
-          Please have the subject teacher complete all 3 terms before printing.
-          <div style="margin-top:6px">
-            <button class="btn btn-sm" onclick="window.print()"
-              style="background:#fcd34d;color:#92400e;border:none;padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer"
-              disabled title="Disabled until all terms are complete">🖨️ Print blocked — complete all terms first</button>
-          </div>
-        </div>`;
-    }
-  }
-
   let sum=0, cnt=0;
 
-  // Helper: blank on print for missing values (never show '—' on printed form)
+  // Helper: blank on print for missing values
   const cellVal = (v,q) => {
     if(q > qtr) return '';
     if(v===null||v===undefined) return '<span class="grade-dash no-print-val">—</span>';
     return v;
   };
 
+  // F-10: detect subjects with incomplete terms (shown at Term 3 view)
+  const incompleteSubjs = [];
+
   document.getElementById('sf9-grade-rows').innerHTML=SUBJS_SF9.map(row=>{
-    // Sub-rows (Music & Arts, PE & Health) share the same MAPEH grade data (idx:7)
     const gData = encodedGrades[row.idx] || {};
+    // q1/q2/q3 — correct variable names matching getStudentGradesFromCache output
     const q1=gData.t1, q2=gData.t2, q3=gData.t3;
     const final = gData.final;
 
-    // F-10 FIX: final is "official" only when all 3 terms have been encoded
-    const filledTermCount = [q1,q2,q3].filter(v=>v!==null&&v!==undefined).length;
-    const finalIsPending  = qtr === 3 && filledTermCount > 0 && filledTermCount < 3;
-    const finalIsReady    = final !== null && final !== undefined;
+    // F-10: count filled terms to detect partial finals
+    const filledTerms = [q1,q2,q3].filter(v=>v!==null&&v!==undefined).length;
+    const finalIsPending = qtr===3 && filledTerms>0 && filledTerms<3 && !row.sub;
+    if(finalIsPending) incompleteSubjs.push(row.name);
 
-    const finalDisplay = finalIsReady
-      ? (finalIsPending
-          ? `<strong style="color:#b45309" title="Based on ${filledTermCount}/3 terms only">${final}*</strong>`
-          : `<strong>${final}</strong>`)
+    const finalDisplay = final!==null && final!==undefined
+      ? finalIsPending
+        ? `<strong style="color:#b45309" title="Based on ${filledTerms}/3 terms — not yet official">${final}*</strong>`
+        : `<strong>${final}</strong>`
       : '<span class="grade-dash no-print-val">—</span>';
 
-    const rem = finalIsReady
-      ? (finalIsPending
-          ? '<span style="color:#b45309;font-size:9px">Pending</span>'
-          : (final>=75?'Passed':'<span style="color:red">Failed</span>'))
+    const rem = final!==null && final!==undefined
+      ? finalIsPending
+        ? '<span style="color:#b45309;font-size:9px">Pending</span>'
+        : (final>=75?'Passed':'<span style="color:red">Failed</span>')
       : '<span class="no-print-val">—</span>';
 
-    // Only add to GWA for main subjects (not sub-rows) AND only if final is not pending
+    // Only add non-pending finals to GWA (main subjects only, not sub-rows)
     if(final!==null && final!==undefined && !row.sub && !finalIsPending){ sum+=final; cnt++; }
 
-    // Sub-rows: italic, indented label — same grade columns as MAPEH
     const nameCell = row.sub
       ? `<td style="border:1px solid #000;padding:3px 5px;font-style:italic;padding-left:18px;font-size:9px">${row.name}</td>`
       : `<td style="border:1px solid #000;padding:3px 5px">${row.name}</td>`;
@@ -3867,7 +4036,19 @@ async function renderSF9(){
     </tr>`;
   }).join('');
 
-  // F-10: only include non-pending finals in GWA
+  // F-10: show incomplete-terms warning above SF9
+  const oldWarn = document.getElementById('sf9-incomplete-warning');
+  if(oldWarn) oldWarn.remove();
+  if(incompleteSubjs.length && qtr===3){
+    const warn = document.createElement('div');
+    warn.id = 'sf9-incomplete-warning';
+    warn.className = 'no-print';
+    warn.style.cssText = 'margin-bottom:10px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;';
+    warn.innerHTML = `⚠️ <strong>Incomplete term grades:</strong> <strong>${incompleteSubjs.join(', ')}</strong> are missing one or more terms. `
+      + `Final Grade (marked with *) is provisional. Please complete all 3 terms before printing.`;
+    const sf9Out = document.getElementById('sf9-output');
+    if(sf9Out) sf9Out.prepend(warn);
+  }
   if(cnt>0){
     const avg=(sum/cnt).toFixed(2);
     document.getElementById('sf9-avg').textContent=avg;
@@ -4607,12 +4788,11 @@ async function buildReport(){
 }
 
 // ── MPS & PROFICIENCY LEVEL REPORT ────────────────────────────────
-// TRUE MPS (Tab 2)  = (Σ raw scores) ÷ (n students × total items) × 100
-// APPROX MPS (Tab 1)= reverse-transmute the mean transmuted grade back to a 0–100 % basis
-//   Formula: approxMPS = ((meanGrade − 40) / 60) × 100
-//   This is the inverse of DepEd's transmutation: transmuted = (rawPct × 60) + 40
-// PL  = (Students with grade ≥ 75 / Total takers) × 100
-// Mastery descriptors are applied to the MPS % (not the transmuted grade)
+// True MPS (Tab 2 raw scores): (Σ raw scores) ÷ (n × items) × 100
+// Approx MPS (Tab 1 grades): reverse-transmute the mean grade back to 0–100 %
+//   Formula: approxMPS = (meanGrade − 40) ÷ 60 × 100  [inverse of DepEd transmutation]
+// PL = (students with grade ≥ 75) ÷ total takers × 100
+// Mastery descriptors are applied to the MPS % value — NOT the transmuted grade
 
 // Reverse-transmute a DepEd grade (60–100) to approximate raw MPS % (0–100)
 function reverseTransmute(grade){
@@ -4623,13 +4803,13 @@ function reverseTransmute(grade){
 
 function getMasteryLevel(mps){
   const v = parseFloat(mps);
-  if(v>=96) return {label:'Mastered',           color:'#14532d', bg:'#dcfce7'};
-  if(v>=86) return {label:'Closely Approximating Mastery', color:'#1e40af', bg:'#dbeafe'};
-  if(v>=66) return {label:'Moving Towards Mastery',        color:'#065f46', bg:'#d1fae5'};
-  if(v>=35) return {label:'Average Mastery',               color:'#92400e', bg:'#fef3c7'};
-  if(v>=15) return {label:'Low Mastery',                   color:'#b45309', bg:'#fff7ed'};
-  if(v>=5)  return {label:'Very Low Mastery',              color:'#dc2626', bg:'#fee2e2'};
-  return       {label:'Absolutely No Mastery',             color:'#7f1d1d', bg:'#fca5a5'};
+  if(v>=96) return {label:'Mastered',                    color:'#14532d', bg:'#dcfce7'};
+  if(v>=86) return {label:'Closely Approximating Mastery',color:'#1e40af', bg:'#dbeafe'};
+  if(v>=66) return {label:'Moving Towards Mastery',       color:'#065f46', bg:'#d1fae5'};
+  if(v>=35) return {label:'Average Mastery',              color:'#92400e', bg:'#fef3c7'};
+  if(v>=15) return {label:'Low Mastery',                  color:'#b45309', bg:'#fff7ed'};
+  if(v>=5)  return {label:'Very Low Mastery',             color:'#dc2626', bg:'#fee2e2'};
+  return          {label:'Absolutely No Mastery',         color:'#7f1d1d', bg:'#fca5a5'};
 }
 
 async function buildMPSReport(){
@@ -4657,12 +4837,14 @@ async function buildMPSReport(){
     allSects = [...new Set([...(advSect?[advSect]:[]), ...teachSects])];
   }
 
-  // Always rebuild section dropdown to reflect current enrolled students (including SHS)
-  sectionWrap.innerHTML=`<label class="form-label">Section</label>
-    <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="min-width:220px">
-      <option value="">Select section...</option>
-      ${allSects.map(s=>`<option value="${s}" ${s===sect?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
-    </select>`;
+  // Build section select if not yet built
+  if(!sectionWrap.querySelector('select')){
+    sectionWrap.innerHTML=`<label class="form-label">Section</label>
+      <select class="form-select" id="mps-section" onchange="buildMPSReport()" style="min-width:220px">
+        <option value="">Select section...</option>
+        ${allSects.map(s=>`<option value="${s}">${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
+      </select>`;
+  }
 
   const sectEl = document.getElementById('mps-section');
   const sect = sectEl?.value||'';
@@ -4736,45 +4918,38 @@ async function buildMPSReport(){
 
   if(!subjects.length){
     const isSHS = grade==='11'||grade==='12';
-    const msg = isSHS
-      ? `No subjects configured for Grade ${grade} (SHS). Go to <strong>Subject Manager</strong> and add subjects for Grade ${grade}, or use the <strong>Strand Manager</strong> to configure strand subjects.`
-      : `No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.`;
-    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">${msg}</div></div>`;
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">${
+      isSHS
+        ? `No subjects configured for Grade ${grade} (SHS). Go to Subject Manager to add subjects for Grade ${grade}.`
+        : `No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.`
+    }</div></div>`;
     document.getElementById('mps-output').classList.remove('hidden');
     document.getElementById('mps-placeholder').classList.add('hidden');
     return;
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
-  // F-08 FIX: grade encoding ALWAYS saves with _T{term} key (DepEd Trimester SY2026-2027).
-  // The old _Q{term} key format is no longer used. Use _T{term} for ALL grades including SHS.
+  // F-08 FIX: always use _T{term} key — matches how doSaveGrades stores grades
   const rows = subjects.map(subj=>{
     const gradeKey = subj.id+'_'+sect+'_T'+term;
-
     const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
 
-    // Collect all encoded grades for this subject
     const encodedGrades = students.map((_,i)=>{
       const v = rec[i];
       return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
     }).filter(v=>v!==null);
 
-    const takers = encodedGrades.length;
-    if(takers===0) return {subj:subj.name, takers:0, mps:null, gradeAvg:null, passed:0, failed:0, pl:null};
+    const takers   = encodedGrades.length;
+    const enrolled = students.length;
+    const notEncoded = enrolled - takers;
+    if(takers===0) return {subj:subj.name, takers:0, enrolled, notEncoded, mps:null, gradeAvg:null, passed:0, failed:0, pl:null};
 
     const totalScore = encodedGrades.reduce((a,b)=>a+b,0);
-    // F-05 FIX: use enrolled count (not just takers) as denominator for class average
-    // so un-encoded slots are treated as 0 contribution rather than excluded
-    // However since Tab 1 grades are transmuted (60–100) and absent = no entry, we use takers
-    // for grade avg but flag when takers < enrolled (partial encoding)
-    const meanScore  = totalScore / takers;  // mean of those encoded
-    const enrolled   = students.length;
-    const notEncoded = enrolled - takers;
-    // gradeAvg: mean of the 60–100 transmuted grades (what teachers encoded)
-    const gradeAvg   = meanScore.toFixed(2);
-    // approxMPS: reverse-transmute back to a 0–100 % basis for correct mastery labelling
-    const approxMPS  = reverseTransmute(meanScore);
-    const mps        = approxMPS !== null ? approxMPS.toFixed(2) : gradeAvg;
+    const meanGrade  = totalScore / takers;
+    const gradeAvg   = meanGrade.toFixed(2);
+    // F-01/F-02: reverse-transmute to get true MPS % for mastery label
+    const approxMPS  = reverseTransmute(meanGrade);
+    const mps        = approxMPS!==null ? approxMPS.toFixed(2) : gradeAvg;
     const passed     = encodedGrades.filter(v=>v>=75).length;
     const failed     = takers - passed;
     const pl         = ((passed/takers)*100).toFixed(2);
@@ -4782,13 +4957,11 @@ async function buildMPSReport(){
     return {subj:subj.name, takers, enrolled, notEncoded, mps, gradeAvg, passed, failed, pl};
   });
 
-  // ── Compute overall MPS & PL across all subjects ──────────────────
-  // overallMPS = mean of per-subject approx MPS (already reverse-transmuted)
+  // ── Overall MPS (mean of per-subject reverse-transmuted MPS values) ──
   const allMPS = rows.filter(r=>r.mps!==null).map(r=>parseFloat(r.mps));
   const overallMPS = allMPS.length>0 ? (allMPS.reduce((a,b)=>a+b)/allMPS.length).toFixed(2) : null;
-  // overallGradeAvg = mean of per-subject grade averages (for display reference)
-  const allGA = rows.filter(r=>r.gradeAvg!==null).map(r=>parseFloat(r.gradeAvg));
-  const overallGradeAvg = allGA.length>0 ? (allGA.reduce((a,b)=>a+b)/allGA.length).toFixed(2) : null;
+  const allGA  = rows.filter(r=>r.gradeAvg!==null).map(r=>parseFloat(r.gradeAvg));
+  const overallGA  = allGA.length>0  ? (allGA.reduce((a,b)=>a+b)/allGA.length).toFixed(2)  : null;
   const totalTakers = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.takers,0);
   const totalPassed = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.passed,0);
   const overallPL   = totalTakers>0 ? ((totalPassed/totalTakers)*100).toFixed(2) : null;
@@ -4802,8 +4975,8 @@ async function buildMPSReport(){
       </tr>`;
     }
     const mastery = getMasteryLevel(r.mps);
-    const partialWarn = r.notEncoded > 0
-      ? `<div style="font-size:10px;color:#b45309;margin-top:1px">⚠️ ${r.notEncoded} not yet encoded</div>`
+    const partialNote = r.notEncoded>0
+      ? `<div style="font-size:10px;color:#b45309;margin-top:1px">⚠️ ${r.notEncoded} not encoded</div>`
       : '';
     return`<tr>
       <td><strong>${r.subj}</strong></td>
@@ -4813,27 +4986,26 @@ async function buildMPSReport(){
       <td style="text-align:center">
         <span style="font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</span>
         <div style="font-size:10px;color:var(--gray-400);margin-top:1px">Grade avg: ${r.gradeAvg}</div>
-        ${partialWarn}
+        ${partialNote}
       </td>
       <td style="text-align:center">
         <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color}">${mastery.label}</span>
       </td>
       <td style="text-align:center">
-        <span style="font-weight:600;color:${r.pl>=75?'var(--green)':'var(--red)'}">${r.pl}%</span>
+        <span style="font-weight:600;color:${parseFloat(r.pl)>=75?'var(--green)':'var(--red)'}">${r.pl}%</span>
       </td>
       <td style="text-align:center">
-        <span style="color:var(--green);font-weight:600">${r.passed} ✓</span>
-        &nbsp;/&nbsp;
-        <span style="color:var(--red)">${r.failed} ✗</span>
-        &nbsp;
+        <span style="color:var(--green);font-weight:600">${r.passed} ✓</span>&nbsp;/&nbsp;
+        <span style="color:var(--red)">${r.failed} ✗</span>&nbsp;
         <span style="font-size:11px;color:var(--gray-400)">of ${r.takers}</span>
       </td>
     </tr>`;
   }).join('');
 
   const overallMastery = overallMPS ? getMasteryLevel(overallMPS) : null;
-  const sectionLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
-  const generatedAt  = new Date().toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const sectionLabel   = sect.replace(/G(\d+)-/,'Grade $1 – ');
+  // F-09: generation timestamp
+  const generatedAt = new Date().toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   document.getElementById('mps-output').innerHTML=`
     <div class="deped-page">
@@ -4843,23 +5015,23 @@ async function buildMPSReport(){
         <div style="font-size:11px;color:var(--gray-600)">${DIVISION} &nbsp;·&nbsp; ${REGION}</div>
         <div style="font-size:12px;font-weight:600;margin-top:4px;">MPS &amp; Proficiency Level Report</div>
         <div style="font-size:11px;color:var(--gray-500)">${sectionLabel} &nbsp;·&nbsp; ${termLabel} &nbsp;·&nbsp; S.Y. ${SY}</div>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:3px;">Generated: ${generatedAt}</div>
+        <div style="font-size:10px;color:var(--gray-400);margin-top:2px">Generated: ${generatedAt}</div>
       </div>
 
-      <!-- F-01/F-02 notice: MPS is approx from transmuted grades -->
+      <!-- F-01/02 notice -->
       <div style="margin-bottom:12px;padding:7px 12px;background:#fef9c3;border:1px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;">
-        ℹ️ <strong>MPS values here are approximated</strong> from encoded transmuted grades using the reverse of DepEd's transmutation formula: <em>Approx MPS = (Grade − 40) ÷ 60 × 100</em>.
-        For true raw-score MPS, use the <strong>From Raw Scores</strong> tab.
+        ℹ️ <strong>MPS shown here is approximated</strong> from encoded transmuted grades using the inverse of DepEd's transmutation:
+        <em>Approx MPS = (Grade − 40) ÷ 60 × 100</em>. For raw-score MPS, use the <strong>From Raw Scores</strong> tab.
       </div>
 
-      <!-- Overall Summary Cards -->
+      <!-- Summary Cards -->
       ${overallMPS ? `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
         <div style="background:var(--navy);color:white;border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall Approx MPS</div>
           <div style="font-size:28px;font-weight:800">${overallMPS}%</div>
           <div style="font-size:10px;opacity:0.75;margin-top:2px">${overallMastery.label}</div>
-          <div style="font-size:10px;opacity:0.6;margin-top:1px">Grade avg: ${overallGradeAvg}</div>
+          <div style="font-size:10px;opacity:0.6">Grade avg: ${overallGA}</div>
         </div>
         <div style="background:var(--green);color:white;border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Proficiency Level</div>
@@ -4885,21 +5057,19 @@ async function buildMPSReport(){
             <th style="padding:10px 12px;text-align:center;border-radius:0 8px 0 0">Passed ✓ / Failed ✗</th>
           </tr>
         </thead>
-        <tbody>
-          ${tableRows}
-        </tbody>
+        <tbody>${tableRows}</tbody>
         ${overallMPS ? `<tfoot>
           <tr style="background:var(--gray-50);font-weight:700;border-top:2px solid var(--navy)">
             <td style="padding:10px 12px">OVERALL</td>
             <td style="text-align:center;padding:10px 8px">${students.length}</td>
             <td style="text-align:center;padding:10px 8px">
               <span style="font-size:15px;color:var(--navy)">${overallMPS}%</span>
-              <div style="font-size:10px;color:var(--gray-400)">avg: ${overallGradeAvg}</div>
+              <div style="font-size:10px;color:var(--gray-400)">avg: ${overallGA}</div>
             </td>
             <td style="text-align:center;padding:10px 8px">
               <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${overallMastery.bg};color:${overallMastery.color}">${overallMastery.label}</span>
             </td>
-            <td style="text-align:center;padding:10px 8px;color:${overallPL>=75?'var(--green)':'var(--red)'}">${overallPL}%</td>
+            <td style="text-align:center;padding:10px 8px;color:${parseFloat(overallPL)>=75?'var(--green)':'var(--red)'}">${overallPL}%</td>
             <td style="text-align:center;padding:10px 12px">${totalPassed} ✓ / ${totalTakers-totalPassed} ✗</td>
           </tr>
         </tfoot>` : ''}
@@ -4907,7 +5077,7 @@ async function buildMPSReport(){
 
       <!-- Mastery Level Legend -->
       <div style="margin-top:16px;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;">
-        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference (DepEd) — applied to MPS %</div>
+        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference — applied to MPS % (DepEd Standard)</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">
           ${[
             {range:'96–100',label:'Mastered',color:'#14532d',bg:'#dcfce7'},
@@ -4924,9 +5094,9 @@ async function buildMPSReport(){
         </div>
       </div>
 
-      <!-- Formulas reference -->
+      <!-- Formulas -->
       <div style="margin-top:12px;font-size:10px;color:var(--gray-400);text-align:center;font-style:italic;">
-        Approx MPS = (Mean Grade − 40) ÷ 60 × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; True MPS requires raw scores (use Tab 2)
+        Approx MPS = (Mean Grade − 40) ÷ 60 × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; For true MPS use raw scores (Tab 2)
       </div>
     </div>`;
 
@@ -5103,50 +5273,53 @@ async function loadSavedRawTests(){
 }
 
 function loadSavedTestIntoForm(cacheKey){
-  // Parse key and pre-fill the Raw Scores form, then switch to that tab
   const match = cacheKey.match(/^raw_(G\d+-[^_]+)_(.+?)_(.+)$/);
   if(!match) return;
   const sect = match[1], qtr = match[2], subj = match[3].replace(/_/g,' ');
 
-  // F-07 FIX: scan for duplicate keys (same sect+qtr+subj, multiple records)
-  // Since we use upsert on grade_key, true duplicates shouldn't exist in Supabase,
-  // but we tag the active edit key so saveRawScores always does an upsert (UPDATE),
-  // never a second INSERT for the same logical test.
-  window._editingRawKey = cacheKey; // flag: this is an edit, not a new test
+  // F-07: tag this key as "edit mode" so saveRawScores uses upsert (not a new insert)
+  window._editingRawKey = cacheKey;
 
-  // Switch to Raw tab
+  // Switch to Raw Scores tab
   const btn = document.getElementById('mps-tab-raw-btn');
   switchMPSTab('raw', btn);
 
-  // Fill in dropdowns/inputs
   setTimeout(()=>{
-    const sectEl = document.getElementById('raw-section');
-    const qtrEl  = document.getElementById('raw-qtr');
-    const subjEl = document.getElementById('raw-subject');
-    const itemsEl= document.getElementById('raw-items');
+    const sectEl  = document.getElementById('raw-section');
+    const qtrEl   = document.getElementById('raw-qtr');
+    const subjEl  = document.getElementById('raw-subject');
+    const itemsEl = document.getElementById('raw-items');
     if(sectEl) sectEl.value = sect;
 
-    // Load data from cache
     const data = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{};
     if(itemsEl) itemsEl.value = data.items||'';
     if(subjEl)  subjEl.value  = subj;
 
-    // Update qtr dropdown — T1/T2/T3 for all grades (DepEd Trimester SY2026-2027)
     if(qtrEl){
-      qtrEl.innerHTML = [1,2,3].map(q=>`<option value="${q}" ${String(q)===qtr?'selected':''}>Term ${q}</option>`).join('');
+      qtrEl.innerHTML = [1,2,3].map(t=>{
+        const locked = isTermLocked(t);
+        return `<option value="${t}" ${String(t)===qtr?'selected':''} ${locked&&!isAdmin()?'disabled':''}>${locked?'🔒 ':''}Term ${t}</option>`;
+      }).join('');
     }
 
-    // F-07: Pre-load scores from the canonical key into rawScoreCache
-    // so that saveRawScores upserts to the SAME key (no duplicate insert)
+    // Pre-load scores into cache under canonical key so save always upserts the same record
     rawScoreCache[cacheKey] = data;
 
     initRawScoreTable();
 
-    // Show edit-mode banner
+    // Show edit-mode or locked banner
     const hint = document.getElementById('raw-hint');
-    if(hint) hint.innerHTML = `<span style="color:#1e40af;font-weight:600">✏️ Editing saved test — <code style="background:#eff6ff;padding:1px 5px;border-radius:4px;font-size:11px">${cacheKey}</code>. Saving will overwrite (upsert) the existing record.</span>`;
-
-    toast('✓ Test loaded — you can now edit the scores');
+    const termLocked = isTermLocked(parseInt(qtr));
+    if(hint){
+      if(termLocked){
+        hint.innerHTML = `🔒 <strong>Term ${qtr} is locked.</strong> This test is read-only — the grading period has ended.`;
+        hint.style.color = '#dc2626';
+      } else {
+        hint.innerHTML = `✏️ <strong>Editing saved test</strong> — <code style="background:#eff6ff;padding:1px 5px;border-radius:4px;font-size:11px">${cacheKey}</code>. Saving will overwrite the existing record.`;
+        hint.style.color = '#1e40af';
+      }
+    }
+    toast(termLocked ? `🔒 Term ${qtr} is locked — view only` : '✓ Test loaded for editing');
   }, 150);
 }
 
@@ -5171,35 +5344,28 @@ function populateRawSectionDropdown(){
   sel.innerHTML = '<option value="">Select section...</option>' +
     sects.map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
 
-  // Update quarter dropdown for SHS sections
+  // Rebuild term dropdown with lock indicators
   const sect = sel.value;
-  if(sect){
-    const g = sect.match(/G(\d+)-/)?.[1]||'';
-    const isSHS = g==='11'||g==='12';
-    const qtrEl = document.getElementById('raw-qtr');
-    const curQ = qtrEl?.value||'1';
-    if(qtrEl){
-      if(isSHS){
-        qtrEl.innerHTML = `
-          <option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option>`;
-      } else {
-        qtrEl.innerHTML = `
-          <option value="1" ${curQ==='1'?'selected':''}>Term 1</option>
-          <option value="2" ${curQ==='2'?'selected':''}>Term 2</option>
-          <option value="3" ${curQ==='3'?'selected':''}>Term 3</option>`;
-      }
-    }
+  const qtrEl = document.getElementById('raw-qtr');
+  if(qtrEl){
+    const curQ = qtrEl.value||'1';
+    qtrEl.innerHTML = [1,2,3].map(t=>{
+      const locked = isTermLocked(t);
+      return `<option value="${t}" ${String(t)===curQ?'selected':''} ${locked&&!isAdmin()?'disabled':''}>Term ${t}${locked?' 🔒':''}</option>`;
+    }).join('');
   }
 
   // F-03: Populate subject-link dropdown based on section's grade level
   const linkSel = document.getElementById('raw-subject-link');
-  if(linkSel && sect){
-    const grade = sect.match(/G(\d+)-/)?.[1]||'';
-    const subjList = grade ? getSubjectsForGrade(grade).filter(s=>!s.subitem) : [];
-    linkSel.innerHTML = '<option value="">— None (manual grade entry) —</option>' +
-      subjList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  } else if(linkSel){
-    linkSel.innerHTML = '<option value="">— Select a section first —</option>';
+  if(linkSel){
+    if(sect){
+      const grade = sect.match(/G(\d+)-/)?.[1]||'';
+      const subjList = grade ? getSubjectsForGrade(grade).filter(s=>!s.subitem) : [];
+      linkSel.innerHTML = '<option value="">— None (manual grade entry) —</option>' +
+        subjList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    } else {
+      linkSel.innerHTML = '<option value="">— Select a section first —</option>';
+    }
   }
 }
 
@@ -5218,13 +5384,12 @@ function onRawItemsChange(){
 }
 
 function initRawScoreTable(){
-  // F-07: if user changes any field manually (not via loadSavedTestIntoForm),
-  // clear the edit-mode flag so saveRawScores treats this as a new / different key.
+  // F-07: if user changes fields (not via loadSavedTestIntoForm), clear edit-mode flag
   const newKey = getRawCacheKey();
   if(window._editingRawKey && window._editingRawKey !== newKey){
     window._editingRawKey = null;
     const hint = document.getElementById('raw-hint');
-    if(hint) hint.innerHTML = 'Enter the number of items, then encode each student\'s raw score.';
+    if(hint) hint.innerHTML = 'Enter the number of items, then type each student\'s raw score.';
   }
 
   const sect   = document.getElementById('raw-section')?.value||'';
@@ -5232,7 +5397,7 @@ function initRawScoreTable(){
   const subj   = document.getElementById('raw-subject')?.value.trim()||'';
   const items  = parseInt(document.getElementById('raw-items')?.value)||0;
 
-  // Update quarter dropdown if section changed
+  // Always refresh section+subject-link dropdowns
   populateRawSectionDropdown();
 
   if(!sect||!items||items<1){
@@ -5241,9 +5406,34 @@ function initRawScoreTable(){
     return;
   }
 
+  // Lock state for this term
+  const rawTerm   = parseInt(qtr);
+  const termLocked = isTermLocked(rawTerm);
+
+  // Show/remove lock banner above table
+  const existingBanner = document.getElementById('raw-lock-banner');
+  if(existingBanner) existingBanner.remove();
+  const tableWrap = document.getElementById('raw-score-table-wrap');
+  if(termLocked && tableWrap){
+    const banner = document.createElement('div');
+    banner.id = 'raw-lock-banner';
+    banner.style.cssText = 'margin-bottom:10px;padding:9px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;';
+    banner.innerHTML = `🔒 <strong>Term ${rawTerm} is locked</strong> — grading period ended ${TERM_DATES[rawTerm]?.end||''}. Raw scores are read-only.`
+      + (isAdmin() ? ` <a href="#" onclick="showView('audit',document.getElementById('nav-audit'));renderTermLockPanel();return false;" style="color:#6366f1;font-weight:600;margin-left:8px">⚙️ Manage Lock</a>` : '');
+    tableWrap.parentNode.insertBefore(banner, tableWrap);
+  }
+
+  // Disable save button when locked
+  const saveBtn = document.getElementById('raw-save-btn');
+  if(saveBtn){
+    saveBtn.disabled = termLocked;
+    saveBtn.style.opacity = termLocked ? '0.5' : '';
+    saveBtn.textContent = termLocked ? `🔒 Term ${rawTerm} Locked` : '💾 Save Raw Scores';
+  }
+
   const cacheKey = getRawCacheKey();
-  // Load saved data
   const saved = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{items,scores:{}};
+  rawScoreCache[cacheKey] = saved;
 
   const sectName = sect.replace(/^G\d+-/,'');
   const students = studentsCache
@@ -5260,12 +5450,12 @@ function initRawScoreTable(){
   }
 
   const termLabels={'1':'Term 1','2':'Term 2','3':'Term 3'};
-  const termLabel = isNaN(parseInt(qtr)) ? (termLabels[qtr]||qtr) : 'Term '+qtr;
+  const termLabel = termLabels[qtr]||'Term '+qtr;
   const sectLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
 
   document.getElementById('raw-score-table-wrap').classList.remove('hidden');
   document.getElementById('raw-placeholder').classList.add('hidden');
-  document.getElementById('raw-table-title').textContent = (subj||'Test') + ' — ' + sectLabel + ' · ' + termLabel;
+  document.getElementById('raw-table-title').textContent = (subj||'Test') + ' — ' + sectLabel + ' · ' + termLabel + (termLocked?' 🔒':'');
   document.getElementById('raw-table-sub').textContent = `${students.length} students · ${items} items`;
   document.getElementById('raw-items-header').textContent = '/ '+items;
 
@@ -5273,6 +5463,9 @@ function initRawScoreTable(){
     const raw = saved.scores?.[s.lrn]!==undefined ? saved.scores[s.lrn] : '';
     const pct  = raw!=='' ? ((parseFloat(raw)/items)*100).toFixed(1) : '';
     const pass = pct!=='' ? parseFloat(pct)>=75 : null;
+    const roAttr = termLocked
+      ? 'readonly style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px;text-align:center" title="Term locked"'
+      : 'style="width:70px;text-align:center"';
     return `<tr id="raw-row-${i}">
       <td>${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
@@ -5280,8 +5473,7 @@ function initRawScoreTable(){
       <td style="text-align:center">
         <input type="number" class="grade-input${pass===true?' passing':pass===false?' failing':''}"
           min="0" max="${items}" value="${raw}"
-          oninput="onRawInput(this,'${s.lrn}',${items})"
-          style="width:70px;text-align:center"/>
+          ${termLocked ? roAttr : `oninput="onRawInput(this,'${s.lrn}',${items})" ${roAttr}`}/>
       </td>
       <td style="text-align:center" id="raw-pct-${i}">
         ${pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>'}
@@ -5296,15 +5488,21 @@ function initRawScoreTable(){
 }
 
 function onRawInput(el, lrn, items){
+  // LOCK GUARD
+  const rawTerm = parseInt(document.getElementById('raw-qtr')?.value||'1');
+  if(isTermLocked(rawTerm)){
+    const cacheKey = getRawCacheKey();
+    el.value = (rawScoreCache[cacheKey]?.scores||{})[lrn]??'';
+    toast(`🔒 Term ${rawTerm} is locked — raw scores cannot be edited.`, true);
+    return;
+  }
   const raw = parseFloat(el.value);
   const valid = !isNaN(raw) && raw>=0 && raw<=items;
   const pct   = valid ? ((raw/items)*100).toFixed(1) : '';
   const pass  = pct!=='' ? parseFloat(pct)>=75 : null;
 
-  // Update input color
   el.className = 'grade-input'+(pass===true?' passing':pass===false?' failing':'');
 
-  // Find row index
   const row = el.closest('tr');
   const i   = row?.id.replace('raw-row-','');
 
@@ -5313,13 +5511,11 @@ function onRawInput(el, lrn, items){
   if(pctEl)  pctEl.innerHTML  = pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>';
   if(passEl) passEl.innerHTML = pass===true ? '<span class="badge badge-green">Passed</span>' : pass===false ? '<span class="badge badge-red">Failed</span>' : '<span class="badge badge-gray">—</span>';
 
-  // Update cache
   const cacheKey = getRawCacheKey();
   if(!rawScoreCache[cacheKey]) rawScoreCache[cacheKey]={items,scores:{}};
   if(el.value==='') delete rawScoreCache[cacheKey].scores[lrn];
   else rawScoreCache[cacheKey].scores[lrn] = parseFloat(el.value);
 
-  // Get students list for live MPS
   const sect = document.getElementById('raw-section')?.value||'';
   const sectName = sect.replace(/^G\d+-/,'');
   const students = studentsCache
@@ -5396,31 +5592,36 @@ function computeLiveRawMPS(students, items){
 }
 
 async function saveRawScores(){
-  const cacheKey = getRawCacheKey();
-  if(!cacheKey){ toast('Please fill all fields first',true); return; }
-
-  // F-06 FIX: require a non-empty subject/test name
-  const subjName = document.getElementById('raw-subject')?.value.trim();
-  if(!subjName){
-    toast('❌ Please enter a Subject / Test Name before saving.',true);
+  // ── LOCK GUARD ───────────────────────────────────────────────────
+  const rawTerm = parseInt(document.getElementById('raw-qtr')?.value||'1');
+  if(isTermLocked(rawTerm)){
+    toast(`🔒 Term ${rawTerm} is locked — raw scores cannot be saved.`, true);
+    logAudit('BLOCKED SAVE', `Attempted raw score save on locked Term ${rawTerm} by ${CU?.name||'unknown'}`);
     return;
   }
+  // F-06: subject/test name required
+  const subjName = document.getElementById('raw-subject')?.value.trim();
+  if(!subjName){ toast('❌ Enter a Subject / Test Name before saving.', true); return; }
 
+  const cacheKey = getRawCacheKey();
+  if(!cacheKey){ toast('Please fill in all fields first', true); return; }
   const items = parseInt(document.getElementById('raw-items')?.value)||0;
-  if(!items){ toast('Enter number of items first',true); return; }
+  if(!items){ toast('Enter number of items first', true); return; }
 
   const obj = rawScoreCache[cacheKey]||{items,scores:{}};
-  obj.items = items;
+  obj.items    = items;
   obj.saved_by = CU?.name||'';
   obj.saved_at = new Date().toISOString();
+  obj.term     = rawTerm;
   rawScoreCache[cacheKey] = obj;
   lsSet('rawsc_'+cacheKey, obj);
 
   if(isOnline){
     try{
-      await sb.from('grade_records').upsert({
-        grade_key: cacheKey, data: obj, updated_at: obj.saved_at
-      },{onConflict:'grade_key'});
+      await sb.from('grade_records').upsert(
+        { grade_key: cacheKey, data: obj, updated_at: obj.saved_at },
+        { onConflict:'grade_key' }
+      );
       toast('✅ Raw scores saved & synced!');
     } catch(e){
       queueForSync('grades', cacheKey, obj);
@@ -5430,50 +5631,41 @@ async function saveRawScores(){
     queueForSync('grades', cacheKey, obj);
     toast('✅ Raw scores saved offline — syncs when online');
   }
-  logAudit('RAW SCORES','Saved raw scores: '+cacheKey);
+  logAudit('RAW SCORES', `Saved: ${cacheKey} | ${Object.keys(obj.scores||{}).length} students | ${items} items`);
 
-  // ── F-03 FIX: Auto-transmute raw scores → Term grades if subject is linked ──
+  // ── F-03: Auto-transmute raw scores → Term grade record if subject linked ──
   const linkedSubjId = document.getElementById('raw-subject-link')?.value||'';
   if(linkedSubjId){
-    const sect   = document.getElementById('raw-section')?.value||'';
-    const term   = document.getElementById('raw-qtr')?.value||'1';
-    const gradeKey = linkedSubjId + '_' + sect + '_T' + term;
+    const sect = document.getElementById('raw-section')?.value||'';
+    const gradeKey = linkedSubjId+'_'+sect+'_T'+rawTerm;
     const sectName = sect.replace(/^G\d+-/,'');
     const students = studentsCache
       .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()
-        && `G${s.grade}-${s.section.toUpperCase()}`===sect
-        && s.status!=='Dropped')
+        &&`G${s.grade}-${s.section.toUpperCase()}`===sect
+        &&s.status!=='Dropped')
       .sort((a,b)=>a.name.localeCompare(b.name));
-
-    if(students.length && items > 0){
-      const scores = obj.scores||{};
-      const gradeObj = {};
-      students.forEach((s, idx)=>{
-        const raw = scores[s.lrn];
-        if(raw !== undefined && raw !== null && raw !== ''){
-          const pct = parseFloat(raw) / items;
+    if(students.length && items>0){
+      const gradeObj={};
+      students.forEach((s,idx)=>{
+        const raw = (obj.scores||{})[s.lrn];
+        if(raw!==undefined&&raw!==null&&raw!==''){
           // DepEd transmutation: transmuted = (rawPct × 60) + 40, clamped 60–100
-          const transmuted = Math.max(60, Math.min(100, Math.round(pct * 60 + 40)));
-          gradeObj[idx] = String(transmuted);
+          const transmuted = Math.max(60, Math.min(100, Math.round((parseFloat(raw)/items)*60+40)));
+          gradeObj[idx]=String(transmuted);
         }
       });
-
-      // Push to gradeCache + localStorage
-      gradeCache[gradeKey] = gradeObj;
+      gradeCache[gradeKey]=gradeObj;
       lsSet('gr_'+gradeKey, gradeObj);
-
-      // Push to Supabase
       if(isOnline){
         try{
-          await sb.from('grade_records').upsert({
-            grade_key: gradeKey, data: gradeObj, updated_at: new Date().toISOString()
-          },{onConflict:'grade_key'});
+          await sb.from('grade_records').upsert(
+            { grade_key:gradeKey, data:gradeObj, updated_at:new Date().toISOString() },
+            { onConflict:'grade_key' }
+          );
         } catch(e){ queueForSync('grades', gradeKey, gradeObj); }
-      } else {
-        queueForSync('grades', gradeKey, gradeObj);
-      }
-      logAudit('AUTO-TRANSMUTE','Raw→Grade sync: '+gradeKey+' ('+Object.keys(gradeObj).length+' students)');
-      toast('🔄 Transmuted grades pushed to Term '+term+' grade record for linked subject!');
+      } else { queueForSync('grades', gradeKey, gradeObj); }
+      logAudit('AUTO-TRANSMUTE', `Raw→Grade: ${gradeKey} (${Object.keys(gradeObj).length} students)`);
+      toast(`🔄 Grades auto-transmuted into Term ${rawTerm} record for linked subject.`);
     }
   }
 }
@@ -5543,6 +5735,12 @@ function renderCVCell(cell,row,q,val){
 
 function saveCoreValues(){
   if(!cvCurrentLRN){toast('Select a student first',true);return;}
+  // LOCK GUARD: core values are tied to a term — lock if the displayed term is closed
+  const sf9qtr = parseInt(document.getElementById('sf9-qtr')?.value||'3');
+  if(isTermLocked(sf9qtr)){
+    toast(`🔒 Term ${sf9qtr} is locked — core values cannot be edited.`, true);
+    return;
+  }
   const data={};
   for(let q=1;q<=4;q++){
     data[q]={};
@@ -5656,31 +5854,69 @@ function openEnrollModal(lrn){
 
 function saveEnrollment(){
   _searchIndex=null;
-  const lrn=document.getElementById('enroll-lrn').value.trim();
-  const name=document.getElementById('enroll-name').value.trim().toUpperCase();
-  const sex=document.getElementById('enroll-sex').value;
-  const bday=document.getElementById('enroll-bday').value;
-  const grade=document.getElementById('enroll-grade').value;
-  const section=getEnrollSection();
-  const strand=(grade==='11'||grade==='12') ? (document.getElementById('enroll-strand')?.value||'') : '';
-  const parent=document.getElementById('enroll-parent').value.trim();
-  const contact=document.getElementById('enroll-contact').value.trim();
-  const address=document.getElementById('enroll-address').value.trim();
-  const status=document.getElementById('enroll-status').value;
-  if(!lrn||!name||!sex||!bday||!grade||!section){toast('Please fill all required (*) fields',true);return}
-  if((grade==='11'||grade==='12')&&!strand){toast('❌ Please select a Strand for Grade '+grade+' students.',true);return}
-  if(lrn.length!==12||!/^\d+$/.test(lrn)){beep();toast('❌ LRN must be exactly 12 digits',true);return}
+  const lrn    = document.getElementById('enroll-lrn').value.trim();
+  const name   = document.getElementById('enroll-name').value.trim().toUpperCase();
+  const sex    = document.getElementById('enroll-sex').value;
+  const bday   = document.getElementById('enroll-bday').value;
+  const grade  = document.getElementById('enroll-grade').value;
+  const section= getEnrollSection();
+  const strand = (grade==='11'||grade==='12') ? (document.getElementById('enroll-strand')?.value||'') : '';
+  const parent = document.getElementById('enroll-parent').value.trim();
+  const contact= document.getElementById('enroll-contact').value.trim();
+  const address= document.getElementById('enroll-address').value.trim();
+  const status = document.getElementById('enroll-status').value;
+
+  // ── Required fields ──
+  if(!lrn||!name||!sex||!bday||!grade||!section){
+    toast('Please fill all required (*) fields', true); return;
+  }
+  // ── LRN: exactly 12 digits ──
+  if(lrn.length!==12||!/^\d{12}$/.test(lrn)){
+    beep(); toast('❌ LRN must be exactly 12 digits (numbers only)', true); return;
+  }
+  // ── Name: must contain at least one letter, no digits ──
+  if(!/[A-Za-z]/.test(name)){
+    toast('❌ Student name must contain letters (no numbers-only names allowed)', true); return;
+  }
+  if(/\d/.test(name)){
+    toast('❌ Student name must not contain numbers', true); return;
+  }
+  // ── Name format: Last, First Middle (comma required) ──
+  if(!name.includes(',')){
+    toast('❌ Name must be in "LAST, FIRST MIDDLE" format (include a comma)', true); return;
+  }
+  // ── Birthday: must be in the past and reasonable (age 5–30) ──
+  if(bday){
+    const bdayDate = new Date(bday);
+    const today    = new Date();
+    const age      = (today - bdayDate) / (365.25*24*60*60*1000);
+    if(bdayDate >= today){
+      toast('❌ Birthday cannot be today or a future date', true); return;
+    }
+    if(age < 5 || age > 30){
+      toast('❌ Birthday seems incorrect — student age must be between 5 and 30 years', true); return;
+    }
+  }
+  // ── SHS strand required ──
+  if((grade==='11'||grade==='12')&&!strand){
+    toast('❌ Please select a Track/Strand for Grade '+grade+' students.', true); return;
+  }
+  // ── Contact: digits only if provided ──
+  if(contact && !/^[\d\s\-\+\(\)]+$/.test(contact)){
+    toast('❌ Contact number should contain digits only', true); return;
+  }
+
   const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]};
   if(editingStudentLRN){
     const idx=studentsCache.findIndex(x=>x.lrn===editingStudentLRN);
-    if(idx>=0){obj.grades=studentsCache[idx].grades||obj.grades; studentsCache[idx]={...studentsCache[idx],...obj};}
-    logAudit('STUDENT EDIT','Updated student: '+name+' ('+lrn+')');
+    if(idx>=0){ obj.grades=studentsCache[idx].grades||[]; studentsCache[idx]={...studentsCache[idx],...obj}; }
+    logAudit('STUDENT EDIT','Updated: '+name+' ('+lrn+')');
     toast('✅ Student updated!'+(isOnline?'':' (will sync when online)'));
-  }else{
-    if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return}
+  } else {
+    if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return;}
     studentsCache.push(obj);
     studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
-    logAudit('STUDENT ENROLL','Enrolled new student: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
+    logAudit('STUDENT ENROLL','Enrolled: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
     toast('✅ Student enrolled!'+(isOnline?'':' (will sync when online)'));
   }
   lsSet('students',studentsCache);
@@ -5689,7 +5925,6 @@ function saveEnrollment(){
   _searchIndex=null;
   buildStudentsList(); buildClassList(); buildReport();
   populateDropdowns(); populateSectionDropdowns(); updateStats();
-  // Refresh SF2 section dropdown live
   const sf2Wrap=document.getElementById('sf2-section-wrap');
   if(sf2Wrap&&isAdmin()) populateSectionDropdowns();
 }
@@ -7026,12 +7261,21 @@ function _saveAttendanceCore(){
   const sect = document.getElementById('att-section')?.value;
   if (!date || !sect) { toast('Please select a date and section', true); return; }
   if (!Object.keys(attRec).length) { toast('No attendance data to save', true); return; }
+
+  // LOCK GUARD: check if this date's term is locked
+  const attTerm = getTermFromDate(date);
+  if(attTerm && isTermLocked(attTerm)){
+    const td = TERM_DATES[attTerm];
+    toast(`🔒 Term ${attTerm} (${td?.label}) is locked — attendance for ${date} cannot be edited.`, true);
+    logAudit('BLOCKED ATTENDANCE', `Attempted attendance save on locked Term ${attTerm} date ${date} by ${CU?.name||'unknown'}`);
+    return;
+  }
+
   const key = date + '_' + sect + '_' + currentSession;
   attCache[key] = {...attRec};
   lsSet('att_' + key, attRec);
   queueForSync('attendance', key, attRec);
   logAudit('SAVE ATTENDANCE', date + ' · ' + sect + ' · ' + currentSession + ' · ' + Object.keys(attRec).length + ' students');
-  // Refresh calendar dot if visible
   if (!document.getElementById('att-tab-calendar')?.classList.contains('hidden')) renderCalendar();
   toast('✅ Attendance saved' + (isOnline ? '!' : ' offline — syncs when online'));
 }
