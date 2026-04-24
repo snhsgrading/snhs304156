@@ -3353,8 +3353,12 @@ function buildGradeTable(subj,sect){
   }
 
   const sn=sect.replace(/^G\d+-/,'');
-  let list=studentsCache.filter(s=>s.section===sn);
-  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  const grade=sect.match(/^G(\d+)-/)?.[1]||'';
+  let list=studentsCache.filter(s=>
+    s.section.toUpperCase()===sn.toUpperCase() &&
+    (!grade || s.grade===grade)
+  );
+  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08 FIX: always use _T{term} key — encoding saves with _T not _Q
@@ -3399,8 +3403,11 @@ function buildMAPEHTable(subjId, sect){
   const pehId = 'peh_'+grade;
 
   const sn=sect.replace(/^G\d+-/,'');
-  let list=studentsCache.filter(s=>s.section===sn);
-  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  let list=studentsCache.filter(s=>
+    s.section.toUpperCase()===sn.toUpperCase() &&
+    (!grade || s.grade===grade)
+  );
+  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08: use _T key
@@ -4594,7 +4601,8 @@ async function buildReport(){
   let sect, list;
   const reportSectEl = document.getElementById('report-section-filter');
   const reportQtrEl  = document.getElementById('report-qtr-filter');
-  const qtr = reportQtrEl ? +reportQtrEl.value||0 : 0; // 0 = all quarters (GWA)
+  const selectedQtr = reportQtrEl?.value || String(CQ||1);
+  const qtr = parseInt(selectedQtr,10) || (CQ||1); // default to current term for consistency
 
   if(isAdmin() && reportSectEl?.value){
     sect = reportSectEl.value;
@@ -4671,10 +4679,10 @@ async function buildReport(){
     } else if(!qtrWrap.innerHTML.trim() || qtrWrap.querySelector('span')){
       // Show JHS quarter dropdown (rebuild if it was replaced by SHS label)
       qtrWrap.innerHTML = `<select class="form-select no-print" id="report-qtr-filter" onchange="buildReport()" style="width:160px;margin-right:8px">
-        <option value="0">All Terms (GWA)</option>
-        <option value="1">Term 1</option>
-        <option value="2">Term 2</option>
-        <option value="3">Term 3</option>
+        <option value="0" ${selectedQtr==='0'?'selected':''}>All Terms Average (GWA)</option>
+        <option value="1" ${selectedQtr==='1'?'selected':''}>Term 1</option>
+        <option value="2" ${selectedQtr==='2'?'selected':''}>Term 2</option>
+        <option value="3" ${selectedQtr==='3'?'selected':''}>Term 3</option>
       </select>`;
     }
   }
@@ -4714,7 +4722,36 @@ async function buildReport(){
   }
 
   const isSHSReport = false; // All grades use T1/T2/T3 now
-  const subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
+  let subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
+  const classifyMapehSubject = (subj) => {
+    const idStr = String(subj?.id||'').toLowerCase();
+    const idToken = idStr.split('_')[0];
+    const code = String(subj?.code||'').toLowerCase().trim();
+    const name = String(subj?.name||'').toLowerCase().trim();
+    if(idStr.includes('mapeh') || code.includes('mapeh') || name.includes('mapeh')) return 'mapeh';
+    if(idToken==='ma' || idStr.includes('music') || code.includes('mus') || (name.includes('music') && name.includes('arts'))) return 'ma';
+    if(idToken==='peh' || idStr.includes('health') || ((name.includes('pe')||code.includes('pe')) && name.includes('health')) || code.includes('health')) return 'peh';
+    return null;
+  };
+
+  const mapehIdx = subjects.findIndex(s=>classifyMapehSubject(s)==='mapeh');
+  let maSubjectRef = subjects.find(s=>classifyMapehSubject(s)==='ma') || null;
+  let pehSubjectRef = subjects.find(s=>classifyMapehSubject(s)==='peh') || null;
+  if(mapehIdx>=0){
+    const inserts=[];
+    if(!maSubjectRef){
+      maSubjectRef = {id:'ma_'+grade,  name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdx].order||99)-0.2, virtualType:'ma'};
+      inserts.push(maSubjectRef);
+    }
+    if(!pehSubjectRef){
+      pehSubjectRef = {id:'peh_'+grade, name:'PE & Health',  code:'PE & HEALTH', order:(subjects[mapehIdx].order||99)-0.1, virtualType:'peh'};
+      inserts.push(pehSubjectRef);
+    }
+    subjects = subjects.map(s=>
+      classifyMapehSubject(s)==='mapeh' ? {...s, virtualType:'mapehAvg'} : s
+    );
+    if(inserts.length) subjects.splice(mapehIdx,0,...inserts);
+  }
 
   // SHS with no subjects configured yet — show clear guidance
   if(isSHSReport && subjects.length===0){
@@ -4761,17 +4798,32 @@ async function buildReport(){
 
     if(false){ // SHS unified with JHS
     } else {
+      const getStoredTermGrade = (subjId, q) => {
+        const key1 = subjId+'_'+sk+'_T'+q;
+        const key2 = subjId+'_'+(s.grade||grade)+'_'+sk+'_T'+q;
+        const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
+        const v = rec[studentIdx];
+        return (v!==undefined&&v!=='') ? parseFloat(v) : null;
+      };
+
       vals = subjects.map(subj=>{
         const qtrs = qtr>0 ? [qtr] : [1,2,3];
-        const grades = [];
+        const termGrades = [];
         for(const q of qtrs){
-          const key1 = subj.id+'_'+sk+'_T'+q;
-          const key2 = subj.id+'_'+grade+'_'+sk+'_T'+q;
-          const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
-          const v = rec[studentIdx];
-          if(v!==undefined&&v!=='') grades.push(parseFloat(v));
+          let termVal = null;
+          if(subj.virtualType==='mapehAvg'){
+            const ma  = getStoredTermGrade(maSubjectRef?.id || ('ma_'+(s.grade||grade)), q);
+            const peh = getStoredTermGrade(pehSubjectRef?.id || ('peh_'+(s.grade||grade)), q);
+            termVal = (ma!==null&&peh!==null) ? Math.round((ma+peh)/2)
+                    : ma!==null ? ma
+                    : peh!==null ? peh
+                    : null;
+          } else {
+            termVal = getStoredTermGrade(subj.id, q);
+          }
+          if(termVal!==null) termGrades.push(termVal);
         }
-        return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
+        return termGrades.length>0 ? Math.round(termGrades.reduce((a,b)=>a+b,0)/termGrades.length) : null;
       });
       const filled = vals.filter(v=>v!==null);
       avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
@@ -4904,7 +4956,12 @@ async function buildMPSReport(){
   }
 
   // ── Get subjects ──────────────────────────────────────────────────
+  // Start with configured subjects for this grade, then merge any "orphan"
+  // subject IDs found in saved grade keys for this section/term.
+  // This prevents teacher-saved grades from disappearing in admin/adviser MPS
+  // when subject IDs differ across devices/accounts.
   let subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
+  const subjectById = new Map(subjects.map(s=>[s.id, s]));
 
   // For teacher role: filter to only their assigned subjects for this section
   if(role==='teacher'){
@@ -4915,6 +4972,39 @@ async function buildMPSReport(){
       if(filtered.length) subjects=filtered;
     }
   }
+
+  // Merge subject IDs discovered from grade cache + localStorage keys.
+  // Key format: {subjId}_{section}_T{term}
+  const suffix = `_${sect}_T${term}`;
+  const discoveredIds = new Set();
+  const tryAddDiscoveredId = (k) => {
+    if(!k || !k.endsWith(suffix)) return;
+    const subjId = k.slice(0, -suffix.length);
+    if(subjId) discoveredIds.add(subjId);
+  };
+
+  Object.keys(gradeCache||{}).forEach(tryAddDiscoveredId);
+  for(let i=0;i<localStorage.length;i++){
+    const lk = localStorage.key(i);
+    if(!lk) continue;
+    const stripped = lk.startsWith(LS) ? lk.slice(LS.length) : lk;
+    if(stripped.startsWith('gr_')) tryAddDiscoveredId(stripped.slice(3));
+  }
+
+  const canSeeAllSectionSubjects = role==='admin' || role==='adviser' || role==='adviser-teacher';
+  if(canSeeAllSectionSubjects){
+    discoveredIds.forEach(id=>{
+      if(subjectById.has(id)) return;
+      const friendly = id
+        .replace(/_\d+(_\d+)?$/,'')
+        .replace(/_/g,' ')
+        .replace(/\b\w/g,c=>c.toUpperCase());
+      subjects.push({id, name:friendly||id, code:'', order:999});
+      subjectById.set(id, {id, name:friendly||id});
+    });
+  }
+
+  subjects.sort((a,b)=> (a.order??999)-(b.order??999) || a.name.localeCompare(b.name));
 
   if(!subjects.length){
     const isSHS = grade==='11'||grade==='12';
