@@ -5069,10 +5069,14 @@ async function buildMPSReport(){
   if(canSeeAllSectionSubjects){
     discoveredIds.forEach(id=>{
       if(subjectById.has(id)) return;
-      // Give MA/PEH discovered IDs their proper display names instead of raw "Ma"/"Peh"
       const cls = classifyMapehSubjectMPS({id});
+      // Skip if a subject of this MAPEH type already exists — prevents duplicate MA/PEH rows
+      // when both a configured subject (e.g. 'music_arts') and virtual id (e.g. 'ma_7') are present
+      if(cls==='ma'  && subjects.some(s=>classifyMapehSubjectMPS(s)==='ma'))  return;
+      if(cls==='peh' && subjects.some(s=>classifyMapehSubjectMPS(s)==='peh')) return;
+      // Give MA/PEH discovered IDs their proper display names instead of raw "Ma"/"Peh"
       let friendly;
-      if(cls==='ma')  friendly = 'Music & Arts';
+      if(cls==='ma')       friendly = 'Music & Arts';
       else if(cls==='peh') friendly = 'PE & Health';
       else friendly = id.replace(/_\d+(_\d+)?$/,'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
       const entry = {id, name:friendly||id, code:'', order:999};
@@ -5122,15 +5126,32 @@ async function buildMPSReport(){
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
-  // Helper: get grades array for a given subjId in this section/term
-  const getEncodedGrades = (subjId) => {
+  // Returns per-student grade array WITH nulls — index matches student index exactly.
+  // Required for MAPEH avg so student i's MA and PEH grades are paired correctly.
+  const getGradePerStudent = (subjId) => {
+    if(!subjId) return students.map(()=>null);
     const key = subjId + '_' + sect + '_T' + term;
     const rec = gradeCache[key] || lsGet('gr_' + key) || {};
     return students.map((_,i) => {
       const v = rec[i];
-      return (v!==undefined && v!=='' && v!==null) ? parseFloat(v) : null;
-    }).filter(v => v!==null && !isNaN(v));
+      return (v!==undefined && v!=='' && v!==null && !isNaN(parseFloat(v))) ? parseFloat(v) : null;
+    });
   };
+
+  // Try multiple subject IDs in order — use whichever has at least one grade.
+  // Grades are ALWAYS stored under virtual IDs (ma_7, peh_7) regardless of what
+  // Subject Manager configured, so we try the virtual ID as well as the configured one.
+  const getGradePerStudentMulti = (...ids) => {
+    for(const id of ids.filter(Boolean)){
+      const arr = getGradePerStudent(id);
+      if(arr.some(v=>v!==null)) return arr;
+    }
+    return students.map(()=>null);
+  };
+
+  // Filtered helper (for non-MAPEH subjects) — drops nulls for MPS computation
+  const getEncodedGrades = (subjId) =>
+    getGradePerStudent(subjId).filter(v => v!==null);
 
   const maId  = 'ma_'  + grade;
   const pehId = 'peh_' + grade;
@@ -5139,22 +5160,28 @@ async function buildMPSReport(){
     let encodedGrades;
 
     if(subj.virtualType === 'mapehAvg'){
-      // MAPEH column = per-student average of MA + PEH grades
-      const maGrades  = getEncodedGrades(maRef?.id  || maId);
-      const pehGrades = getEncodedGrades(pehRef?.id || pehId);
-      // Average per-student where both exist; fall back to whichever is present
+      // Per-student MA + PEH arrays — indices align with students array
+      // Try configured ID first, fall back to virtual ID (ma_grade / peh_grade)
+      const maPerStu  = getGradePerStudentMulti(maRef?.id,  maId);
+      const pehPerStu = getGradePerStudentMulti(pehRef?.id, pehId);
       encodedGrades = students.map((_,i) => {
-        const ma  = maGrades[i]  ?? null;
-        const peh = pehGrades[i] ?? null;
+        const ma  = maPerStu[i];
+        const peh = pehPerStu[i];
         if(ma!==null && peh!==null) return Math.round((ma+peh)/2);
         if(ma!==null)  return ma;
         if(peh!==null) return peh;
         return null;
       }).filter(v => v!==null);
+
     } else if(subj.virtualType === 'ma'){
-      encodedGrades = getEncodedGrades(maRef?.id  || maId);
+      // Always try virtual maId — that is where doSaveGrades/mapehChanged actually writes
+      const arr = getGradePerStudentMulti(maId, maRef?.id);
+      encodedGrades = arr.filter(v => v!==null);
+
     } else if(subj.virtualType === 'peh'){
-      encodedGrades = getEncodedGrades(pehRef?.id || pehId);
+      const arr = getGradePerStudentMulti(pehId, pehRef?.id);
+      encodedGrades = arr.filter(v => v!==null);
+
     } else {
       encodedGrades = getEncodedGrades(subj.id);
     }
