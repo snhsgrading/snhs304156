@@ -5035,6 +5035,18 @@ async function buildMPSReport(){
     }
   }
 
+  // ── MAPEH classification — shared with buildReport ────────────────
+  const classifyMapehSubjectMPS = (subj) => {
+    const idStr  = String(subj?.id||'').toLowerCase();
+    const idTok  = idStr.split('_')[0];
+    const code   = String(subj?.code||'').toLowerCase().trim();
+    const name   = String(subj?.name||'').toLowerCase().trim();
+    if(idStr.includes('mapeh')||code.includes('mapeh')||name.includes('mapeh')) return 'mapeh';
+    if(idTok==='ma'||idStr.includes('music')||code.includes('mus')||(name.includes('music')&&name.includes('arts'))) return 'ma';
+    if(idTok==='peh'||idStr.includes('health')||((name.includes('pe')||code.includes('pe'))&&name.includes('health'))||code.includes('health')) return 'peh';
+    return null;
+  };
+
   // Merge subject IDs discovered from grade cache + localStorage keys.
   // Key format: {subjId}_{section}_T{term}
   const suffix = `_${sect}_T${term}`;
@@ -5057,16 +5069,45 @@ async function buildMPSReport(){
   if(canSeeAllSectionSubjects){
     discoveredIds.forEach(id=>{
       if(subjectById.has(id)) return;
-      const friendly = id
-        .replace(/_\d+(_\d+)?$/,'')
-        .replace(/_/g,' ')
-        .replace(/\b\w/g,c=>c.toUpperCase());
-      subjects.push({id, name:friendly||id, code:'', order:999});
-      subjectById.set(id, {id, name:friendly||id});
+      // Give MA/PEH discovered IDs their proper display names instead of raw "Ma"/"Peh"
+      const cls = classifyMapehSubjectMPS({id});
+      let friendly;
+      if(cls==='ma')  friendly = 'Music & Arts';
+      else if(cls==='peh') friendly = 'PE & Health';
+      else friendly = id.replace(/_\d+(_\d+)?$/,'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+      const entry = {id, name:friendly||id, code:'', order:999};
+      subjects.push(entry);
+      subjectById.set(id, entry);
     });
   }
 
   subjects.sort((a,b)=> (a.order??999)-(b.order??999) || a.name.localeCompare(b.name));
+
+  // ── Apply MAPEH ordering + virtualType (mirrors buildReport logic) ─
+  const mapehIdxMPS = subjects.findIndex(s=>classifyMapehSubjectMPS(s)==='mapeh');
+  let maRef  = subjects.find(s=>classifyMapehSubjectMPS(s)==='ma')  || null;
+  let pehRef = subjects.find(s=>classifyMapehSubjectMPS(s)==='peh') || null;
+  if(mapehIdxMPS>=0){
+    const inserts=[];
+    if(!maRef){
+      maRef = {id:'ma_'+grade, name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdxMPS].order||99)+0.1, virtualType:'ma'};
+      inserts.push(maRef);
+    } else {
+      maRef = {...maRef, virtualType:'ma'};
+      subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='ma' ? {...s, virtualType:'ma'} : s);
+    }
+    if(!pehRef){
+      pehRef = {id:'peh_'+grade, name:'PE & Health', code:'PE & HEALTH', order:(subjects[mapehIdxMPS].order||99)+0.2, virtualType:'peh'};
+      inserts.push(pehRef);
+    } else {
+      pehRef = {...pehRef, virtualType:'peh'};
+      subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='peh' ? {...s, virtualType:'peh'} : s);
+    }
+    subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='mapeh' ? {...s, virtualType:'mapehAvg'} : s);
+    const insertAfterIdx = subjects.findIndex(s=>s.virtualType==='mapehAvg');
+    if(inserts.length && insertAfterIdx>=0) subjects.splice(insertAfterIdx+1, 0, ...inserts);
+    else if(inserts.length) subjects.splice(mapehIdxMPS+1, 0, ...inserts);
+  }
 
   if(!subjects.length){
     const isSHS = grade==='11'||grade==='12';
@@ -5081,25 +5122,51 @@ async function buildMPSReport(){
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
-  // F-08 FIX: always use _T{term} key — matches how doSaveGrades stores grades
-  const rows = subjects.map(subj=>{
-    const gradeKey = subj.id+'_'+sect+'_T'+term;
-    const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
-
-    const encodedGrades = students.map((_,i)=>{
+  // Helper: get grades array for a given subjId in this section/term
+  const getEncodedGrades = (subjId) => {
+    const key = subjId + '_' + sect + '_T' + term;
+    const rec = gradeCache[key] || lsGet('gr_' + key) || {};
+    return students.map((_,i) => {
       const v = rec[i];
-      return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
-    }).filter(v=>v!==null);
+      return (v!==undefined && v!=='' && v!==null) ? parseFloat(v) : null;
+    }).filter(v => v!==null && !isNaN(v));
+  };
 
-    const takers   = encodedGrades.length;
-    const enrolled = students.length;
+  const maId  = 'ma_'  + grade;
+  const pehId = 'peh_' + grade;
+
+  const rows = subjects.map(subj=>{
+    let encodedGrades;
+
+    if(subj.virtualType === 'mapehAvg'){
+      // MAPEH column = per-student average of MA + PEH grades
+      const maGrades  = getEncodedGrades(maRef?.id  || maId);
+      const pehGrades = getEncodedGrades(pehRef?.id || pehId);
+      // Average per-student where both exist; fall back to whichever is present
+      encodedGrades = students.map((_,i) => {
+        const ma  = maGrades[i]  ?? null;
+        const peh = pehGrades[i] ?? null;
+        if(ma!==null && peh!==null) return Math.round((ma+peh)/2);
+        if(ma!==null)  return ma;
+        if(peh!==null) return peh;
+        return null;
+      }).filter(v => v!==null);
+    } else if(subj.virtualType === 'ma'){
+      encodedGrades = getEncodedGrades(maRef?.id  || maId);
+    } else if(subj.virtualType === 'peh'){
+      encodedGrades = getEncodedGrades(pehRef?.id || pehId);
+    } else {
+      encodedGrades = getEncodedGrades(subj.id);
+    }
+
+    const takers    = encodedGrades.length;
+    const enrolled  = students.length;
     const notEncoded = enrolled - takers;
     if(takers===0) return {subj:subj.name, takers:0, enrolled, notEncoded, mps:null, gradeAvg:null, passed:0, failed:0, pl:null};
 
     const totalScore = encodedGrades.reduce((a,b)=>a+b,0);
     const meanGrade  = totalScore / takers;
     const gradeAvg   = meanGrade.toFixed(2);
-    // F-01/F-02: reverse-transmute to get true MPS % for mastery label
     const approxMPS  = reverseTransmute(meanGrade);
     const mps        = approxMPS!==null ? approxMPS.toFixed(2) : gradeAvg;
     const passed     = encodedGrades.filter(v=>v>=75).length;
