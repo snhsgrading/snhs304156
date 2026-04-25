@@ -5397,10 +5397,11 @@ async function loadSavedRawTests(){
         badgeHtml = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color};margin-top:4px">${mastery.label}</span>`;
       }
 
+      // Admin: can delete any test (manages records); teachers/advisers: can edit their own
       const canEdit = !isAdmin();
       const editBtn = canEdit
         ? `<button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${t.key}')" style="font-size:11px">✏️ Edit</button>`
-        : `<button class="btn btn-sm" style="font-size:11px;background:var(--gray-100);color:var(--gray-500);cursor:default" disabled>👁️ View Only</button>`;
+        : `<button class="btn btn-sm" onclick="deleteRawTest('${t.key}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>`;
 
       return `<div class="card" style="padding:0">
         <div style="padding:12px 14px;border-bottom:1px solid var(--gray-100)">
@@ -5422,6 +5423,32 @@ async function loadSavedRawTests(){
         </div>
       </div>`;
     }).join('') + '</div>';
+}
+
+async function deleteRawTest(cacheKey){
+  if(!confirm('Delete the saved test "' + cacheKey.replace(/^raw_/,'').replace(/_/g,' ') + '"?\n\nThis cannot be undone.')) return;
+
+  // 1 — Remove from Supabase
+  if(isOnline){
+    try{
+      const {error} = await sb.from('grade_records').delete().eq('grade_key', cacheKey);
+      if(error) console.warn('deleteRawTest cloud error:', error);
+    }catch(e){ console.warn('deleteRawTest cloud error:', e); }
+  }
+
+  // 2 — Remove from localStorage (two key forms used across app versions)
+  const lsKey1 = LS + 'rawsc_' + cacheKey;
+  const lsKey2 = LS + cacheKey;
+  localStorage.removeItem(lsKey1);
+  localStorage.removeItem(lsKey2);
+
+  // 3 — Remove from in-memory cache
+  delete rawScoreCache[cacheKey];
+
+  toast('🗑️ Test record deleted.');
+
+  // 4 — Refresh list
+  loadSavedRawTests();
 }
 
 function loadSavedTestIntoForm(cacheKey){
