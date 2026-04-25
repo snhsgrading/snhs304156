@@ -2093,20 +2093,20 @@ const SF9_SUBJ_ID_MAP = {
 
 // Get final grade for one student in one subject across quarters
 // sectionKey = "G10-Hope", gradeLevel = "10", studentIndex = position in sorted section list
-function getEncodedGrade(studentIndex, subjIdx, sectionKey, gradeLevel, quarter, studentLRN=''){
+function getEncodedGrade(studentIndex, subjIdx, sectionKey, gradeLevel, quarter){
   const baseId = SF9_SUBJ_ID_MAP[subjIdx];
   if(!baseId) return null;
   const subjectId = baseId + '_' + gradeLevel;
   const key = subjectId + '_' + sectionKey + '_T' + quarter;
   const rec = gradeCache[key] || lsGet('gr_' + key) || {};
-  const val = gradeRecordGet(rec, studentLRN, studentIndex);
+  const val = rec[studentIndex];
   return val ? parseFloat(val) : null;
 }
 
 // Get all 4-quarter grades for a student across all subjects
 // Returns array of {q1,q2,q3,q4,final} per subject index 0-9
 // idx 7 (MAPEH) = auto-computed average of idx 8 (Music & Arts) and idx 9 (PE & Health)
-function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel, studentLRN=''){
+function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel){
   const result = {};
   // All grades use T1/T2/T3 (DepEd Trimester SY2026-2027)
   for(let idx=0; idx<=9; idx++){
@@ -2114,7 +2114,7 @@ function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel, student
     const terms = {};
     let filled = 0;
     for(let t=1; t<=3; t++){
-      const v = getEncodedGrade(studentIndex, idx, sectionKey, gradeLevel, t, studentLRN);
+      const v = getEncodedGrade(studentIndex, idx, sectionKey, gradeLevel, t);
       terms['t'+t] = v;
       if(v !== null) filled++;
     }
@@ -2141,7 +2141,7 @@ function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel, student
     if(ma!=null && peh!=null)      mapehT['t'+t] = Math.round((ma+peh)/2);
     else if(ma!=null)              mapehT['t'+t] = ma;
     else if(peh!=null)             mapehT['t'+t] = peh;
-    else mapehT['t'+t] = getEncodedGrade(studentIndex, 7, sectionKey, gradeLevel, t, studentLRN);
+    else mapehT['t'+t] = getEncodedGrade(studentIndex, 7, sectionKey, gradeLevel, t);
   }
   const mVals = [1,2,3].map(t=>mapehT['t'+t]).filter(v=>v!==null);
   mapehT.final   = mVals.length>0 ? Math.round(mVals.reduce((a,b)=>a+b,0)/mVals.length) : null;
@@ -2218,29 +2218,6 @@ let subjectGradeFilter = 'all';
 const LS = 'snhs_';
 function lsGet(k){try{return JSON.parse(localStorage.getItem(LS+k)||'null')}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{toast('Storage full! Clear browser cache.',true)}}
-// ── Grade record helpers (LRN-first, index fallback during migration) ─────────
-function gradeRecordGet(rec, lrn, idx){
-  if(!rec || typeof rec!=='object') return null;
-  const keys = [lrn, String(lrn), idx, String(idx)];
-  for(const k of keys){
-    if(k===undefined || k===null || k==='') continue;
-    const v = rec[k];
-    if(v!==undefined && v!==null && v!=='') return v;
-  }
-  return null;
-}
-function gradeRecordSet(rec, lrn, idx, val){
-  if(!rec || typeof rec!=='object') return;
-  const empty = (val===undefined || val===null || val==='');
-  const keys = [idx, String(idx), lrn, String(lrn)];
-  if(empty){
-    keys.forEach(k=>{ if(k!==undefined && k!==null && k!=='') delete rec[k]; });
-  } else {
-    const out = String(val);
-    [idx, String(idx)].forEach(k=>{ if(k!==undefined && k!==null) rec[k]=out; });
-    if(lrn!==undefined && lrn!==null && lrn!=='') rec[String(lrn)] = out;
-  }
-}
 
 // ── SYNC ENGINE ────────────────────────────────────────────────────
 function getPendingQueue(){return lsGet('pendingQueue')||[]}
@@ -3295,17 +3272,6 @@ function openEncode(subj,sect){
   showView('encode',document.getElementById('nav-encode'));
 }
 
-function getStudentsForSectionKey(sect){
-  const sn=sect.replace(/^G\d+-/,'');
-  const grade=sect.match(/^G(\d+)-/)?.[1]||'';
-  let list=studentsCache.filter(s=>
-    s.section.toUpperCase()===sn.toUpperCase() &&
-    (!grade || s.grade===grade)
-  );
-  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
-  return list.sort((a,b)=>a.name.localeCompare(b.name));
-}
-
 function loadGradeTable(){
   const subj=document.getElementById('enc-subject').value;
   const sect=document.getElementById('enc-section').value;
@@ -3386,7 +3352,14 @@ function buildGradeTable(subj,sect){
     }
   }
 
-  const list=getStudentsForSectionKey(sect);
+  const sn=sect.replace(/^G\d+-/,'');
+  const grade=sect.match(/^G(\d+)-/)?.[1]||'';
+  let list=studentsCache.filter(s=>
+    s.section.toUpperCase()===sn.toUpperCase() &&
+    (!grade || s.grade===grade)
+  );
+  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
+  list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08 FIX: always use _T{term} key — encoding saves with _T not _Q
   const key=subj+'_'+sect+'_T'+CQ;
@@ -3394,7 +3367,7 @@ function buildGradeTable(subj,sect){
   gradeCache[key]=saved;
 
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
-    const v=gradeRecordGet(saved, s.lrn, i)||'';
+    const v=saved[i]||'';
     const cls=v?(+v>=75?'passing':'failing'):'';
     const roTitle = termLocked
       ? `Term ${CQ} locked — grading period ended`
@@ -3429,7 +3402,13 @@ function buildMAPEHTable(subjId, sect){
   const maId  = 'ma_'+grade;
   const pehId = 'peh_'+grade;
 
-  const list=getStudentsForSectionKey(sect);
+  const sn=sect.replace(/^G\d+-/,'');
+  let list=studentsCache.filter(s=>
+    s.section.toUpperCase()===sn.toUpperCase() &&
+    (!grade || s.grade===grade)
+  );
+  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
+  list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08: use _T key
   const maKey  = maId +'_'+sect+'_T'+CQ;
@@ -3450,8 +3429,8 @@ function buildMAPEHTable(subjId, sect){
   const roTitle = termLocked ? `Term ${CQ} locked` : adviserReadOnly ? 'Read-only — subject teacher only' : '';
 
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
-    const ma  = gradeRecordGet(maSaved, s.lrn, i)||'';
-    const peh = gradeRecordGet(pehSaved, s.lrn, i)||'';
+    const ma  = maSaved[i]||'';
+    const peh = pehSaved[i]||'';
     const mapeh = (ma!==''&&peh!=='') ? Math.round((+ma + +peh)/2)
                 : ma!=='' ? +ma : peh!=='' ? +peh : '';
     const mapehCls = mapeh!=='' ? (mapeh>=75?'badge-green':'badge-red') : 'badge-gray';
@@ -3489,9 +3468,8 @@ function mapehChanged(i, lrn, studentName, sect){
     const pehSaved = gradeCache[pehKey]||lsGet('gr_'+pehKey)||{};
     const maEl  = document.getElementById('ma_'+i);
     const pehEl = document.getElementById('peh_'+i);
-    const rowLrn = getStudentsForSectionKey(sect||'')[i]?.lrn || '';
-    if(maEl)  maEl.value  = gradeRecordGet(maSaved, rowLrn, i)||'';
-    if(pehEl) pehEl.value = gradeRecordGet(pehSaved, rowLrn, i)||'';
+    if(maEl)  maEl.value  = maSaved[i]||'';
+    if(pehEl) pehEl.value = pehSaved[i]||'';
     return;
   }
   const maEl  = document.getElementById('ma_'+i);
@@ -3540,7 +3518,7 @@ function gradeChanged(el,i,lrn,studentName,subj,sect){
   const raw=el.value;
   const v=parseFloat(raw);
   const key=subj+'_'+sect+'_T'+CQ;
-  const oldVal=gradeRecordGet((gradeCache[key]||{}), lrn, i)||'';
+  const oldVal=(gradeCache[key]||{})[i]||'';
 
   // Range validation: 60–100
   if(raw!==''&&!isNaN(v)){
@@ -3561,7 +3539,7 @@ function gradeChanged(el,i,lrn,studentName,subj,sect){
   }
   // Cache live update
   if(!gradeCache[key]) gradeCache[key]={};
-  gradeRecordSet(gradeCache[key], lrn, i, (raw===''||isNaN(v)) ? '' : raw);
+  if(raw===''||isNaN(v)) delete gradeCache[key][i]; else gradeCache[key][i]=raw;
   // Audit on actual change
   if(!isNaN(v)&&oldVal&&String(oldVal)!==String(v)){
     logAudit('GRADE CHANGE',`${studentName} (${lrn}): T${CQ} changed ${oldVal}→${v} in ${subj} — ${sect}`);
@@ -3662,9 +3640,8 @@ async function doSaveGrades(){
     }
 
     const maObj={}, pehObj={};
-    const sectionStudents = getStudentsForSectionKey(sect);
-    document.querySelectorAll('[id^="ma_"]').forEach((inp,i)=>{ gradeRecordSet(maObj, sectionStudents[i]?.lrn, i, inp.value||''); });
-    document.querySelectorAll('[id^="peh_"]').forEach((inp,i)=>{ gradeRecordSet(pehObj, sectionStudents[i]?.lrn, i, inp.value||''); });
+    document.querySelectorAll('[id^="ma_"]').forEach((inp,i)=>{if(inp.value) maObj[i]=inp.value;});
+    document.querySelectorAll('[id^="peh_"]').forEach((inp,i)=>{if(inp.value) pehObj[i]=inp.value;});
 
     const maKey  = maId +'_'+sect+'_T'+CQ;
     const pehKey = pehId+'_'+sect+'_T'+CQ;
@@ -3710,8 +3687,7 @@ async function doSaveGrades(){
   }
 
   const obj={};
-  const sectionStudents = getStudentsForSectionKey(sect);
-  document.querySelectorAll('.grade-input').forEach((inp,i)=>{ gradeRecordSet(obj, sectionStudents[i]?.lrn, i, inp.value||''); });
+  document.querySelectorAll('.grade-input').forEach((inp,i)=>{if(inp.value)obj[i]=inp.value;});
   gradeCache[key]=obj;
   lsSet('gr_'+key,obj);
   logAudit('SAVE GRADES','Saved T'+CQ+' grades for '+sect+' — '+subj);
@@ -4012,7 +3988,7 @@ async function renderSF9(){
     .sort((a,b)=>a.name.localeCompare(b.name));
   const studentIndex = sectionStudents.findIndex(st=>st.lrn===s.lrn);
 
-  const encodedGrades = getStudentGradesFromCache(studentIndex, sectionKey, s.grade||'10', s.lrn);
+  const encodedGrades = getStudentGradesFromCache(studentIndex, sectionKey, s.grade||'10');
 
   let sum=0, cnt=0;
 
@@ -4621,24 +4597,6 @@ async function fetchGradesForSection(sectionKey){
   }
 }
 
-async function fetchAllGradeRecordsPaginated(){
-  if(!isOnline) return [];
-  const out = [];
-  const pageSize = 1000;
-  let from = 0;
-  while(true){
-    const to = from + pageSize - 1;
-    const {data, error} = await sb.from('grade_records')
-      .select('grade_key, data')
-      .range(from, to);
-    if(error || !data) break;
-    out.push(...data);
-    if(data.length < pageSize) break;
-    from += pageSize;
-  }
-  return out;
-}
-
 async function buildReport(){
   let sect, list;
   const reportSectEl = document.getElementById('report-section-filter');
@@ -4687,20 +4645,28 @@ async function buildReport(){
 
   // ── CLOUD GRADE FETCH ──────────────────────────────────────────────
   // Fetches ALL subject grades for this section from Supabase into gradeCache
-  // This ensures adviser sees grades from ALL teachers, not just their own localStorage
+  // This ensures adviser/admin sees grades from ALL teachers, not just their own localStorage
   if(sect && sect !== 'All Sections'){
     const g0 = (list[0]?.grade||'');
     const sectKey = sect.match(/^G\d+-/) ? sect.toUpperCase() : 'G'+g0+'-'+sect.replace(/^G\d+-/,'').toUpperCase();
     await fetchGradesForSection(sectKey);
   } else if(isAdmin() && isOnline){
+    // Paginated fetch — Supabase caps at 1000 rows by default
+    // A busy school can have thousands of grade_key records (subjects × sections × terms)
     try{
-      const data = await fetchAllGradeRecordsPaginated();
-      if(data) data.forEach(rec=>{
-        if(rec.data && rec.grade_key){
-          gradeCache[rec.grade_key]=rec.data;
-          lsSet('gr_'+rec.grade_key, rec.data);
-        }
-      });
+      const PAGE_SIZE = 1000;
+      let grPage = 0, grKeepGoing = true;
+      while(grKeepGoing){
+        const from = grPage * PAGE_SIZE;
+        const to   = from + PAGE_SIZE - 1;
+        const {data, error} = await sb.from('grade_records')
+          .select('grade_key, data')
+          .range(from, to);
+        if(error || !data || data.length === 0){ grKeepGoing = false; break; }
+        data.forEach(rec=>{ if(rec.data && rec.grade_key) gradeCache[rec.grade_key]=rec.data; });
+        if(data.length < PAGE_SIZE) grKeepGoing = false;
+        else grPage++;
+      }
     }catch(e){ console.warn('fetchAllGrades error:',e); }
   }
 
@@ -4747,12 +4713,25 @@ async function buildReport(){
     }
   }
 
-  // Adviser info banner — shown for adviser/adviser-teacher
+  // Adviser / Admin info banner
   const advBanner = document.getElementById('report-adviser-banner');
   if(advBanner){
-    if(isAdviser() && sect !== 'All Sections'){
+    const _now = new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+    if(isAdmin()){
+      // Admin always gets the banner with a Refresh button so they can re-pull cloud grades
       advBanner.style.display = 'flex';
-      const _now = new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+      advBanner.innerHTML = `
+        <span style="font-size:18px">🏫</span>
+        <div style="flex:1">
+          <strong>${CU.name}</strong> — ${CU.label}<br>
+          <span style="font-size:12px;opacity:0.85">Viewing: ${advSectLabel} &nbsp;·&nbsp; S.Y. ${SY}</span>
+        </div>
+        <div style="text-align:right;font-size:11px;opacity:0.8;margin-right:8px">
+          ☁️ Grades pulled from cloud<br>Last refreshed: ${_now}
+        </div>
+        <button class="btn btn-sm no-print" onclick="buildReport()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4)">🔄 Refresh</button>`;
+    } else if(isAdviser() && sect !== 'All Sections'){
+      advBanner.style.display = 'flex';
       advBanner.innerHTML = `
         <span style="font-size:18px">👨‍🏫</span>
         <div style="flex:1">
@@ -4787,32 +4766,30 @@ async function buildReport(){
   if(mapehIdx>=0){
     const inserts=[];
     if(!maSubjectRef){
-      maSubjectRef = {id:'ma_'+grade,  name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdx].order||99)-0.2, virtualType:'ma'};
+      // virtualType:'ma' — lookup uses student's own grade at render time
+      maSubjectRef = {id:'ma_'+grade, name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdx].order||99)+0.1, virtualType:'ma'};
       inserts.push(maSubjectRef);
+    } else {
+      // Existing configured MA subject — mark so render knows to use student grade
+      maSubjectRef = {...maSubjectRef, virtualType:'ma'};
+      subjects = subjects.map(s=>classifyMapehSubject(s)==='ma' ? {...s, virtualType:'ma'} : s);
     }
     if(!pehSubjectRef){
-      pehSubjectRef = {id:'peh_'+grade, name:'PE & Health',  code:'PE & HEALTH', order:(subjects[mapehIdx].order||99)-0.1, virtualType:'peh'};
+      pehSubjectRef = {id:'peh_'+grade, name:'PE & Health', code:'PE & HEALTH', order:(subjects[mapehIdx].order||99)+0.2, virtualType:'peh'};
       inserts.push(pehSubjectRef);
+    } else {
+      pehSubjectRef = {...pehSubjectRef, virtualType:'peh'};
+      subjects = subjects.map(s=>classifyMapehSubject(s)==='peh' ? {...s, virtualType:'peh'} : s);
     }
-    subjects = subjects.map(s=>{
-      const kind = classifyMapehSubject(s);
-      if(kind==='mapeh') return {...s, virtualType:'mapehAvg'};
-      if(kind==='ma')    return {...s, virtualType:'ma'};
-      if(kind==='peh')   return {...s, virtualType:'peh'};
-      return s;
-    });
-    if(inserts.length) subjects.splice(mapehIdx,0,...inserts);
-    // Enforce consistent column order across all roles/accounts:
-    // MAPEH first, then Music & Arts, then PE & Health.
-    const special = [];
-    const mSub  = subjects.find(s=>s.virtualType==='mapehAvg');
-    const maSub = subjects.find(s=>s.virtualType==='ma');
-    const peSub = subjects.find(s=>s.virtualType==='peh');
-    if(mSub) special.push(mSub);
-    if(maSub) special.push(maSub);
-    if(peSub) special.push(peSub);
-    subjects = subjects.filter(s=>!['mapehAvg','ma','peh'].includes(s.virtualType));
-    if(special.length) subjects.splice(Math.min(mapehIdx, subjects.length), 0, ...special);
+    // Mark MAPEH entry as computed average
+    subjects = subjects.map(s=>
+      classifyMapehSubject(s)==='mapeh' ? {...s, virtualType:'mapehAvg'} : s
+    );
+    // Insert MA then PEH immediately AFTER the MAPEH(avg) column
+    // Result: MAPEH | MUS&ARTS | PE & HEALTH  ✓
+    const insertAfter = subjects.findIndex(s=>s.virtualType==='mapehAvg');
+    if(inserts.length && insertAfter>=0) subjects.splice(insertAfter+1, 0, ...inserts);
+    else if(inserts.length) subjects.splice(mapehIdx+1, 0, ...inserts);
   }
 
   // SHS with no subjects configured yet — show clear guidance
@@ -4872,17 +4849,15 @@ async function buildReport(){
         const rec = recCandidates.find(r=>r && typeof r==='object' && Object.keys(r).length>0)
           || recCandidates.find(r=>r && typeof r==='object')
           || {};
-        const v = gradeRecordGet(rec, s.lrn, studentIdx);
+        const v = rec[studentIdx];
         return (v!==undefined&&v!=='') ? parseFloat(v) : null;
       };
-      const getFirstAvailableTermGrade = (subjIds, q) => {
-        for(const sid of (subjIds||[])){
-          if(!sid) continue;
-          const v = getStoredTermGrade(sid, q);
-          if(v!==null) return v;
-        }
-        return null;
-      };
+
+      // Use student's OWN grade for MA/PEH key — critical for "All Sections" admin view
+      // where multiple grade levels appear and the outer `grade` var is from list[0] only
+      const studentGrade = s.grade || grade;
+      const maId  = 'ma_'  + studentGrade;
+      const pehId = 'peh_' + studentGrade;
 
       vals = subjects.map(subj=>{
         const qtrs = qtr>0 ? [qtr] : [1,2,3];
@@ -4890,31 +4865,36 @@ async function buildReport(){
         for(const q of qtrs){
           let termVal = null;
           if(subj.virtualType==='mapehAvg'){
-            const ma  = getFirstAvailableTermGrade([maSubjectRef?.id, 'ma_'+(s.grade||grade), 'ma'], q);
-            const peh = getFirstAvailableTermGrade([pehSubjectRef?.id, 'peh_'+(s.grade||grade), 'peh'], q);
-            termVal = (ma!==null&&peh!==null) ? Math.round((ma+peh)/2)
-                    : ma!==null ? ma
-                    : peh!==null ? peh
+            // MAPEH column = average of MUS&ARTS + PE&HEALTH for THIS student's grade
+            const ma  = getStoredTermGrade(maId,  q);
+            const peh = getStoredTermGrade(pehId, q);
+            termVal = (ma!==null&&!isNaN(ma)&&peh!==null&&!isNaN(peh)) ? Math.round((ma+peh)/2)
+                    : (ma!==null&&!isNaN(ma))  ? ma
+                    : (peh!==null&&!isNaN(peh)) ? peh
                     : null;
           } else if(subj.virtualType==='ma'){
-            termVal = getFirstAvailableTermGrade([subj.id, 'ma_'+(s.grade||grade), 'ma'], q);
+            // MUS&ARTS column — always keyed by student's own grade
+            termVal = getStoredTermGrade(maId, q);
           } else if(subj.virtualType==='peh'){
-            termVal = getFirstAvailableTermGrade([subj.id, 'peh_'+(s.grade||grade), 'peh'], q);
+            // PE & HEALTH column — always keyed by student's own grade
+            termVal = getStoredTermGrade(pehId, q);
           } else {
             termVal = getStoredTermGrade(subj.id, q);
           }
-          if(termVal!==null) termGrades.push(termVal);
+          // Only push valid numeric values — guard against NaN from bad stored data
+          if(termVal!==null && !isNaN(termVal)) termGrades.push(termVal);
         }
         return termGrades.length>0 ? Math.round(termGrades.reduce((a,b)=>a+b,0)/termGrades.length) : null;
       });
-      const filled = vals.filter(v=>v!==null);
+      // Exclude nulls AND NaN from GWA computation
+      const filled = vals.filter(v=>v!==null && !isNaN(v));
       avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
-      passing = avg!=='—' && +avg>=75;
+      passing = avg!=='—' && !isNaN(+avg) && +avg>=75;
     }
 
     return`<tr>
       <td>${i+1}</td><td><strong>${s.name}</strong></td>
-      ${vals.map(v=>`<td style="text-align:center">${v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
+      ${vals.map(v=>`<td style="text-align:center">${(v!==null && !isNaN(v))?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
       <td style="text-align:center;background:${isSHSReport?'#fefce8':''}"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
       <td>${avg!=='—'?honorsBadge(avg):''}</td>
     </tr>`;
@@ -5106,8 +5086,8 @@ async function buildMPSReport(){
     const gradeKey = subj.id+'_'+sect+'_T'+term;
     const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
 
-    const encodedGrades = students.map((stu,i)=>{
-      const v = gradeRecordGet(rec, stu.lrn, i);
+    const encodedGrades = students.map((_,i)=>{
+      const v = rec[i];
       return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
     }).filter(v=>v!==null);
 
@@ -5823,7 +5803,7 @@ async function saveRawScores(){
         if(raw!==undefined&&raw!==null&&raw!==''){
           // DepEd transmutation: transmuted = (rawPct × 60) + 40, clamped 60–100
           const transmuted = Math.max(60, Math.min(100, Math.round((parseFloat(raw)/items)*60+40)));
-          gradeRecordSet(gradeObj, s.lrn, idx, String(transmuted));
+          gradeObj[idx]=String(transmuted);
         }
       });
       gradeCache[gradeKey]=gradeObj;
@@ -7698,7 +7678,7 @@ async function renderSF10(lrn){
     .filter(st=>sectionsMatch(st.section, sectionKey, st.grade))
     .sort((a,b)=>a.name.localeCompare(b.name));
   const studentIdx = sectionStudents.findIndex(st=>st.lrn===lrn);
-  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade, student.lrn);
+  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade);
 
   // Find adviser for current section
   const adviserAcc = accountsCache.find(a=>
@@ -7969,7 +7949,7 @@ function downloadSF10Excel(){
   const sectionKey = 'G'+student.grade+'-'+student.section.toUpperCase();
   const sectionStudents = studentsCache.filter(st=>sectionsMatch(st.section,sectionKey,st.grade)).sort((a,b)=>a.name.localeCompare(b.name));
   const studentIdx = sectionStudents.findIndex(st=>st.lrn===lrn);
-  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade, student.lrn);
+  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade);
   const adviserAcc = accountsCache.find(a=>(a.role==='adviser'||a.role==='adviser-teacher')&&a.advisory_section&&sectionsMatch(student.section,a.advisory_section,student.grade));
 
   const allRows = [];
@@ -8915,7 +8895,7 @@ function getGradeRows(){
           const key1 = subj.id+'_'+sect+'_T'+q;
           const key2 = subj.id+'_G'+grade+'-'+sn+'_T'+q;
           const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
-          return gradeRecordGet(rec, stu.lrn, idx)||'';
+          return rec[idx]||'';
         });
         const filled = grades.filter(v=>v!=='').map(Number);
         const gwa    = filled.length>0
