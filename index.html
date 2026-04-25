@@ -4801,7 +4801,15 @@ async function buildReport(){
       const getStoredTermGrade = (subjId, q) => {
         const key1 = subjId+'_'+sk+'_T'+q;
         const key2 = subjId+'_'+(s.grade||grade)+'_'+sk+'_T'+q;
-        const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
+        const recCandidates = [
+          gradeCache[key1],
+          lsGet('gr_'+key1),
+          gradeCache[key2],
+          lsGet('gr_'+key2),
+        ];
+        const rec = recCandidates.find(r=>r && typeof r==='object' && Object.keys(r).length>0)
+          || recCandidates.find(r=>r && typeof r==='object')
+          || {};
         const v = rec[studentIdx];
         return (v!==undefined&&v!=='') ? parseFloat(v) : null;
       };
