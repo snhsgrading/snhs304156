@@ -889,6 +889,15 @@
 
         <!-- Teacher -->
         <div id="dash-teacher" class="hidden">
+          <!-- Pending sync banner — shown whenever queue has stuck items -->
+          <div id="pending-banner-teacher" class="hidden" style="display:none;margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px">⚠️</span>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+            </div>
+            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+          </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">My Sections</div><div class="stat-value" id="dt-sections">—</div><div class="stat-meta">Unique sections assigned</div></div>
             <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value" id="dt-total">—</div><div class="stat-meta">Across all my sections</div></div>
@@ -906,6 +915,15 @@
 
         <!-- Adviser / Adviser+Teacher combined dashboard -->
         <div id="dash-adviser" class="hidden">
+          <!-- Pending sync banner -->
+          <div id="pending-banner-adviser" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px">⚠️</span>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+            </div>
+            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+          </div>
           <!-- Stats row -->
           <div class="stats-grid">
             <div class="stat-card">
@@ -961,6 +979,15 @@
 
         <!-- Admin -->
         <div id="dash-admin" class="hidden">
+          <!-- Pending sync banner -->
+          <div id="pending-banner-admin" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px">⚠️</span>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+            </div>
+            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+          </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value" id="dadm-students">—</div><div class="stat-meta">School-wide enrolled</div></div>
             <div class="stat-card"><div class="stat-label">Teacher Accounts</div><div class="stat-value" id="dadm-teachers">—</div><div class="stat-meta">Active faculty</div></div>
@@ -2286,6 +2313,56 @@ function updateSyncBadge(){
   if(!isOnline)setSyncBadge('offline','📴 Offline');
   else if(pendingSyncCount>0)setSyncBadge('pending','⚠️ '+pendingSyncCount+' pending');
   else setSyncBadge('synced','☁️ Synced');
+  refreshPendingBanners();
+}
+
+// Show/hide the yellow pending-sync banners on all dashboards and update their counts
+function refreshPendingBanners(){
+  const count = getPendingQueue().length;
+  ['pending-banner-teacher','pending-banner-adviser','pending-banner-admin'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(count > 0){
+      el.classList.remove('hidden');
+      el.style.display = 'flex';
+      el.querySelectorAll('.pending-count-label').forEach(span => span.textContent = count);
+    } else {
+      el.classList.add('hidden');
+      el.style.display = 'none';
+    }
+  });
+}
+
+// Manual retry — called from the Retry Sync button on the dashboard
+async function retrySyncNow(btn){
+  if(!isOnline){
+    toast('⚠️ You are offline. Please connect to the internet first.', true);
+    return;
+  }
+  const q = getPendingQueue();
+  if(!q.length){
+    toast('✓ Nothing pending — everything is already synced.');
+    refreshPendingBanners();
+    return;
+  }
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing…';
+  try{
+    await processSyncQueue();
+    const remaining = getPendingQueue().length;
+    if(remaining === 0){
+      toast('✅ All ' + q.length + ' item(s) successfully synced to cloud!');
+    } else {
+      toast('⚠️ ' + remaining + ' item(s) still pending — check your connection and try again.', true);
+    }
+  } catch(e){
+    toast('❌ Sync failed: ' + (e?.message||e), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+    updateSyncBadge();
+  }
 }
 
 window.addEventListener('online',()=>{
