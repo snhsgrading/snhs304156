@@ -2261,6 +2261,20 @@ const LS = 'snhs_';
 function lsGet(k){try{return JSON.parse(localStorage.getItem(LS+k)||'null')}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{toast('Storage full! Clear browser cache.',true)}}
 
+// Normalize a student record coming from Supabase or localStorage.
+// Supabase may return grade as integer (7) if the column is numeric —
+// all app code uses string comparisons like s.grade==='7' so we must coerce.
+// status defaults to 'Enrolled' if missing (saved via core-only upsert fallback).
+function normalizeStudent(s){
+  if(!s) return s;
+  return {
+    ...s,
+    grade:  s.grade  !== undefined ? String(s.grade)  : s.grade,
+    status: s.status || 'Enrolled',
+    section: s.section ? String(s.section).toUpperCase().trim() : s.section,
+  };
+}
+
 // ── SYNC ENGINE ────────────────────────────────────────────────────
 function getPendingQueue(){return lsGet('pendingQueue')||[]}
 function savePendingQueue(q){lsSet('pendingQueue',q)}
@@ -2434,7 +2448,7 @@ window.addEventListener('online',()=>{
         sb.from('accounts').select('*').order('name'),
         sb.from('strands').select('*').order('name')
       ]);
-      const s = sArr||[];
+      const s = (sArr||[]).map(normalizeStudent);
       if(s&&s.length>0){studentsCache=s;lsSet('students',s);}
       if(a&&a.length>0){
         const cloudUsernames=new Set(a.map(x=>x.username));
@@ -2683,15 +2697,15 @@ async function doLogin(isAutoLogin=false){
       ]);
       // Merge cloud data with any local pending students not yet synced
       const localStudents = lsGet('students')||[];
-      const cloudStudents = cloudStudentsRaw||[];
+      const cloudStudents = (cloudStudentsRaw||[]).map(normalizeStudent);
       if(cloudStudents.length > 0){
         // Merge: cloud is authoritative, but add local-only records
         const cloudLRNs = new Set(cloudStudents.map(x=>x.lrn));
-        const localOnly = localStudents.filter(x=>!cloudLRNs.has(x.lrn));
+        const localOnly = localStudents.map(normalizeStudent).filter(x=>!cloudLRNs.has(x.lrn));
         studentsCache = [...cloudStudents, ...localOnly];
       } else {
         // Cloud returned 0 — use local (sync may not have finished yet)
-        studentsCache = localStudents;
+        studentsCache = localStudents.map(normalizeStudent);
         if(localStudents.length > 0){
           toast('📦 Loaded '+localStudents.length+' students from local. Syncing to cloud...');
           setTimeout(()=>processSyncQueue(), 1000);
@@ -2711,13 +2725,13 @@ async function doLogin(isAutoLogin=false){
       lsSet('accounts', accountsCache);
       if(st){strandsCache=st;lsSet('strands',st);}
     }catch{
-      studentsCache=lsGet('students')||[];
+      studentsCache=(lsGet('students')||[]).map(normalizeStudent);
       accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
       strandsCache=lsGet('strands')||[];
       toast('Using offline data — will sync when online');
     }
   }else{
-    studentsCache=lsGet('students')||[];
+    studentsCache=(lsGet('students')||[]).map(normalizeStudent);
     accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
     strandsCache=lsGet('strands')||[];
     toast('Offline mode — using local data');
@@ -3923,11 +3937,11 @@ function buildClassList(){
         if(!isOnline){ toast('No internet connection', true); return; }
         rb.disabled = true; rb.textContent = '⏳ Loading...';
         try{
-          const cloudData = await fetchAllStudentsPaginated();
+          const cloudData = (await fetchAllStudentsPaginated()).map(normalizeStudent);
           if(cloudData && cloudData.length){
             // Merge: cloud is authoritative; keep local-only students not yet synced
             const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
-            const localOnly = studentsCache.filter(x=>!cloudLRNs.has(x.lrn));
+            const localOnly = studentsCache.map(normalizeStudent).filter(x=>!cloudLRNs.has(x.lrn));
             studentsCache = [...cloudData, ...localOnly];
             lsSet('students', studentsCache);
             _searchIndex = null;
@@ -6369,7 +6383,7 @@ function saveEnrollment(){
     toast('❌ Contact number should contain digits only', true); return;
   }
 
-  const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]};
+  const obj = normalizeStudent({lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]});
   if(editingStudentLRN){
     const idx=studentsCache.findIndex(x=>x.lrn===editingStudentLRN);
     if(idx>=0){ obj.grades=studentsCache[idx].grades||[]; studentsCache[idx]={...studentsCache[idx],...obj}; }
@@ -6523,7 +6537,13 @@ function confirmImport(){
   if(!importData.length){toast("No data to import. Please upload a file first.",true);return;}
   _searchIndex=null; // invalidate search index
   let added=0,skipped=0;
-  importData.forEach(s=>{if(studentsCache.some(x=>x.lrn===s.lrn)){skipped++;return}studentsCache.push(s);queueForSync('student',s.lrn,s);added++;});
+  importData.forEach(s=>{
+    if(studentsCache.some(x=>x.lrn===s.lrn)){skipped++;return;}
+    const ns = normalizeStudent(s);
+    studentsCache.push(ns);
+    queueForSync('student',ns.lrn,ns);
+    added++;
+  });
   studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
   lsSet('students',studentsCache);
   logAudit('BULK IMPORT','Imported '+added+' students'+(skipped>0?', '+skipped+' duplicates skipped':''));
@@ -9364,7 +9384,7 @@ async function exportFullBackup(){
           sb.from('students').select('*').order('name'),
           sb.from('accounts').select('*').order('name'),
         ]);
-        if(s&&s.length){ studentsCache=s; lsSet('students',s); }
+        if(s&&s.length){ studentsCache=s.map(normalizeStudent); lsSet('students',studentsCache); }
         if(a&&a.length){ accountsCache=a.map(normalizeAccount); lsSet('accounts',accountsCache); }
       }catch(e){ console.warn('Cloud refresh skipped:',e.message); }
     }
@@ -9431,9 +9451,9 @@ async function reloadStudentsFromCloud(evtOrBtn){
   const orig = btn?.textContent;
   if(btn){ btn.textContent = '⏳ Loading...'; btn.disabled = true; }
   try{
-    const data = await fetchAllStudentsPaginated();
+    const data = (await fetchAllStudentsPaginated()).map(normalizeStudent);
     if(!data || data.length===0){
-      const local = lsGet('students')||[];
+      const local = (lsGet('students')||[]).map(normalizeStudent);
       if(local.length > 0){
         studentsCache = local;
         toast('☁️ Cloud empty — showing '+local.length+' local students. Click ⚠️ to sync.');
@@ -9442,7 +9462,7 @@ async function reloadStudentsFromCloud(evtOrBtn){
       }
     } else {
       // Merge: cloud authoritative + local-only pending records
-      const localStudents = lsGet('students')||[];
+      const localStudents = (lsGet('students')||[]).map(normalizeStudent);
       const cloudLRNs = new Set(data.map(x=>x.lrn));
       const localOnly = localStudents.filter(x=>!cloudLRNs.has(x.lrn));
       studentsCache = [...data, ...localOnly];
