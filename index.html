@@ -889,6 +889,11 @@
 
         <!-- Teacher -->
         <div id="dash-teacher" class="hidden">
+          <!-- Diagnostic bar — only visible when students failed to load -->
+          <div id="dash-data-status" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
+            <span>⚠️ No students loaded.</span>
+            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
+          </div>
           <!-- Pending sync banner — shown whenever queue has stuck items -->
           <div id="pending-banner-teacher" class="hidden" style="display:none;margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
@@ -919,6 +924,11 @@
 
         <!-- Adviser / Adviser+Teacher combined dashboard -->
         <div id="dash-adviser" class="hidden">
+          <!-- Diagnostic bar — only visible when students failed to load -->
+          <div id="dash-data-status-adviser" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
+            <span>⚠️ No students loaded.</span>
+            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
+          </div>
           <!-- Pending sync banner -->
           <div id="pending-banner-adviser" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
@@ -987,6 +997,11 @@
 
         <!-- Admin -->
         <div id="dash-admin" class="hidden">
+          <!-- Diagnostic bar — only visible when students failed to load -->
+          <div id="dash-data-status-admin" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
+            <span>⚠️ No students loaded.</span>
+            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
+          </div>
           <!-- Pending sync banner -->
           <div id="pending-banner-admin" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
@@ -2261,6 +2276,17 @@ const LS = 'snhs_';
 function lsGet(k){try{return JSON.parse(localStorage.getItem(LS+k)||'null')}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{toast('Storage full! Clear browser cache.',true)}}
 
+// HTML-escape helper — prevents XSS when inserting user data into innerHTML
+function esc(str){
+  if(str==null) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 // Normalize a student record coming from Supabase or localStorage.
 // Supabase may return grade as integer (7) if the column is numeric —
 // all app code uses string comparisons like s.grade==='7' so we must coerce.
@@ -2961,14 +2987,16 @@ function updateStats(){
   if(!CU) return;
   const r = CU.role;
 
-  // ── DIAGNOSTIC STATUS BAR — visible on every dashboard ────────────
-  // Shows live studentsCache / accountsCache size so issues are obvious
-  const diagEl = document.getElementById('dash-data-status');
-  if(diagEl){
-    const syncQ = getPendingQueue().length;
-    diagEl.textContent = `Students loaded: ${studentsCache.length} | Accounts: ${accountsCache.length} | Pending sync: ${syncQ}`;
-    diagEl.style.display = studentsCache.length > 0 ? 'none' : 'block';
-  }
+  // ── DIAGNOSTIC STATUS BARS — show Force Reload when cache is empty ─
+  ['dash-data-status','dash-data-status-adviser','dash-data-status-admin'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(studentsCache.length === 0){
+      el.style.display = 'flex';
+    } else {
+      el.style.display = 'none';
+    }
+  });
 
   // ── SHARED ─────────────────────────────────────────────────────────
   const pending  = getPendingQueue().length;
