@@ -3555,9 +3555,16 @@ function buildGradeTable(subj,sect){
   const grade=sect.match(/^G(\d+)-/)?.[1]||'';
   let list=studentsCache.filter(s=>
     s.section.toUpperCase()===sn.toUpperCase() &&
-    (!grade || s.grade===grade)
+    (!grade || s.grade===grade) &&
+    (s.status||'Enrolled') !== 'Dropped'   // exclude deleted/dropped students
   );
-  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
+  if(!list.length) list=studentsCache.filter(s=>
+    `G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase() &&
+    (s.status||'Enrolled') !== 'Dropped'
+  );
+  // Deduplicate by LRN — keep the most recently enrolled record
+  const seen = new Set();
+  list = list.filter(s=>{ if(seen.has(s.lrn)) return false; seen.add(s.lrn); return true; });
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08 FIX: always use _T{term} key — encoding saves with _T not _Q
@@ -3604,9 +3611,16 @@ function buildMAPEHTable(subjId, sect){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>
     s.section.toUpperCase()===sn.toUpperCase() &&
-    (!grade || s.grade===grade)
+    (!grade || s.grade===grade) &&
+    (s.status||'Enrolled') !== 'Dropped'
   );
-  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase());
+  if(!list.length) list=studentsCache.filter(s=>
+    `G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase() &&
+    (s.status||'Enrolled') !== 'Dropped'
+  );
+  // Deduplicate by LRN
+  const seenLRNs = new Set();
+  list = list.filter(s=>{ if(seenLRNs.has(s.lrn)) return false; seenLRNs.add(s.lrn); return true; });
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   // F-08: use _T key
@@ -3942,15 +3956,19 @@ function buildClassList(){
     // Adviser-Teacher: class list = advisory section only (not teaching sections)
     // Teacher: class list = all assigned sections
     if(isAdviser()){
-      const advSect = getAdvisorySection(); // e.g. "G7-DECISIVE"
+      const advSect = getAdvisorySection();
       if(advSect){
-        // Use sectionsMatch which handles G7-DECISIVE vs section="DECISIVE" grade="7"
-        list = studentsCache.filter(s=>sectionsMatch(s.section, advSect, s.grade));
+        list = studentsCache.filter(s=>
+          sectionsMatch(s.section, advSect, s.grade) &&
+          (s.status||'Enrolled') !== 'Dropped'
+        );
         titleSuffix = ' — ' + advSect.replace(/G(\d+)-/,'Grade $1 – ');
       } else {
-        // Pure adviser with no advisory_section set — fall back to sections array
         const assignedSects = CU?.sections||[];
-        list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)));
+        list = studentsCache.filter(s=>
+          assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) &&
+          (s.status||'Enrolled') !== 'Dropped'
+        );
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — No section';
       }
     } else {
@@ -3960,11 +3978,15 @@ function buildClassList(){
         titleSuffix = ' — No section assigned';
       } else {
         list = studentsCache.filter(s =>
-          assignedSects.some(sect => sectionsMatch(s.section, sect, s.grade))
+          assignedSects.some(sect => sectionsMatch(s.section, sect, s.grade)) &&
+          (s.status||'Enrolled') !== 'Dropped'
         );
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — '+assignedSects[0];
       }
     }
+    // Deduplicate by LRN across all paths
+    const _clSeen = new Set();
+    list = list.filter(s=>{ if(_clSeen.has(s.lrn)) return false; _clSeen.add(s.lrn); return true; });
     // NOTE: No background auto-refresh here — it caused other views (Students, Encode Grades,
     // Dashboard) to go blank because studentsCache was replaced without rebuilding those views.
     // Use the explicit 🔄 Refresh button below instead.
@@ -6439,6 +6461,16 @@ function saveEnrollment(){
     toast('✅ Student updated!'+(isOnline?'':' (will sync when online)'));
   } else {
     if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return;}
+    // Warn if same name already exists in the same section (different LRN = likely duplicate entry)
+    const sameName = studentsCache.find(s=>
+      s.name.trim().toUpperCase()===name &&
+      s.section.toUpperCase()===section.toUpperCase() &&
+      s.grade===grade &&
+      (s.status||'Enrolled')!=='Dropped'
+    );
+    if(sameName){
+      if(!confirm(`⚠️ A student named "${name}" already exists in ${grade}-${section} with LRN ${sameName.lrn}.\n\nAre you sure this is a different student and not a duplicate entry?\n\nClick OK to proceed, Cancel to go back.`)) return;
+    }
     studentsCache.push(obj);
     studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
     logAudit('STUDENT ENROLL','Enrolled: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
@@ -7681,8 +7713,11 @@ function loadAttendance(){
   const sect=document.getElementById('att-section').value;
   if(!date||!sect)return;
   const sn=sect.replace(/^G\d+-/,'');
-  let list=studentsCache.filter(s=>s.section===sn);
-  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  let list=studentsCache.filter(s=>s.section===sn && (s.status||'Enrolled')!=='Dropped');
+  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect && (s.status||'Enrolled')!=='Dropped');
+  // Deduplicate by LRN
+  const _attSeen=new Set();
+  list=list.filter(s=>{ if(_attSeen.has(s.lrn)) return false; _attSeen.add(s.lrn); return true; });
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
   const amRec=attCache[amKey]||lsGet('att_'+amKey)||{};
   const pmRec=attCache[pmKey]||lsGet('att_'+pmKey)||{};
