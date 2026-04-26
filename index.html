@@ -2724,11 +2724,13 @@ async function doLogin(isAutoLogin=false){
       }
       lsSet('accounts', accountsCache);
       if(st){strandsCache=st;lsSet('strands',st);}
-    }catch{
+    }catch(fetchErr){
+      console.error('[Login] Cloud fetch failed, using localStorage fallback:', fetchErr);
       studentsCache=(lsGet('students')||[]).map(normalizeStudent);
       accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
       strandsCache=lsGet('strands')||[];
-      toast('Using offline data — will sync when online');
+      console.log(`[Login] Fallback: studentsCache=${studentsCache.length}, accountsCache=${accountsCache.length}`);
+      toast('⚠️ Cloud error — using local data: '+(fetchErr?.message||fetchErr), true);
     }
   }else{
     studentsCache=(lsGet('students')||[]).map(normalizeStudent);
@@ -2739,23 +2741,32 @@ async function doLogin(isAutoLogin=false){
 
   loadSubjectsCache();
 
-  hideLoading(); btn.disabled=false;
+  hideLoading();
+  if(btn) btn.disabled=false;
   document.getElementById('login-btn-text').textContent='Sign In';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('sb-name').textContent=CU.name;
   document.getElementById('sb-role').textContent=CU.label;
 
-  setupRole();
-  populateSectionDropdowns();
-  populateDropdowns();
-  buildClassList();
-  buildReport();
-  updateStats();
-  updateSyncBadge();
+  // Log data state so any cache issue is immediately visible in console
+  console.log(`[Login] studentsCache: ${studentsCache.length}, accountsCache: ${accountsCache.length}, online: ${isOnline}`);
+
+  try{
+    setupRole();
+    populateSectionDropdowns();
+    populateDropdowns();
+    buildClassList();
+    buildReport();
+    updateStats();
+    updateSyncBadge();
+  }catch(renderErr){
+    console.error('[Login] UI render error:', renderErr);
+    toast('⚠️ UI error: '+renderErr.message+'. Try refreshing the page.', true);
+  }
+
   processSyncQueue();
   logAudit('LOGIN','Logged in successfully');
-  // Load cloud-synced term locks so this device matches admin's lock state
   loadTermLocksFromCloud().then(()=>{ renderTermLockPanel(); });
   // Build performance indexes in background
   setTimeout(()=>{ buildSearchIndex(); buildAttKeyIndex(); },500);
@@ -2949,6 +2960,15 @@ function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
 function updateStats(){
   if(!CU) return;
   const r = CU.role;
+
+  // ── DIAGNOSTIC STATUS BAR — visible on every dashboard ────────────
+  // Shows live studentsCache / accountsCache size so issues are obvious
+  const diagEl = document.getElementById('dash-data-status');
+  if(diagEl){
+    const syncQ = getPendingQueue().length;
+    diagEl.textContent = `Students loaded: ${studentsCache.length} | Accounts: ${accountsCache.length} | Pending sync: ${syncQ}`;
+    diagEl.style.display = studentsCache.length > 0 ? 'none' : 'block';
+  }
 
   // ── SHARED ─────────────────────────────────────────────────────────
   const pending  = getPendingQueue().length;
