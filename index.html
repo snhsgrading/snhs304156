@@ -2027,8 +2027,10 @@ async function adminToggleTermLock(term){
 async function loadTermLocksFromCloud(){
   if(!isOnline) return;
   try{
+    // Use maybeSingle() instead of single() — single() throws HTTP 406 when no row exists yet,
+    // which floods the console and triggers the permanent-error drop logic unnecessarily.
     const {data} = await sb.from('grade_records')
-      .select('data').eq('grade_key','__term_locks__').single();
+      .select('data').eq('grade_key','__term_locks__').maybeSingle();
     if(data?.data && typeof data.data === 'object'){
       const cloudLocks = {};
       Object.entries(data.data).forEach(([k,v])=>{ cloudLocks[parseInt(k)] = v; });
@@ -8510,16 +8512,25 @@ async function processSyncQueue() {
   const nonAuditQueue = q.filter(x => x.type !== 'audit');
   savePendingQueue(nonAuditQueue);
 
+  // Strip local-only fields that have no column in the Supabase students table.
+  // 'grades' is a local convenience array — actual grades live in grade_records.
+  // Sending unknown columns causes HTTP 400 "Could not find column X in the schema cache".
+  const toSupabaseStudent = (s) => {
+    if(!s) return s;
+    const {grades, _dropReason, ...rest} = s;
+    return rest;
+  };
+
   // Chunked upsert students
   for (const chunk of chunkArray(students, 20)) {
     try {
-      const { error } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
+      const { error } = await sb.from('students').upsert(chunk.map(x => toSupabaseStudent(x.data)), { onConflict: 'lrn' });
       if (error) {
         if(isPermanentError(error)){
           // Batch failed permanently — try one-by-one to salvage what we can
           for(const item of chunk){
             try{
-              const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
+              const {error:e2} = await sb.from('students').upsert(toSupabaseStudent(item.data), {onConflict:'lrn'});
               if(e2) handleErr(e2, [item], 'student single');
             }catch(ex){ failed.push(item); }
           }
