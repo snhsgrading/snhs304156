@@ -890,13 +890,16 @@
         <!-- Teacher -->
         <div id="dash-teacher" class="hidden">
           <!-- Pending sync banner — shown whenever queue has stuck items -->
-          <div id="pending-banner-teacher" class="hidden" style="display:none;margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+          <div id="pending-banner-teacher" class="hidden" style="display:none;margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
-            <div style="flex:1">
+            <div style="flex:1;min-width:180px">
               <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
             </div>
-            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
+            </div>
           </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">My Sections</div><div class="stat-value" id="dt-sections">—</div><div class="stat-meta">Unique sections assigned</div></div>
@@ -916,13 +919,16 @@
         <!-- Adviser / Adviser+Teacher combined dashboard -->
         <div id="dash-adviser" class="hidden">
           <!-- Pending sync banner -->
-          <div id="pending-banner-adviser" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+          <div id="pending-banner-adviser" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
-            <div style="flex:1">
+            <div style="flex:1;min-width:180px">
               <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
             </div>
-            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
+            </div>
           </div>
           <!-- Stats row -->
           <div class="stats-grid">
@@ -980,13 +986,16 @@
         <!-- Admin -->
         <div id="dash-admin" class="hidden">
           <!-- Pending sync banner -->
-          <div id="pending-banner-admin" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;">
+          <div id="pending-banner-admin" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:20px">⚠️</span>
-            <div style="flex:1">
+            <div style="flex:1;min-width:180px">
               <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap Retry to push it to the cloud now.</div>
+              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
             </div>
-            <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
+              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
+            </div>
           </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value" id="dadm-students">—</div><div class="stat-meta">School-wide enrolled</div></div>
@@ -2363,6 +2372,20 @@ async function retrySyncNow(btn){
     btn.textContent = orig;
     updateSyncBadge();
   }
+}
+
+// Force-clear all stuck items from the queue (use when items are permanently failing with 400/406)
+function clearStuckQueue(){
+  const q = getPendingQueue();
+  if(!q.length){ toast('Nothing in queue to clear.'); return; }
+  if(!confirm(`Clear all ${q.length} stuck item(s) from the sync queue?\n\nThis will stop the repeating errors. Data already saved locally will NOT be deleted — only the pending upload requests will be removed.\n\nOnly do this if Retry Sync keeps failing.`)) return;
+  // Archive to droppedSync before clearing so there's a record
+  const existing = JSON.parse(localStorage.getItem(LS+'droppedSync')||'[]');
+  const merged = [...existing, ...q.map(x=>({...x, _dropReason:'manually cleared by user'}))].slice(-100);
+  localStorage.setItem(LS+'droppedSync', JSON.stringify(merged));
+  savePendingQueue([]);
+  updateSyncBadge();
+  toast('🧹 Sync queue cleared. The repeating errors should stop now.');
 }
 
 window.addEventListener('online',()=>{
@@ -8441,13 +8464,35 @@ function chunkArray(arr, n){ const chunks=[]; for(let i=0;i<arr.length;i+=n) chu
 
 async function processSyncQueue() {
   const q = getPendingQueue();
-  if (!q.length) { setSyncBadge('synced', '☁️ Synced'); return; }
+  if (!q.length) { setSyncBadge('synced', '☁️ Synced'); refreshPendingBanners(); return; }
   if (!isOnline) return;
 
   const total = q.length;
   setSyncBadge('syncing', '⏳ Syncing ' + total + ' items...');
 
-  const failed = [];
+  const failed  = [];   // transient failures — will retry next time
+  const dropped = [];   // permanent 400/406/422 failures — never retry
+
+  // HTTP 400, 406, 409, 422 = bad request / schema mismatch / constraint violation
+  // These will NEVER succeed on retry — drop them so the queue doesn't loop forever
+  const isPermanentError = (err) => {
+    if(!err) return false;
+    const code = err.code || err.status || err.statusCode || '';
+    const msg  = String(err.message || err.details || err.hint || '');
+    // Supabase returns these codes for schema/RLS/constraint errors
+    if(['400','406','409','422','42501','42P01','23503','23505','PGRST'].some(c=>String(code).startsWith(c))) return true;
+    if(msg.includes('violates') || msg.includes('does not exist') || msg.includes('permission denied')) return true;
+    return false;
+  };
+
+  const handleErr = (err, items, label) => {
+    if(isPermanentError(err)){
+      console.warn(`[Sync] Permanent error in ${label} — dropping ${items.length} item(s):`, err);
+      items.forEach(x => dropped.push({...x, _dropReason: err?.message||String(err)}));
+    } else {
+      items.forEach(x => failed.push(x));
+    }
+  };
 
   // Group by type
   const students    = q.filter(x => x.type === 'student');
@@ -8458,31 +8503,31 @@ async function processSyncQueue() {
   const acctDeletes = q.filter(x => x.type === 'account_delete');
   const hist        = q.filter(x => x.type === 'hist');
   const audit       = q.filter(x => x.type === 'audit');
-  // FIX v11: corevalues was queued but never processed — added handler below
   const corevalues  = q.filter(x => x.type === 'corevalues');
-  // FIX v11: suspended days cross-device sync
   const suspdays    = q.filter(x => x.type === 'suspdays');
 
-  // Remove audit items from queue immediately — they are non-critical
-  // and should never block student/grade/attendance sync
+  // Remove audit items from queue immediately — non-critical, must never block sync
   const nonAuditQueue = q.filter(x => x.type !== 'audit');
   savePendingQueue(nonAuditQueue);
 
-  // Chunked upsert students — 20 at a time to avoid Supabase size limit
+  // Chunked upsert students
   for (const chunk of chunkArray(students, 20)) {
     try {
-      const { error, data } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
+      const { error } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
       if (error) {
-        console.error('Student upsert error:', error);
-        // Try one by one if batch fails
-        for(const item of chunk){
-          try{
-            const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
-            if(e2){ console.error('Single upsert error:', e2); failed.push(item); }
-          }catch{ failed.push(item); }
+        if(isPermanentError(error)){
+          // Batch failed permanently — try one-by-one to salvage what we can
+          for(const item of chunk){
+            try{
+              const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
+              if(e2) handleErr(e2, [item], 'student single');
+            }catch(ex){ failed.push(item); }
+          }
+        } else {
+          // Transient — retry whole chunk later
+          chunk.forEach(x => failed.push(x));
         }
-      } else {
-        setSyncBadge('syncing', '⏳ Syncing... (' + (students.length - students.indexOf(chunk[chunk.length-1]) - 1) + ' left)');
+        console.error('Student upsert error:', error);
       }
     } catch(e) { console.error('Chunk error:', e); chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 300));
@@ -8495,8 +8540,8 @@ async function processSyncQueue() {
         chunk.map(x => ({ grade_key: x.key, data: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'grade_key' }
       );
-      if (error) chunk.forEach(x => failed.push(x));
-    } catch { chunk.forEach(x => failed.push(x)); }
+      if (error) handleErr(error, chunk, 'grades');
+    } catch(e) { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
@@ -8507,72 +8552,78 @@ async function processSyncQueue() {
         chunk.map(x => ({ att_key: x.key, data: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'att_key' }
       );
-      if (error) chunk.forEach(x => failed.push(x));
-    } catch { chunk.forEach(x => failed.push(x)); }
+      if (error) handleErr(error, chunk, 'attendance');
+    } catch(e) { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
-  // Batch upsert accounts (usually small)
+  // Batch upsert accounts
   if (accounts.length) {
     try {
       const { error } = await sb.from('accounts').upsert(accounts.map(x => x.data), { onConflict: 'username' });
-      if (error) accounts.forEach(x => failed.push(x));
-    } catch { accounts.forEach(x => failed.push(x)); }
+      if (error) handleErr(error, accounts, 'accounts');
+    } catch(e) { accounts.forEach(x => failed.push(x)); }
   }
 
-  // Audit logs — non-critical, silently drop if table doesn't exist
+  // Audit logs — always drop, never block
   if (audit.length) {
-    try {
-      await sb.from('audit_logs').insert(audit.map(x => x.data));
-    } catch(e) {
-      // Audit table may not exist — that's OK, just skip
-      console.log('Audit log skipped:', e.message);
-    }
-    // Always remove audit items from queue — never let them block sync
-    // (they are already in localStorage)
+    try { await sb.from('audit_logs').insert(audit.map(x => x.data)); }
+    catch(e) { console.log('Audit log skipped:', e.message); }
   }
 
   // Individual: deletions and historical records
   for (const item of [...deletions, ...acctDeletes, ...hist]) {
-    let ok = false;
     try {
-      if (item.type === 'student_delete') { const{error}=await sb.from('students').delete().eq('lrn', item.key); ok=!error; }
-      if (item.type === 'account_delete') { const{error}=await sb.from('accounts').delete().eq('username', item.key); ok=!error; }
-      if (item.type === 'hist') { const{error}=await sb.from('historical_records').upsert(item.data,{onConflict:'lrn,grade_level'}); ok=!error; }
-    } catch { ok = false; }
-    if (!ok) failed.push(item);
+      let error;
+      if (item.type === 'student_delete') ({ error } = await sb.from('students').delete().eq('lrn', item.key));
+      if (item.type === 'account_delete') ({ error } = await sb.from('accounts').delete().eq('username', item.key));
+      if (item.type === 'hist')           ({ error } = await sb.from('historical_records').upsert(item.data,{onConflict:'lrn,grade_level'}));
+      if (error) handleErr(error, [item], item.type);
+    } catch { failed.push(item); }
   }
 
-  // FIX v11: sync core values to Supabase
+  // Core values
   for (const chunk of chunkArray(corevalues, 20)) {
     try {
       const { error } = await sb.from('core_values').upsert(
         chunk.map(x => ({ lrn: x.key, data: x.data.data, updated_at: new Date().toISOString() })),
         { onConflict: 'lrn' }
       );
-      if (error) chunk.forEach(x => failed.push(x));
-    } catch { chunk.forEach(x => failed.push(x)); }
+      if (error) handleErr(error, chunk, 'corevalues');
+    } catch(e) { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
-  // FIX v11: sync no-class days to Supabase so all devices see same suspended days
+  // Suspended days
   for (const chunk of chunkArray(suspdays, 20)) {
     try {
       const { error } = await sb.from('suspended_days').upsert(
         chunk.map(x => ({ month_key: x.key, days: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'month_key' }
       );
-      if (error) chunk.forEach(x => failed.push(x));
-    } catch { chunk.forEach(x => failed.push(x)); }
+      if (error) handleErr(error, chunk, 'suspdays');
+    } catch(e) { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
+  }
+
+  // Save dropped items separately so they can be inspected/cleared — never re-queue them
+  if(dropped.length){
+    const existing = JSON.parse(localStorage.getItem(LS+'droppedSync')||'[]');
+    const merged = [...existing, ...dropped].slice(-100); // keep last 100
+    localStorage.setItem(LS+'droppedSync', JSON.stringify(merged));
+    console.warn(`[Sync] ${dropped.length} item(s) permanently dropped due to Supabase errors. See localStorage key "snhs_droppedSync".`);
   }
 
   savePendingQueue(failed);
   pendingSyncCount = failed.length;
   updateSyncBadge();
-  if (!failed.length) {
+
+  if (!failed.length && !dropped.length) {
     setSyncBadge('synced', '☁️ Synced');
     toast('✅ All data synced to cloud!');
+  } else if(dropped.length && !failed.length){
+    setSyncBadge('synced', '☁️ Synced');
+    toast(`⚠️ ${dropped.length} item(s) had database errors and were cleared. Contact admin if data is missing.`, true);
   } else {
     setSyncBadge('pending', '⚠️ ' + failed.length + ' pending');
     toast('⚠️ ' + failed.length + ' items still pending — will retry automatically', true);
