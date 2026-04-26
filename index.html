@@ -1182,7 +1182,7 @@
         <div class="card">
           <div class="card-header">
             <div><div class="card-title" id="classlist-title">Class List</div><div class="card-sub">S.Y. 2026–2027</div></div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div id="cl-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <div id="cl-filter-wrap"></div>
               <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print</button>
             </div>
@@ -3868,21 +3868,90 @@ function buildClassList(){
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — '+assignedSects[0];
       }
     }
+
+    // ── Background cloud refresh for non-admin users ──────────────────
+    // Silently fetch latest students from cloud so newly enrolled students
+    // (added by admin on another device) appear without requiring a full re-login.
+    if(isOnline && !buildClassList._refreshing){
+      buildClassList._refreshing = true;
+      fetchAllStudentsPaginated().then(cloudData => {
+        if(!cloudData || !cloudData.length) return;
+        const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
+        const localOnly = studentsCache.filter(x=>!cloudLRNs.has(x.lrn));
+        const merged = [...cloudData, ...localOnly];
+        // Only re-render if something actually changed
+        if(merged.length !== studentsCache.length ||
+           merged.some((s,i) => s.lrn !== studentsCache[i]?.lrn)){
+          studentsCache = merged;
+          lsSet('students', studentsCache);
+          _searchIndex = null;
+          buildClassList(); // re-render with fresh data
+          updateStats();
+          populateSectionDropdowns();
+          populateDropdowns();
+        }
+      }).catch(()=>{}).finally(()=>{ buildClassList._refreshing = false; });
+    }
   }
 
   const t = document.getElementById('classlist-title');
   if(t) t.textContent = 'Class List' + titleSuffix;
+
+  // ── Refresh button for non-admin (admin has reload button already) ──
+  const clActions = document.getElementById('cl-actions');
+  if(clActions && r !== 'admin'){
+    if(!clActions.querySelector('.cl-refresh-btn')){
+      const rb = document.createElement('button');
+      rb.className = 'btn btn-sm btn-outline cl-refresh-btn no-print';
+      rb.title = 'Pull latest students from cloud';
+      rb.innerHTML = '🔄 Refresh';
+      rb.onclick = async () => {
+        if(!isOnline){ toast('No internet connection', true); return; }
+        rb.disabled = true; rb.textContent = '⏳ Loading...';
+        try{
+          const cloudData = await fetchAllStudentsPaginated();
+          if(cloudData && cloudData.length){
+            const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
+            const localOnly = studentsCache.filter(x=>!cloudLRNs.has(x.lrn));
+            studentsCache = [...cloudData, ...localOnly];
+            lsSet('students', studentsCache);
+            _searchIndex = null;
+            buildClassList();
+            updateStats();
+            populateSectionDropdowns();
+            populateDropdowns();
+            toast('✅ Class list updated from cloud');
+          } else {
+            toast('No students found in cloud', true);
+          }
+        }catch(e){ toast('Refresh failed: '+e.message, true); }
+        finally{ rb.disabled=false; rb.innerHTML='🔄 Refresh'; }
+      };
+      clActions.appendChild(rb);
+    }
+  }
+
   const tb = document.getElementById('classlist-tbody'); if(!tb) return;
   if(!list.length){
-    tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:2rem">No students found.</td></tr>';
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:2rem">No students found.<br><small>Try tapping 🔄 Refresh if you expect students here.</small></td></tr>';
     return;
   }
   list.sort((a,b)=>a.name.localeCompare(b.name));
   tb.innerHTML = list.map((s,i)=>`
-    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${s.name}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td><button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button></td></tr>`).join('');
+    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${esc(s.name)}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td><button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button></td></tr>`).join('');
 }
 
-function fmtDate(d){if(!d)return'—';try{return new Date(d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})}catch{return d}}
+function fmtDate(d){
+  if(!d) return '—';
+  try{
+    // Handle ISO date strings (YYYY-MM-DD), JS date strings, and timestamps
+    // Append T00:00:00 only for plain date strings to avoid timezone shift
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d+'T00:00:00' : d;
+    const dt = new Date(iso);
+    if(isNaN(dt.getTime())) return d; // return raw value if unparseable
+    return dt.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'});
+  }catch{ return d||'—'; }
+}
 
 // ── DROPDOWNS ──────────────────────────────────────────────────────
 // ── POPULATE SF9 / SF10 DROPDOWNS ────────────────────────────────────
