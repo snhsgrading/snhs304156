@@ -1662,6 +1662,7 @@
             <div><div class="card-title">Student Masterlist</div><div class="card-sub" id="students-count-label">Loading...</div></div>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="text" class="form-input" id="student-search" placeholder="Search name or LRN..." style="width:210px;" oninput="debounce(buildStudentsList, 300)()" />
+              <button class="btn btn-sm btn-outline" onclick="reloadStudentsFromCloud(this)" title="Pull latest students from cloud">☁️ Reload</button>
               <button class="btn btn-sm btn-outline" onclick="openModal('import-modal')">📥 Import</button>
               <button class="btn btn-navy btn-sm" onclick="openEnrollModal()">+ Enroll Student</button>
             </div>
@@ -1694,7 +1695,7 @@
           <div class="card-header">
             <div><div class="card-title">Teacher &amp; Staff Accounts</div><div class="card-sub" id="accounts-count-label">Loading...</div></div>
             <div style="display:flex;gap:8px;">
-              <button class="btn btn-sm btn-outline" onclick="refreshAccountsFromCloud()" title="Pull latest accounts from cloud">☁️ Refresh</button>
+              <button class="btn btn-sm btn-outline" onclick="refreshAccountsFromCloud(this)" title="Pull latest accounts from cloud">☁️ Refresh</button>
               <button class="btn btn-sm btn-outline" onclick="openSectionManager()">⚙️ Sections</button>
               <button class="btn btn-sm btn-navy" onclick="openTeacherModal()">+ Add Account</button>
             </div>
@@ -3902,36 +3903,15 @@ function buildClassList(){
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — '+assignedSects[0];
       }
     }
-
-    // ── Background cloud refresh for non-admin users ──────────────────
-    // Silently fetch latest students from cloud so newly enrolled students
-    // (added by admin on another device) appear without requiring a full re-login.
-    if(isOnline && !buildClassList._refreshing){
-      buildClassList._refreshing = true;
-      fetchAllStudentsPaginated().then(cloudData => {
-        if(!cloudData || !cloudData.length) return;
-        const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
-        const localOnly = studentsCache.filter(x=>!cloudLRNs.has(x.lrn));
-        const merged = [...cloudData, ...localOnly];
-        // Only re-render if something actually changed
-        if(merged.length !== studentsCache.length ||
-           merged.some((s,i) => s.lrn !== studentsCache[i]?.lrn)){
-          studentsCache = merged;
-          lsSet('students', studentsCache);
-          _searchIndex = null;
-          buildClassList(); // re-render with fresh data
-          updateStats();
-          populateSectionDropdowns();
-          populateDropdowns();
-        }
-      }).catch(()=>{}).finally(()=>{ buildClassList._refreshing = false; });
-    }
+    // NOTE: No background auto-refresh here — it caused other views (Students, Encode Grades,
+    // Dashboard) to go blank because studentsCache was replaced without rebuilding those views.
+    // Use the explicit 🔄 Refresh button below instead.
   }
 
   const t = document.getElementById('classlist-title');
   if(t) t.textContent = 'Class List' + titleSuffix;
 
-  // ── Refresh button for non-admin (admin has reload button already) ──
+  // ── Refresh button for non-admin users ────────────────────────────
   const clActions = document.getElementById('cl-actions');
   if(clActions && r !== 'admin'){
     if(!clActions.querySelector('.cl-refresh-btn')){
@@ -3945,20 +3925,25 @@ function buildClassList(){
         try{
           const cloudData = await fetchAllStudentsPaginated();
           if(cloudData && cloudData.length){
+            // Merge: cloud is authoritative; keep local-only students not yet synced
             const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
             const localOnly = studentsCache.filter(x=>!cloudLRNs.has(x.lrn));
             studentsCache = [...cloudData, ...localOnly];
             lsSet('students', studentsCache);
             _searchIndex = null;
+            // Rebuild ALL views that depend on studentsCache
             buildClassList();
+            buildStudentsList();
+            buildReport();
             updateStats();
             populateSectionDropdowns();
             populateDropdowns();
-            toast('✅ Class list updated from cloud');
+            if(typeof loadGradeTable === 'function') loadGradeTable();
+            toast('✅ Class list updated — ' + studentsCache.length + ' student(s) loaded');
           } else {
-            toast('No students found in cloud', true);
+            toast('⚠️ No students found in cloud — showing local data', true);
           }
-        }catch(e){ toast('Refresh failed: '+e.message, true); }
+        }catch(e){ toast('Refresh failed: ' + e.message, true); }
         finally{ rb.disabled=false; rb.innerHTML='🔄 Refresh'; }
       };
       clActions.appendChild(rb);
@@ -6686,11 +6671,11 @@ async function loadAccountsView(){
   }
 }
 
-async function refreshAccountsFromCloud(){
+async function refreshAccountsFromCloud(evtOrBtn){
   if(!isOnline){toast('No internet connection',true);return;}
-  const btn = event?.currentTarget;
+  const btn = evtOrBtn?.currentTarget || evtOrBtn?.target || evtOrBtn || null;
   if(btn){btn.disabled=true; btn.textContent='⏳ Loading...';}
-  _accountsCloudLoaded = false; // allow re-fetch
+  _accountsCloudLoaded = false;
   try{
     const{data,error}=await sb.from('accounts').select('*').order('name');
     if(error){toast('Cloud error: '+error.message, true); return;}
@@ -9439,17 +9424,15 @@ async function fetchAllStudentsPaginated(){
   return all;
 }
 
-async function reloadStudentsFromCloud(){
+async function reloadStudentsFromCloud(evtOrBtn){
   if(!isOnline){ toast('No internet — using local data'); buildStudentsList(); return; }
-  const btn = event.currentTarget;
-  const orig = btn.textContent;
-  btn.textContent = '⏳ Loading...'; btn.disabled = true;
+  // Accept either an event (from onclick="reloadStudentsFromCloud(event)") or a button element directly
+  const btn = evtOrBtn?.currentTarget || evtOrBtn?.target || evtOrBtn || null;
+  const orig = btn?.textContent;
+  if(btn){ btn.textContent = '⏳ Loading...'; btn.disabled = true; }
   try{
-    // Paginated fetch for 1,700+ students
     const data = await fetchAllStudentsPaginated();
-    const error = null;
     if(!data || data.length===0){
-      // Cloud is empty — show local
       const local = lsGet('students')||[];
       if(local.length > 0){
         studentsCache = local;
@@ -9458,7 +9441,7 @@ async function reloadStudentsFromCloud(){
         toast('No students found in cloud or local storage.', true);
       }
     } else {
-      // Merge cloud with local pending
+      // Merge: cloud authoritative + local-only pending records
       const localStudents = lsGet('students')||[];
       const cloudLRNs = new Set(data.map(x=>x.lrn));
       const localOnly = localStudents.filter(x=>!cloudLRNs.has(x.lrn));
@@ -9467,14 +9450,18 @@ async function reloadStudentsFromCloud(){
       toast('✅ Loaded '+studentsCache.length+' students from cloud'+(localOnly.length>0?' (+'+localOnly.length+' local pending)':'')+'!');
     }
     _searchIndex = null;
+    // Rebuild ALL views that depend on studentsCache
     buildStudentsList();
+    buildClassList();
+    buildReport();
     updateStats();
     populateSectionDropdowns();
     populateDropdowns();
+    if(typeof loadGradeTable === 'function') loadGradeTable();
   } catch(e){
     toast('Reload failed: '+e.message, true);
   } finally {
-    btn.textContent = orig; btn.disabled = false;
+    if(btn){ btn.textContent = orig; btn.disabled = false; }
   }
 }
 
