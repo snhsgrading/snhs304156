@@ -1934,6 +1934,50 @@
           </div>
         </div>
 
+        <!-- ── NEW SCHOOL YEAR RESET ─────────────────────────────────── -->
+        <div class="card" style="margin-top:1.25rem;border:1.5px solid #fca5a5">
+          <div class="card-header" style="background:#fff5f5;border-radius:12px 12px 0 0">
+            <div>
+              <div class="card-title" style="color:#dc2626">🗑️ Reset All Data for New School Year</div>
+              <div class="card-sub">Clears all students, grades, attendance and test records from cloud and this device. Keeps teacher accounts, subjects and school info.</div>
+            </div>
+          </div>
+          <div style="padding:1rem 1.25rem">
+            <div style="font-size:12px;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:1rem;line-height:1.7">
+              <strong>⚠️ What will be deleted (cannot be undone):</strong><br>
+              All students &nbsp;·&nbsp; All grade records &nbsp;·&nbsp; All attendance records &nbsp;·&nbsp; All MPS/raw score tests &nbsp;·&nbsp; All audit logs &nbsp;·&nbsp; All suspended days &nbsp;·&nbsp; Term locks<br><br>
+              <strong>✅ What will be kept:</strong><br>
+              Teacher &amp; admin accounts &nbsp;·&nbsp; Subject configurations &nbsp;·&nbsp; SHS Strands &nbsp;·&nbsp; School name &amp; address<br><br>
+              <strong>📋 After reset you will need to:</strong><br>
+              1. Update the School Year in School Settings &nbsp;&nbsp;
+              2. Import the new student list via CSV &nbsp;&nbsp;
+              3. Update teacher section assignments if changed
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none">
+                <input type="checkbox" id="reset-confirm-check" onchange="
+                  const btn=document.getElementById('reset-btn');
+                  btn.disabled=!this.checked;
+                  btn.style.opacity=this.checked?'1':'0.5';
+                  btn.style.cursor=this.checked?'pointer':'not-allowed';
+                " style="width:16px;height:16px;cursor:pointer">
+                I have downloaded a full backup and understand this action is permanent
+              </label>
+            </div>
+            <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <button id="reset-btn" class="btn" disabled
+                onclick="resetForNewSchoolYear(this)"
+                style="background:#dc2626;color:white;border:none;font-size:13px;padding:10px 20px;opacity:0.5;cursor:not-allowed"
+                onmouseenter="if(!this.disabled)this.style.background='#b91c1c'"
+                onmouseleave="this.style.background='#dc2626'">
+                🗑️ Reset All Data Now
+              </button>
+              <span style="font-size:12px;color:var(--gray-400)">Button activates only after checking the box above</span>
+            </div>
+            <div id="reset-progress" class="hidden" style="margin-top:10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e"></div>
+          </div>
+        </div>
+
       </div><!-- end view-backup -->
 
 
@@ -8997,7 +9041,131 @@ function getEnrollSection(){
 }
 
 
-// ── FILTER SECTION DROPDOWN (Student Masterlist) ─────────────────
+// ── RESET ALL DATA FOR NEW SCHOOL YEAR ───────────────────────────────
+async function resetForNewSchoolYear(btn){
+  // Double-confirm — two separate dialogs to prevent accidental clicks
+  if(!confirm(
+    '⚠️ FINAL WARNING\n\n' +
+    'This will permanently delete:\n' +
+    '• All students\n• All grade records\n• All attendance records\n' +
+    '• All MPS/raw score tests\n• All audit logs\n• All suspended days\n\n' +
+    'From BOTH Supabase (cloud) AND this device.\n\n' +
+    'This CANNOT be undone.\n\nClick OK to proceed.'
+  )) return;
+
+  if(!confirm(
+    'Are you absolutely sure?\n\n' +
+    'Type OK to confirm — this will erase all school data for the current test period.'
+  )) return;
+
+  const prog = document.getElementById('reset-progress');
+  const step = (msg) => {
+    prog.classList.remove('hidden');
+    prog.innerHTML = '⏳ ' + msg;
+    console.log('[Reset]', msg);
+  };
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Resetting...';
+
+  try {
+    // ── STEP 1: Cloud deletion (Supabase) ──────────────────────────
+    if(isOnline){
+      step('Deleting students from cloud...');
+      await sb.from('students').delete().neq('lrn','__never__');
+
+      step('Deleting grade records from cloud...');
+      await sb.from('grade_records').delete().neq('grade_key','__never__');
+
+      step('Deleting attendance records from cloud...');
+      await sb.from('attendance_records').delete().neq('att_key','__never__');
+
+      step('Deleting audit logs from cloud...');
+      try{ await sb.from('audit_logs').delete().neq('id',0); }catch{}
+
+      step('Deleting suspended days from cloud...');
+      try{ await sb.from('suspended_days').delete().neq('month_key','__never__'); }catch{}
+    } else {
+      step('⚠️ Offline — skipping cloud deletion. Run again when online to clear cloud data.');
+      await new Promise(r=>setTimeout(r,1500));
+    }
+
+    // ── STEP 2: Clear localStorage (this device) ───────────────────
+    step('Clearing local data on this device...');
+
+    // Keys to KEEP — accounts, subjects, strands, school info, session
+    const KEEP_PREFIXES = [
+      LS+'accounts',
+      LS+'subjects',
+      LS+'strands',
+      LS+'schoolInfo',
+      LS+'session',
+    ];
+
+    const keysToDelete = [];
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(!k || !k.startsWith(LS)) continue;
+      if(KEEP_PREFIXES.some(p => k === p || k.startsWith(p+'_'))) continue;
+      keysToDelete.push(k);
+    }
+    keysToDelete.forEach(k => localStorage.removeItem(k));
+
+    // ── STEP 3: Reset in-memory caches ────────────────────────────
+    step('Resetting in-memory data...');
+    studentsCache = [];
+    gradeCache    = {};
+    attCache      = {};
+    attRec        = {};
+    rawScoreCache = {};
+    _searchIndex  = null;
+    _attKeyIndex  = null;
+
+    // ── STEP 4: Clear pending sync queue ──────────────────────────
+    savePendingQueue([]);
+
+    // ── STEP 5: Rebuild all views ──────────────────────────────────
+    step('Done! Rebuilding views...');
+    await new Promise(r=>setTimeout(r,400));
+
+    buildStudentsList();
+    buildClassList();
+    buildReport();
+    updateStats();
+    updateSyncBadge();
+    populateSectionDropdowns();
+    populateDropdowns();
+    initBackupView();
+
+    prog.style.background = '#f0fdf4';
+    prog.style.border = '1px solid #86efac';
+    prog.style.color = '#15803d';
+    prog.innerHTML =
+      '✅ <strong>Reset complete!</strong> All student, grade, attendance and test data has been cleared.<br><br>' +
+      '<strong>Next steps:</strong><br>' +
+      '1. Update the School Year in School Settings<br>' +
+      '2. Go to <strong>Students → Import CSV</strong> to upload the new student list<br>' +
+      '3. Review teacher section assignments in <strong>Accounts</strong>';
+
+    btn.textContent = '✅ Reset Complete';
+    btn.style.background = '#16a34a';
+    document.getElementById('reset-confirm-check').checked = false;
+
+    logAudit('SYSTEM RESET', 'School year data reset performed by ' + (CU?.name||'admin'));
+
+    toast('✅ All school data has been reset. Ready for the new school year!');
+
+  } catch(err) {
+    console.error('[Reset] Error:', err);
+    prog.style.background = '#fff5f5';
+    prog.style.border = '1px solid #fca5a5';
+    prog.style.color = '#dc2626';
+    prog.innerHTML = '❌ Reset failed: ' + (err?.message||String(err)) + '<br>Some data may have been partially deleted. Check Supabase dashboard.';
+    btn.disabled = false;
+    btn.textContent = '🗑️ Reset All Data Now';
+    toast('❌ Reset failed: ' + (err?.message||err), true);
+  }
+}
 
 
 
