@@ -5765,11 +5765,14 @@ async function loadSavedRawTests(){
         badgeHtml = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color};margin-top:4px">${mastery.label}</span>`;
       }
 
-      // Admin: can delete any test (manages records); teachers/advisers: can edit their own
-      const canEdit = !isAdmin();
-      const editBtn = canEdit
-        ? `<button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${t.key}')" style="font-size:11px">✏️ Edit</button>`
-        : `<button class="btn btn-sm" onclick="deleteRawTest('${t.key}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>`;
+      // Admin: delete only (manages all records — no editing raw scores for other teachers)
+      // Teachers / Advisers: edit + delete their own tests (already filtered to their sections above)
+      const actionBtns = isAdmin()
+        ? `<button class="btn btn-sm" onclick="deleteRawTest('${esc(t.key)}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>`
+        : `<div style="display:flex;gap:6px">
+             <button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${esc(t.key)}')" style="font-size:11px">✏️ Edit</button>
+             <button class="btn btn-sm" onclick="deleteRawTest('${esc(t.key)}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>
+           </div>`;
 
       return `<div class="card" style="padding:0">
         <div style="padding:12px 14px;border-bottom:1px solid var(--gray-100)">
@@ -5779,7 +5782,7 @@ async function loadSavedRawTests(){
               <div style="font-size:11px;color:var(--gray-500)">${sectLabel} &nbsp;·&nbsp; ${termLabel}</div>
               <div style="font-size:10px;color:var(--gray-400);margin-top:2px">${items} items &nbsp;·&nbsp; ${takers} takers</div>
             </div>
-            <div>${editBtn}</div>
+            <div>${actionBtns}</div>
           </div>
         </div>
         <div style="padding:10px 14px">
@@ -7874,7 +7877,7 @@ function renderCalendar(){
       }else{dotHtml=`<div class="cal-dots"><div class="cal-dot no-record"></div></div>`;}
     }
     const cls=['att-cal-day',isWeekend?'weekend':'',isToday?'today':''].filter(Boolean).join(' ');
-    const clickable=!isWeekend&&!isFuture?`onclick="showCalDay('${dateStr}','${sect}')"`:'' ;
+    const clickable=!isWeekend&&!isFuture?`onclick="showCalDay(event,'${dateStr}','${sect}')"`:'' ;
     html+=`<div class="${cls}" ${clickable}><div class="cal-date">${d}</div>${dotHtml}</div>`;
   }
   document.getElementById('att-cal-grid').innerHTML=html;
@@ -7887,10 +7890,10 @@ function changeCalMonth(dir){
   renderCalendar();
 }
 
-function showCalDay(dateStr,sect){
+function showCalDay(evt,dateStr,sect){
   calSelectedDate=dateStr;
   document.querySelectorAll('.att-cal-day').forEach(el=>el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+  (evt?.currentTarget||evt?.target)?.classList.add('selected');
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
