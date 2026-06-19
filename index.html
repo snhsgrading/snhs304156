@@ -889,24 +889,6 @@
 
         <!-- Teacher -->
         <div id="dash-teacher" class="hidden">
-          <!-- Diagnostic bar — only visible when students failed to load -->
-          <div id="dash-data-status" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
-            <span>⚠️ No students loaded.</span>
-            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
-          </div>
-          <!-- Pending sync banner — shown whenever queue has stuck items -->
-          <div id="pending-banner-teacher" class="hidden" style="display:none;margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span style="font-size:20px">⚠️</span>
-            <div style="flex:1;min-width:180px">
-              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
-              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
-              <button class="btn btn-sm" onclick="showSyncDiagnostics()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;white-space:nowrap">🔍 Diagnose</button>
-            </div>
-          </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">My Sections</div><div class="stat-value" id="dt-sections">—</div><div class="stat-meta">Unique sections assigned</div></div>
             <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value" id="dt-total">—</div><div class="stat-meta">Across all my sections</div></div>
@@ -924,24 +906,6 @@
 
         <!-- Adviser / Adviser+Teacher combined dashboard -->
         <div id="dash-adviser" class="hidden">
-          <!-- Diagnostic bar — only visible when students failed to load -->
-          <div id="dash-data-status-adviser" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
-            <span>⚠️ No students loaded.</span>
-            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
-          </div>
-          <!-- Pending sync banner -->
-          <div id="pending-banner-adviser" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span style="font-size:20px">⚠️</span>
-            <div style="flex:1;min-width:180px">
-              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
-              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
-              <button class="btn btn-sm" onclick="showSyncDiagnostics()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;white-space:nowrap">🔍 Diagnose</button>
-            </div>
-          </div>
           <!-- Stats row -->
           <div class="stats-grid">
             <div class="stat-card">
@@ -997,24 +961,6 @@
 
         <!-- Admin -->
         <div id="dash-admin" class="hidden">
-          <!-- Diagnostic bar — only visible when students failed to load -->
-          <div id="dash-data-status-admin" style="display:none;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px">
-            <span>⚠️ No students loaded.</span>
-            <button class="btn btn-sm" onclick="reloadStudentsFromCloud(this)" style="background:#f59e0b;color:white;border:none">Force Reload from Cloud</button>
-          </div>
-          <!-- Pending sync banner -->
-          <div id="pending-banner-admin" class="hidden" style="margin-bottom:1rem;padding:12px 16px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <span style="font-size:20px">⚠️</span>
-            <div style="flex:1;min-width:180px">
-              <div style="font-weight:600;font-size:13px;color:#92400e">Pending Sync — <span class="pending-count-label">0</span> item(s) waiting to upload</div>
-              <div style="font-size:11px;color:#b45309;margin-top:2px">Your data is saved locally. Tap <strong>Retry</strong> to push to cloud. If it keeps failing, tap <strong>Clear Stuck</strong>.</div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button class="btn btn-sm" onclick="retrySyncNow(this)" style="background:#f59e0b;color:white;border:none;white-space:nowrap">🔄 Retry Sync</button>
-              <button class="btn btn-sm" onclick="clearStuckQueue()" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;white-space:nowrap">🧹 Clear Stuck</button>
-              <button class="btn btn-sm" onclick="showSyncDiagnostics()" style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;white-space:nowrap">🔍 Diagnose</button>
-            </div>
-          </div>
           <div class="stats-grid">
             <div class="stat-card"><div class="stat-label">Total Students</div><div class="stat-value" id="dadm-students">—</div><div class="stat-meta">School-wide enrolled</div></div>
             <div class="stat-card"><div class="stat-label">Teacher Accounts</div><div class="stat-value" id="dadm-teachers">—</div><div class="stat-meta">Active faculty</div></div>
@@ -1200,7 +1146,7 @@
         <div class="card">
           <div class="card-header">
             <div><div class="card-title" id="classlist-title">Class List</div><div class="card-sub">S.Y. 2026–2027</div></div>
-            <div id="cl-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <div id="cl-filter-wrap"></div>
               <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨️ Print</button>
             </div>
@@ -1595,11 +1541,6 @@
                 <div style="min-width:200px"><label class="form-label">Subject / Test Name</label>
                   <input type="text" class="form-input" id="raw-subject" placeholder="e.g. Filipino T1 Periodical Test" oninput="initRawScoreTable()"/>
                 </div>
-                <div style="min-width:200px"><label class="form-label">Link to Grade Subject <span style="font-size:10px;color:var(--gray-400)">(auto-sync)</span></label>
-                  <select class="form-select" id="raw-subject-link" title="Optional: link this test to a subject so raw scores are auto-transmuted into the Term grade record when saved">
-                    <option value="">— None (manual grade entry) —</option>
-                  </select>
-                </div>
                 <div style="min-width:100px"><label class="form-label">No. of Items *</label>
                   <input type="number" class="form-input" id="raw-items" min="1" max="200" placeholder="e.g. 50" oninput="onRawItemsChange()"/>
                 </div>
@@ -1677,7 +1618,6 @@
             <div><div class="card-title">Student Masterlist</div><div class="card-sub" id="students-count-label">Loading...</div></div>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="text" class="form-input" id="student-search" placeholder="Search name or LRN..." style="width:210px;" oninput="debounce(buildStudentsList, 300)()" />
-              <button class="btn btn-sm btn-outline" onclick="reloadStudentsFromCloud(this)" title="Pull latest students from cloud">☁️ Reload</button>
               <button class="btn btn-sm btn-outline" onclick="openModal('import-modal')">📥 Import</button>
               <button class="btn btn-navy btn-sm" onclick="openEnrollModal()">+ Enroll Student</button>
             </div>
@@ -1710,7 +1650,7 @@
           <div class="card-header">
             <div><div class="card-title">Teacher &amp; Staff Accounts</div><div class="card-sub" id="accounts-count-label">Loading...</div></div>
             <div style="display:flex;gap:8px;">
-              <button class="btn btn-sm btn-outline" onclick="refreshAccountsFromCloud(this)" title="Pull latest accounts from cloud">☁️ Refresh</button>
+              <button class="btn btn-sm btn-outline" onclick="refreshAccountsFromCloud()" title="Pull latest accounts from cloud">☁️ Refresh</button>
               <button class="btn btn-sm btn-outline" onclick="openSectionManager()">⚙️ Sections</button>
               <button class="btn btn-sm btn-navy" onclick="openTeacherModal()">+ Add Account</button>
             </div>
@@ -1772,27 +1712,6 @@
 
       <!-- AUDIT LOG -->
       <div class="view" id="view-audit">
-
-        <!-- ── GRADING PERIOD LOCK (Admin) ── -->
-        <div class="card" id="term-lock-card" style="margin-bottom:1.25rem">
-          <div class="card-header">
-            <div>
-              <div class="card-title">🔒 Grading Period Lock — S.Y. 2026-2027</div>
-              <div class="card-sub">Lock closes all grade and attendance editing for that term across every device. Synced to cloud.</div>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="renderTermLockPanel()">🔄 Refresh</button>
-          </div>
-          <div style="padding:1rem 1.25rem">
-            <div id="term-lock-panel">
-              <div style="color:var(--gray-400);font-size:13px;padding:8px 0">Loading lock status...</div>
-            </div>
-            <div style="margin-top:8px;font-size:11px;color:var(--gray-400)">
-              ⚙️ Non-admin users are auto-locked after each term end date. Admin can manually override above. Lock state is synced across all devices via Supabase.
-            </div>
-          </div>
-        </div>
-
-        <!-- ── AUDIT LOG ── -->
         <div class="card">
           <div class="card-header">
             <div>
@@ -1934,50 +1853,6 @@
           </div>
         </div>
 
-        <!-- ── NEW SCHOOL YEAR RESET ─────────────────────────────────── -->
-        <div class="card" style="margin-top:1.25rem;border:1.5px solid #fca5a5">
-          <div class="card-header" style="background:#fff5f5;border-radius:12px 12px 0 0">
-            <div>
-              <div class="card-title" style="color:#dc2626">🗑️ Reset All Data for New School Year</div>
-              <div class="card-sub">Clears all students, grades, attendance and test records from cloud and this device. Keeps teacher accounts, subjects and school info.</div>
-            </div>
-          </div>
-          <div style="padding:1rem 1.25rem">
-            <div style="font-size:12px;color:#dc2626;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:1rem;line-height:1.7">
-              <strong>⚠️ What will be deleted (cannot be undone):</strong><br>
-              All students &nbsp;·&nbsp; All grade records &nbsp;·&nbsp; All attendance records &nbsp;·&nbsp; All MPS/raw score tests &nbsp;·&nbsp; All audit logs &nbsp;·&nbsp; All suspended days &nbsp;·&nbsp; Term locks<br><br>
-              <strong>✅ What will be kept:</strong><br>
-              Teacher &amp; admin accounts &nbsp;·&nbsp; Subject configurations &nbsp;·&nbsp; SHS Strands &nbsp;·&nbsp; School name &amp; address<br><br>
-              <strong>📋 After reset you will need to:</strong><br>
-              1. Update the School Year in School Settings &nbsp;&nbsp;
-              2. Import the new student list via CSV &nbsp;&nbsp;
-              3. Update teacher section assignments if changed
-            </div>
-            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none">
-                <input type="checkbox" id="reset-confirm-check" onchange="
-                  const btn=document.getElementById('reset-btn');
-                  btn.disabled=!this.checked;
-                  btn.style.opacity=this.checked?'1':'0.5';
-                  btn.style.cursor=this.checked?'pointer':'not-allowed';
-                " style="width:16px;height:16px;cursor:pointer">
-                I have downloaded a full backup and understand this action is permanent
-              </label>
-            </div>
-            <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-              <button id="reset-btn" class="btn" disabled
-                onclick="resetForNewSchoolYear(this)"
-                style="background:#dc2626;color:white;border:none;font-size:13px;padding:10px 20px;opacity:0.5;cursor:not-allowed"
-                onmouseenter="if(!this.disabled)this.style.background='#b91c1c'"
-                onmouseleave="this.style.background='#dc2626'">
-                🗑️ Reset All Data Now
-              </button>
-              <span style="font-size:12px;color:var(--gray-400)">Button activates only after checking the box above</span>
-            </div>
-            <div id="reset-progress" class="hidden" style="margin-top:10px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e"></div>
-          </div>
-        </div>
-
       </div><!-- end view-backup -->
 
 
@@ -2012,126 +1887,17 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 
 // ── CONSTANTS ─────────────────────────────────────────────────────
 const SY = '2026-2027';
+// DepEd Trimester Calendar SY2026-2027 — official class period boundaries
+// Days outside this range are NOT counted as school days even on weekdays
+const SY_START = '2026-06-08'; // Term 1 start
+const SY_END   = '2027-04-08'; // Term 3 end
+const isWithinSY = (dateStr) => dateStr >= SY_START && dateStr <= SY_END;
 const SCHOOL_NAME = 'SUAREZ NATIONAL HIGH SCHOOL';
 const SCHOOL_ID = '304156';
 const PRINCIPAL = 'ROSEMARIE S. MACARANDAN, PhD';
 const PRINCIPAL_TITLE = 'PRINCIPAL III';
 const DIVISION = 'Division of Iligan City';
 const REGION = 'Region X – Northern Mindanao';
-
-// ── TERM CALENDAR & GRADING PERIOD LOCK ───────────────────────────
-// DepEd Trimester SY 2026-2027 official calendar.
-// After each term END date, grades and attendance for that term are LOCKED.
-// Admin can override via Audit Log → Grading Period Lock panel.
-const TERM_DATES = {
-  1: { label:'Term 1', start:'2026-06-08', end:'2026-09-15' },
-  2: { label:'Term 2', start:'2026-09-16', end:'2026-12-18' },
-  3: { label:'Term 3', start:'2027-01-04', end:'2027-04-08' },
-};
-
-// Returns true if the given term number is past its end date
-function isTermOver(term){
-  const t = TERM_DATES[parseInt(term)];
-  if(!t) return false;
-  return new Date().toISOString().slice(0,10) > t.end;
-}
-
-// Returns which term a date (YYYY-MM-DD) belongs to, or null if outside all terms
-function getTermFromDate(dateStr){
-  if(!dateStr) return null;
-  for(const [num, td] of Object.entries(TERM_DATES)){
-    if(dateStr >= td.start && dateStr <= td.end) return parseInt(num);
-  }
-  return null;
-}
-
-// Returns true if a term is LOCKED for the current user.
-// Lock state is cloud-synced; admin can always override.
-function isTermLocked(term){
-  const termNum = parseInt(term);
-  const adminLocks = lsGet('term_locks') || {};
-  if(typeof adminLocks[termNum] === 'boolean') return adminLocks[termNum];
-  if(isAdmin()) return false; // admin auto-unlocked unless manually locked
-  return isTermOver(termNum);
-}
-
-// Returns true if a specific date's term is locked (for attendance)
-function isDateTermLocked(dateStr){
-  const term = getTermFromDate(dateStr);
-  if(!term) return false;
-  return isTermLocked(term);
-}
-
-// Admin toggle — lock/unlock a term; syncs to Supabase so all devices see it
-async function adminToggleTermLock(term){
-  if(!isAdmin()){ toast('Only admin can change term locks', true); return; }
-  const locks = lsGet('term_locks') || {};
-  const cur = typeof locks[term] === 'boolean' ? locks[term] : isTermOver(term);
-  locks[term] = !cur;
-  lsSet('term_locks', locks);
-  logAudit('TERM LOCK', `Term ${term} ${locks[term] ? 'LOCKED' : 'UNLOCKED'} by admin`);
-  toast(locks[term]
-    ? `🔒 Term ${term} locked — no further edits allowed.`
-    : `🔓 Term ${term} unlocked — editing re-enabled.`);
-  // Cloud-sync so other devices get the lock instantly
-  if(isOnline){
-    try{
-      await sb.from('grade_records').upsert(
-        { grade_key:'__term_locks__', data:locks, updated_at:new Date().toISOString() },
-        { onConflict:'grade_key' }
-      );
-    } catch(e){ console.warn('Term lock cloud sync failed:', e); }
-  }
-  renderTermLockPanel();
-  loadGradeTable();
-}
-
-// Load term locks from Supabase on every login so all users share the same state
-async function loadTermLocksFromCloud(){
-  if(!isOnline) return;
-  try{
-    // Use maybeSingle() instead of single() — single() throws HTTP 406 when no row exists yet,
-    // which floods the console and triggers the permanent-error drop logic unnecessarily.
-    const {data} = await sb.from('grade_records')
-      .select('data').eq('grade_key','__term_locks__').maybeSingle();
-    if(data?.data && typeof data.data === 'object'){
-      const cloudLocks = {};
-      Object.entries(data.data).forEach(([k,v])=>{ cloudLocks[parseInt(k)] = v; });
-      lsSet('term_locks', cloudLocks);
-    }
-  } catch(e){ /* no lock record yet — defaults to auto-lock */ }
-}
-
-// Render the term lock admin panel in Audit Log view
-function renderTermLockPanel(){
-  const el = document.getElementById('term-lock-panel');
-  if(!el) return;
-  const locks = lsGet('term_locks') || {};
-  el.innerHTML = [1,2,3].map(t=>{
-    const td = TERM_DATES[t];
-    const over = isTermOver(t);
-    const locked = isTermLocked(t);
-    const adminOverride = typeof locks[t] === 'boolean';
-    const statusColor = locked ? '#dc2626' : '#16a34a';
-    const statusLabel = locked ? '🔒 LOCKED' : '🔓 OPEN';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:8px;background:${locked?'#fef2f2':'#f0fdf4'}">
-      <div>
-        <div style="font-weight:600;font-size:13px">${td.label} &nbsp;<span style="color:${statusColor};font-size:12px">${statusLabel}</span></div>
-        <div style="font-size:11px;color:var(--gray-500)">${td.start} → ${td.end}
-          ${over ? '<span style="color:#b45309;margin-left:6px">(period ended)</span>' : '<span style="color:#16a34a;margin-left:6px">(active)</span>'}
-        </div>
-        ${adminOverride
-          ? `<div style="font-size:10px;color:#6366f1;margin-top:2px">⚙️ Manually ${locked?'locked':'unlocked'} by admin (synced to all devices)</div>`
-          : '<div style="font-size:10px;color:var(--gray-400);margin-top:2px">Auto-locks after end date for all non-admin users</div>'}
-      </div>
-      <button onclick="adminToggleTermLock(${t})"
-        style="background:${locked?'#16a34a':'#dc2626'};color:white;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">
-        ${locked ? '🔓 Unlock' : '🔒 Lock Now'}
-      </button>
-    </div>`;
-  }).join('');
-}
-
 
 const FALLBACK_ACCOUNTS = [
   {username:'admin01', password:'snhs2026', name:'School Administrator', role:'admin', label:'School Administrator', sections:[], subjects:''},
@@ -2220,15 +1986,7 @@ function getStudentGradesFromCache(studentIndex, sectionKey, gradeLevel){
       if(v !== null) filled++;
     }
     const vals = [1,2,3].map(t=>terms['t'+t]).filter(v=>v!==null);
-    // F-10: Final Grade is OFFICIAL only when ALL THREE terms are encoded.
-    // If only 1 or 2 terms exist, store provisional (for display) but mark incomplete.
-    terms.final = vals.length === 3
-      ? Math.round(vals.reduce((a,b)=>a+b,0)/3)
-      : vals.length > 0
-        ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)  // provisional
-        : null;
-    terms.allTermsFilled = vals.length === 3;
-    terms.filledTerms    = vals.length;
+    terms.final = vals.length > 0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
     terms.hasData = filled > 0;
     result[idx] = terms;
   }
@@ -2320,31 +2078,6 @@ const LS = 'snhs_';
 function lsGet(k){try{return JSON.parse(localStorage.getItem(LS+k)||'null')}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{toast('Storage full! Clear browser cache.',true)}}
 
-// HTML-escape helper — prevents XSS when inserting user data into innerHTML
-function esc(str){
-  if(str==null) return '';
-  return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;')
-    .replace(/'/g,'&#39;');
-}
-
-// Normalize a student record coming from Supabase or localStorage.
-// Supabase may return grade as integer (7) if the column is numeric —
-// all app code uses string comparisons like s.grade==='7' so we must coerce.
-// status defaults to 'Enrolled' if missing (saved via core-only upsert fallback).
-function normalizeStudent(s){
-  if(!s) return s;
-  return {
-    ...s,
-    grade:  s.grade  !== undefined ? String(s.grade)  : s.grade,
-    status: s.status || 'Enrolled',
-    section: s.section ? String(s.section).toUpperCase().trim() : s.section,
-  };
-}
-
 // ── SYNC ENGINE ────────────────────────────────────────────────────
 function getPendingQueue(){return lsGet('pendingQueue')||[]}
 function savePendingQueue(q){lsSet('pendingQueue',q)}
@@ -2412,101 +2145,6 @@ function updateSyncBadge(){
   if(!isOnline)setSyncBadge('offline','📴 Offline');
   else if(pendingSyncCount>0)setSyncBadge('pending','⚠️ '+pendingSyncCount+' pending');
   else setSyncBadge('synced','☁️ Synced');
-  refreshPendingBanners();
-}
-
-// Show/hide the yellow pending-sync banners on all dashboards and update their counts
-function refreshPendingBanners(){
-  const count = getPendingQueue().length;
-  ['pending-banner-teacher','pending-banner-adviser','pending-banner-admin'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    if(count > 0){
-      el.classList.remove('hidden');
-      el.style.display = 'flex';
-      el.querySelectorAll('.pending-count-label').forEach(span => span.textContent = count);
-    } else {
-      el.classList.add('hidden');
-      el.style.display = 'none';
-    }
-  });
-}
-
-// Manual retry — called from the Retry Sync button on the dashboard
-async function retrySyncNow(btn){
-  if(!isOnline){
-    toast('⚠️ You are offline. Please connect to the internet first.', true);
-    return;
-  }
-  const q = getPendingQueue();
-  if(!q.length){
-    toast('✓ Nothing pending — everything is already synced.');
-    refreshPendingBanners();
-    return;
-  }
-  const orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ Syncing…';
-  try{
-    await processSyncQueue();
-    const remaining = getPendingQueue().length;
-    if(remaining === 0){
-      toast('✅ All ' + q.length + ' item(s) successfully synced to cloud!');
-    } else {
-      toast('⚠️ ' + remaining + ' item(s) still pending — check your connection and try again.', true);
-    }
-  } catch(e){
-    toast('❌ Sync failed: ' + (e?.message||e), true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = orig;
-    updateSyncBadge();
-  }
-}
-
-// Force-clear all stuck items from the queue (use when items are permanently failing with 400/406)
-function clearStuckQueue(){
-  const q = getPendingQueue();
-  if(!q.length){ toast('Nothing in queue to clear.'); return; }
-  if(!confirm(`Clear all ${q.length} stuck item(s) from the sync queue?\n\nThis will stop the repeating errors. Data already saved locally will NOT be deleted — only the pending upload requests will be removed.\n\nOnly do this if Retry Sync keeps failing.`)) return;
-  const existing = JSON.parse(localStorage.getItem(LS+'droppedSync')||'[]');
-  const merged = [...existing, ...q.map(x=>({...x, _dropReason:'manually cleared by user'}))].slice(-100);
-  localStorage.setItem(LS+'droppedSync', JSON.stringify(merged));
-  savePendingQueue([]);
-  updateSyncBadge();
-  toast('🧹 Sync queue cleared. The repeating errors should stop now.');
-}
-
-// Show exact Supabase error details — helps diagnose schema mismatches without DevTools
-function showSyncDiagnostics(){
-  const dropped = JSON.parse(localStorage.getItem(LS+'droppedSync')||'[]');
-  const pending = getPendingQueue();
-  if(!dropped.length && !pending.length){
-    alert('✅ No sync errors found. Everything looks clean.');
-    return;
-  }
-  let msg = '';
-  if(dropped.length){
-    msg += `=== DROPPED ITEMS (${dropped.length}) ===\n`;
-    dropped.slice(-10).forEach((x,i)=>{
-      msg += `\n[${i+1}] Type: ${x.type} | Key: ${x.key}\n`;
-      msg += `    Error: ${x._dropReason||'unknown'}\n`;
-      if(x.data?.lrn) msg += `    LRN: ${x.data.lrn} | Name: ${x.data?.name||'?'}\n`;
-    });
-  }
-  if(pending.length){
-    msg += `\n=== PENDING (${pending.length}) ===\n`;
-    pending.slice(0,5).forEach((x,i)=>{
-      msg += `[${i+1}] Type: ${x.type} | Key: ${x.key}\n`;
-    });
-  }
-  msg += '\n\nShare this with your developer to fix the schema mismatch.';
-  // Copy to clipboard for easy sharing
-  navigator.clipboard?.writeText(msg).then(()=>{
-    alert('Diagnostics (copied to clipboard):\n\n'+msg);
-  }).catch(()=>{
-    alert('Diagnostics:\n\n'+msg);
-  });
 }
 
 window.addEventListener('online',()=>{
@@ -2518,7 +2156,7 @@ window.addEventListener('online',()=>{
         sb.from('accounts').select('*').order('name'),
         sb.from('strands').select('*').order('name')
       ]);
-      const s = (sArr||[]).map(normalizeStudent);
+      const s = sArr||[];
       if(s&&s.length>0){studentsCache=s;lsSet('students',s);}
       if(a&&a.length>0){
         const cloudUsernames=new Set(a.map(x=>x.username));
@@ -2767,15 +2405,15 @@ async function doLogin(isAutoLogin=false){
       ]);
       // Merge cloud data with any local pending students not yet synced
       const localStudents = lsGet('students')||[];
-      const cloudStudents = (cloudStudentsRaw||[]).map(normalizeStudent);
+      const cloudStudents = cloudStudentsRaw||[];
       if(cloudStudents.length > 0){
         // Merge: cloud is authoritative, but add local-only records
         const cloudLRNs = new Set(cloudStudents.map(x=>x.lrn));
-        const localOnly = localStudents.map(normalizeStudent).filter(x=>!cloudLRNs.has(x.lrn));
+        const localOnly = localStudents.filter(x=>!cloudLRNs.has(x.lrn));
         studentsCache = [...cloudStudents, ...localOnly];
       } else {
         // Cloud returned 0 — use local (sync may not have finished yet)
-        studentsCache = localStudents.map(normalizeStudent);
+        studentsCache = localStudents;
         if(localStudents.length > 0){
           toast('📦 Loaded '+localStudents.length+' students from local. Syncing to cloud...');
           setTimeout(()=>processSyncQueue(), 1000);
@@ -2794,16 +2432,14 @@ async function doLogin(isAutoLogin=false){
       }
       lsSet('accounts', accountsCache);
       if(st){strandsCache=st;lsSet('strands',st);}
-    }catch(fetchErr){
-      console.error('[Login] Cloud fetch failed, using localStorage fallback:', fetchErr);
-      studentsCache=(lsGet('students')||[]).map(normalizeStudent);
+    }catch{
+      studentsCache=lsGet('students')||[];
       accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
       strandsCache=lsGet('strands')||[];
-      console.log(`[Login] Fallback: studentsCache=${studentsCache.length}, accountsCache=${accountsCache.length}`);
-      toast('⚠️ Cloud error — using local data: '+(fetchErr?.message||fetchErr), true);
+      toast('Using offline data — will sync when online');
     }
   }else{
-    studentsCache=(lsGet('students')||[]).map(normalizeStudent);
+    studentsCache=lsGet('students')||[];
     accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
     strandsCache=lsGet('strands')||[];
     toast('Offline mode — using local data');
@@ -2811,33 +2447,22 @@ async function doLogin(isAutoLogin=false){
 
   loadSubjectsCache();
 
-  hideLoading();
-  if(btn) btn.disabled=false;
+  hideLoading(); btn.disabled=false;
   document.getElementById('login-btn-text').textContent='Sign In';
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('sb-name').textContent=CU.name;
   document.getElementById('sb-role').textContent=CU.label;
 
-  // Log data state so any cache issue is immediately visible in console
-  console.log(`[Login] studentsCache: ${studentsCache.length}, accountsCache: ${accountsCache.length}, online: ${isOnline}`);
-
-  try{
-    setupRole();
-    populateSectionDropdowns();
-    populateDropdowns();
-    buildClassList();
-    buildReport();
-    updateStats();
-    updateSyncBadge();
-  }catch(renderErr){
-    console.error('[Login] UI render error:', renderErr);
-    toast('⚠️ UI error: '+renderErr.message+'. Try refreshing the page.', true);
-  }
-
+  setupRole();
+  populateSectionDropdowns();
+  populateDropdowns();
+  buildClassList();
+  buildReport();
+  updateStats();
+  updateSyncBadge();
   processSyncQueue();
   logAudit('LOGIN','Logged in successfully');
-  loadTermLocksFromCloud().then(()=>{ renderTermLockPanel(); });
   // Build performance indexes in background
   setTimeout(()=>{ buildSearchIndex(); buildAttKeyIndex(); },500);
   showView('dashboard',document.getElementById('nav-dashboard'));
@@ -3015,7 +2640,7 @@ function showView(name,el){
     accounts:()=>loadAccountsView(),
     strands:()=>buildStrandList(),
     subjects:()=>buildSubjectList(),
-    audit:()=>{ buildAuditLog(); renderTermLockPanel(); },
+    audit:()=>buildAuditLog(),
     attendance:()=>initAttendance(),
     sf2:()=>{ initSF2View(); renderSF2(); },
     sf9:()=>populateDropdowns(),
@@ -3030,17 +2655,6 @@ function sv(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
 function updateStats(){
   if(!CU) return;
   const r = CU.role;
-
-  // ── DIAGNOSTIC STATUS BARS — show Force Reload when cache is empty ─
-  ['dash-data-status','dash-data-status-adviser','dash-data-status-admin'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    if(studentsCache.length === 0){
-      el.style.display = 'flex';
-    } else {
-      el.style.display = 'none';
-    }
-  });
 
   // ── SHARED ─────────────────────────────────────────────────────────
   const pending  = getPendingQueue().length;
@@ -3522,6 +3136,7 @@ function loadGradeTable(){
   document.getElementById('enc-placeholder').classList.add('hidden');
   document.getElementById('grade-table-wrap').classList.remove('hidden');
   const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
+  // All grades use T1/T2/T3 (DepEd Trimester SY2026-2027)
   const thead=document.querySelector('#grade-table-wrap thead tr');
   if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th><th>T<span id="enc-qtr-num">${CQ}</span> Grade</th><th>Remarks</th>`;
 
@@ -3532,110 +3147,47 @@ function loadGradeTable(){
   document.getElementById('enc-card-title').textContent=sect.replace(/G(\d+)-/,'G$1 – ')+' | '+subjLabel+' | T'+CQ;
   document.getElementById('enc-qtr-num').textContent=CQ;
 
-  // ── TERM LOCK: style term buttons ──────────────────────────────────
-  document.querySelectorAll('.qtr-btn').forEach((btn,idx)=>{
-    const t=idx+1;
-    const locked=isTermLocked(t);
-    btn.textContent = locked ? `T${t} 🔒` : `T${t}`;
-    btn.title = locked ? `Term ${t} is locked — grading period ended ${TERM_DATES[t]?.end}` : `Switch to Term ${t}`;
-    btn.style.opacity = locked ? '0.6' : '';
-    if(t===CQ) btn.classList.add('active'); else btn.classList.remove('active');
-  });
-  // Auto-fill demo button: only show for admin, never in production for teachers
-  const autoFillBtn = document.querySelector('[onclick="autoFill()"]');
-  if(autoFillBtn) autoFillBtn.style.display = isAdmin() ? '' : 'none';
-
-  const termLocked = isTermLocked(CQ);
-  const saveBtn = document.getElementById('save-grades-btn');
-  if(saveBtn){
-    saveBtn.disabled = termLocked || CU?.role==='adviser';
-    saveBtn.textContent = termLocked ? `🔒 Term ${CQ} Locked` : '💾 Save Grades';
-    saveBtn.style.opacity = (termLocked || CU?.role==='adviser') ? '0.5' : '';
-    saveBtn.title = termLocked ? `Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}` : '';
+  if(isMapeh){
+    buildMAPEHTable(subj,sect);
+  } else {
+    buildGradeTable(subj,sect);
   }
+}
 
-  // Lock banner
-  const existingBanner = document.getElementById('term-lock-banner');
-  if(existingBanner) existingBanner.remove();
-  if(termLocked){
-    const banner = document.createElement('div');
-    banner.id='term-lock-banner';
-    banner.style.cssText='margin-bottom:10px;padding:10px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;';
-    banner.innerHTML=`🔒 <strong>Term ${CQ} is locked.</strong> The grading period ended on <strong>${TERM_DATES[CQ]?.end||''}</strong>. All grades for this term are read-only.`
-      +(isAdmin()?` <a href="#" onclick="showView('audit',document.getElementById('nav-audit'));renderTermLockPanel();return false;" style="color:#6366f1;font-weight:600;margin-left:8px">⚙️ Manage Lock</a>`:'');
-    const wrap=document.getElementById('grade-table-wrap');
-    if(wrap) wrap.parentNode.insertBefore(banner,wrap);
-  }
 
-  if(isMapeh){ buildMAPEHTable(subj,sect); } else { buildGradeTable(subj,sect); }
+function onGradeInput(el, idx, termKey){
+  const v = el.value;
+  const vNum = parseFloat(v);
+  el.className = 'grade-input' + (v===''?'':(vNum>=75?' passing':' failing'));
+  const rmk = document.getElementById('rmk_'+idx);
+  if(rmk) rmk.innerHTML = `<span class="badge ${v===''?'badge-gray':vNum>=75?'badge-green':'badge-red'}">${v===''?'—':vNum>=75?'Passed':'Failed'}</span>`;
+  // Live-save to gradeCache for SHS terms
+  if(!gradeCache[termKey]) gradeCache[termKey]={};
+  if(v==='') delete gradeCache[termKey][idx];
+  else gradeCache[termKey][idx]=v;
+  updateEncStatus();
 }
 
 function buildGradeTable(subj,sect){
-  // Route MAPEH to dedicated builder
-  if(subj && subj.replace(/_\d+$/,'') === 'mapeh'){ buildMAPEHTable(subj,sect); return; }
-
-  // Lock state: term lock OR adviser read-only
-  const termLocked     = isTermLocked(CQ);
-  const adviserReadOnly = CU?.role === 'adviser';
-  const readOnly       = termLocked || adviserReadOnly;
-
-  // Remove any leftover adviser banner
-  const oldBanner = document.getElementById('adviser-grade-banner');
-  if(oldBanner) oldBanner.remove();
-
-  // Show adviser notice
-  if(adviserReadOnly && !termLocked){
-    const wrap = document.getElementById('grade-table-wrap');
-    if(wrap){
-      const div=document.createElement('div');
-      div.id='adviser-grade-banner';
-      div.style.cssText='margin-bottom:10px;padding:8px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;';
-      div.innerHTML='🔒 <strong>View Only:</strong> Subject grades are encoded by the assigned subject teacher. As class adviser, you can view but not edit these grades.';
-      wrap.parentNode.insertBefore(div,wrap);
-    }
+  // MAPEH: show split table — Music & Arts + PE & Health inputs, MAPEH computed
+  if(subj && subj.replace(/_\d+$/,'') === 'mapeh'){
+    buildMAPEHTable(subj,sect); return;
   }
-
   const sn=sect.replace(/^G\d+-/,'');
-  const grade=sect.match(/^G(\d+)-/)?.[1]||'';
-  let list=studentsCache.filter(s=>
-    s.section.toUpperCase()===sn.toUpperCase() &&
-    (!grade || s.grade===grade) &&
-    (s.status||'Enrolled') !== 'Dropped'   // exclude deleted/dropped students
-  );
-  if(!list.length) list=studentsCache.filter(s=>
-    `G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase() &&
-    (s.status||'Enrolled') !== 'Dropped'
-  );
-  // Deduplicate by LRN — keep the most recently enrolled record
-  const seen = new Set();
-  list = list.filter(s=>{ if(seen.has(s.lrn)) return false; seen.add(s.lrn); return true; });
+  let list=studentsCache.filter(s=>s.section===sn);
+  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
-
-  // F-08 FIX: always use _T{term} key — encoding saves with _T not _Q
   const key=subj+'_'+sect+'_T'+CQ;
   const saved=gradeCache[key]||lsGet('gr_'+key)||{};
   gradeCache[key]=saved;
-
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
     const v=saved[i]||'';
     const cls=v?(+v>=75?'passing':'failing'):'';
-    const roTitle = termLocked
-      ? `Term ${CQ} locked — grading period ended`
-      : adviserReadOnly
-        ? 'Read-only — encoded by subject teacher'
-        : '';
-    const inputHtml = readOnly
-      ? `<input type="number" class="grade-input ${cls}" value="${v}" readonly
-           style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px;text-align:center"
-           title="${roTitle}" placeholder="—">`
-      : `<input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}"
-           oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')"
-           placeholder="—">`;
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
-      <td>${inputHtml}</td>
+      <td><input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}" oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')" placeholder="—"></td>
       <td><span id="rmk_${i}" class="badge ${v?(+v>=75?'badge-green':'badge-red'):'badge-gray'}">${v?(+v>=75?'Passed':'Failed'):'—'}</span></td>
     </tr>`;
   }).join('');
@@ -3643,47 +3195,30 @@ function buildGradeTable(subj,sect){
 }
 
 // ── MAPEH SPLIT TABLE ─────────────────────────────────────────────
+// Shows Music & Arts + PE & Health inputs; MAPEH auto-computed as their average
 function buildMAPEHTable(subjId, sect){
-  const termLocked     = isTermLocked(CQ);
-  const adviserReadOnly = CU?.role === 'adviser';
-  const readOnly       = termLocked || adviserReadOnly;
-
   const grade = sect.match(/^G(\d+)-/)?.[1]||'10';
   const maId  = 'ma_'+grade;
   const pehId = 'peh_'+grade;
 
   const sn=sect.replace(/^G\d+-/,'');
-  let list=studentsCache.filter(s=>
-    s.section.toUpperCase()===sn.toUpperCase() &&
-    (!grade || s.grade===grade) &&
-    (s.status||'Enrolled') !== 'Dropped'
-  );
-  if(!list.length) list=studentsCache.filter(s=>
-    `G${s.grade}-${s.section}`.toUpperCase()===sect.toUpperCase() &&
-    (s.status||'Enrolled') !== 'Dropped'
-  );
-  // Deduplicate by LRN
-  const seenLRNs = new Set();
-  list = list.filter(s=>{ if(seenLRNs.has(s.lrn)) return false; seenLRNs.add(s.lrn); return true; });
+  let list=studentsCache.filter(s=>s.section===sn);
+  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
-  // F-08: use _T key
   const maKey  = maId +'_'+sect+'_T'+CQ;
   const pehKey = pehId+'_'+sect+'_T'+CQ;
   const maSaved  = gradeCache[maKey] ||lsGet('gr_'+maKey) ||{};
   const pehSaved = gradeCache[pehKey]||lsGet('gr_'+pehKey)||{};
   gradeCache[maKey]=maSaved; gradeCache[pehKey]=pehSaved;
 
+  // Override table header for MAPEH split view
   const thead = document.querySelector('#grade-table-wrap thead tr');
   if(thead) thead.innerHTML=`<th>#</th><th>LRN</th><th>Student Name</th>
     <th style="background:#fef3c7">Music &amp; Arts</th>
     <th style="background:#eff6ff">PE &amp; Health</th>
     <th style="background:#f0fdf4;font-weight:700">MAPEH (avg)</th>
     <th>Remarks</th>`;
-
-  const roStyle = readOnly ? 'background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;' : '';
-  const roAttr  = readOnly ? 'readonly' : '';
-  const roTitle = termLocked ? `Term ${CQ} locked` : adviserReadOnly ? 'Read-only — subject teacher only' : '';
 
   document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
     const ma  = maSaved[i]||'';
@@ -3692,18 +3227,16 @@ function buildMAPEHTable(subjId, sect){
                 : ma!=='' ? +ma : peh!=='' ? +peh : '';
     const mapehCls = mapeh!=='' ? (mapeh>=75?'badge-green':'badge-red') : 'badge-gray';
     const mapehTxt = mapeh!=='' ? (mapeh>=75?'Passed':'Failed') : '—';
-    const maCls  = ma !==''?(+ma >=75?'passing':'failing'):'';
+    const maCls  = ma !==''?( +ma >=75?'passing':'failing'):'';
     const pehCls = peh!==''?(+peh>=75?'passing':'failing'):'';
-    const maEvt  = readOnly ? '' : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`;
-    const pehEvt = readOnly ? '' : `oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')"`;
     return`<tr>
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
       <td style="background:#fef9c3"><input type="number" class="grade-input ${maCls}" id="ma_${i}" min="60" max="100" value="${ma}"
-        ${maEvt} ${roAttr} placeholder="—" style="width:64px;${roStyle}" title="${roTitle}"></td>
+        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
       <td style="background:#eff6ff"><input type="number" class="grade-input ${pehCls}" id="peh_${i}" min="60" max="100" value="${peh}"
-        ${pehEvt} ${roAttr} placeholder="—" style="width:64px;${roStyle}" title="${roTitle}"></td>
+        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
       <td style="background:#f0fdf4;text-align:center;font-weight:600" id="mapeh_avg_${i}">${mapeh!==''?mapeh:'—'}</td>
       <td><span id="rmk_${i}" class="badge ${mapehCls}">${mapehTxt}</span></td>
     </tr>`;
@@ -3711,30 +3244,14 @@ function buildMAPEHTable(subjId, sect){
   updateEncStatus();
 }
 
-
 // Live update MAPEH avg when either MA or PEH input changes
 function mapehChanged(i, lrn, studentName, sect){
-  // LOCK GUARD: term lock and adviser read-only
-  if(isTermLocked(CQ) || CU?.role==='adviser'){
-    toast(`🔒 Term ${CQ} is locked — grades cannot be edited.`, true);
-    // revert both inputs
-    const grade = (sect||'').match(/^G(\d+)-/)?.[1]||'10';
-    const maKey  = 'ma_'  +grade+'_'+(sect||'')+'_T'+CQ;
-    const pehKey = 'peh_' +grade+'_'+(sect||'')+'_T'+CQ;
-    const maSaved  = gradeCache[maKey] ||lsGet('gr_'+maKey) ||{};
-    const pehSaved = gradeCache[pehKey]||lsGet('gr_'+pehKey)||{};
-    const maEl  = document.getElementById('ma_'+i);
-    const pehEl = document.getElementById('peh_'+i);
-    if(maEl)  maEl.value  = maSaved[i]||'';
-    if(pehEl) pehEl.value = pehSaved[i]||'';
-    return;
-  }
   const maEl  = document.getElementById('ma_'+i);
   const pehEl = document.getElementById('peh_'+i);
   const ma  = maEl?.value ===''?null:+maEl.value;
   const peh = pehEl?.value===''?null:+pehEl.value;
 
-  // Validate range 60–100
+  // Validate range on each input
   [maEl, pehEl].forEach(el=>{
     if(!el||el.value==='') return;
     const v=+el.value;
@@ -3759,47 +3276,39 @@ function mapehChanged(i, lrn, studentName, sect){
 }
 
 function gradeChanged(el,i,lrn,studentName,subj,sect){
-  // LOCK GUARD: block any edits on locked term or for pure adviser
-  if(isTermLocked(CQ)){
-    const key=subj+'_'+sect+'_T'+CQ;
-    el.value=(gradeCache[key]||{})[i]||'';
-    toast(`🔒 Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}. Grades cannot be changed.`, true);
-    return;
-  }
-  if(CU?.role==='adviser'){
-    const key=subj+'_'+sect+'_T'+CQ;
-    el.value=(gradeCache[key]||{})[i]||'';
-    toast('🔒 Grade editing is restricted to the assigned subject teacher.', true);
-    return;
-  }
   const raw=el.value;
   const v=parseFloat(raw);
   const key=subj+'_'+sect+'_T'+CQ;
   const oldVal=(gradeCache[key]||{})[i]||'';
 
-  // Range validation: 60–100
+  // BUG-002 FIX: enforce 60–100 range
   if(raw!==''&&!isNaN(v)){
     if(v<60||v>100){
-      el.style.borderColor='var(--red)'; el.style.background='var(--red-bg)';
-      el.title='Grade must be 60–100';
+      el.style.borderColor='var(--red)';
+      el.style.background='var(--red-bg)';
+      el.title='Grade must be between 60 and 100';
       const r=document.getElementById('rmk_'+i);
       if(r){r.className='badge badge-red';r.textContent='Invalid';}
-      updateEncStatus(); return;
-    } else { el.style.borderColor=''; el.style.background=''; el.title=''; }
-  } else { el.style.borderColor=''; el.style.background=''; el.title=''; }
+      updateEncStatus();
+      return; // don't update cache or audit with invalid value
+    } else {
+      el.style.borderColor='';
+      el.style.background='';
+      el.title='';
+    }
+  } else {
+    el.style.borderColor='';
+    el.style.background='';
+    el.title='';
+  }
 
   el.className='grade-input '+(isNaN(v)?'':(v>=75?'passing':'failing'));
   const r=document.getElementById('rmk_'+i);
-  if(r){
-    r.className='badge '+(isNaN(v)?'badge-gray':(v>=75?'badge-green':'badge-red'));
-    r.textContent=isNaN(v)?'—':(v>=75?'Passed':'Failed');
-  }
-  // Cache live update
-  if(!gradeCache[key]) gradeCache[key]={};
-  if(raw===''||isNaN(v)) delete gradeCache[key][i]; else gradeCache[key][i]=raw;
-  // Audit on actual change
+  r.className='badge '+(isNaN(v)?'badge-gray':(v>=75?'badge-green':'badge-red'));
+  r.textContent=isNaN(v)?'—':(v>=75?'Passed':'Failed');
+  // Audit log on grade change
   if(!isNaN(v)&&oldVal&&String(oldVal)!==String(v)){
-    logAudit('GRADE CHANGE',`${studentName} (${lrn}): T${CQ} changed ${oldVal}→${v} in ${subj} — ${sect}`);
+    logAudit('GRADE CHANGE',`${studentName} (${lrn}): Q${CQ} grade changed from ${oldVal} to ${v} in ${subj} — ${sect}`);
   }
   updateEncStatus();
 }
@@ -3822,31 +3331,27 @@ function updateEncStatus(){
 }
 
 function autoFill(){
-  if(isTermLocked(CQ)){ toast(`🔒 Term ${CQ} is locked — auto-fill blocked.`, true); return; }
-  if(!isAdmin()){ toast('Auto-fill is for admin demo only.', true); return; }
   const isMapeh=document.querySelectorAll('[id^="ma_"]').length>0;
   if(isMapeh){
-    document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach(inp=>{
-      if(inp.readOnly) return;
-      inp.value=Math.floor(Math.random()*26)+75;
+    document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach((inp,i)=>{
+      const g=Math.floor(Math.random()*26)+75;
+      inp.value=g;
     });
+    // Trigger update for all rows
     document.querySelectorAll('[id^="ma_"]').forEach(inp=>{
       const idx=inp.id.split('_')[1];
       mapehChanged(+idx,'','','');
     });
   } else {
     document.querySelectorAll('.grade-input').forEach((inp,i)=>{
-      if(inp.readOnly) return;
-      inp.value=Math.floor(Math.random()*26)+75;
+      const g=Math.floor(Math.random()*26)+75;
+      inp.value=g;
       gradeChanged(inp,i,'','','','');
     });
   }
 }
 
 function clearGrades(){
-  if(isTermLocked(CQ)){ toast(`🔒 Term ${CQ} is locked — cannot clear grades.`, true); return; }
-  if(CU?.role==='adviser'){ toast('🔒 Grade editing is restricted to the assigned subject teacher.', true); return; }
-  if(!confirm('Clear all grades currently shown in the table?')) return;
   const isMapeh=document.querySelectorAll('[id^="ma_"]').length>0;
   if(isMapeh){
     document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach(inp=>{inp.value='';inp.className='grade-input';inp.style.borderColor='';inp.style.background='';});
@@ -3861,16 +3366,6 @@ function clearGrades(){
 function selectQtr(q,el){CQ=Math.min(q,3);document.querySelectorAll('.qtr-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');loadGradeTable();}
 
 async function doSaveGrades(){
-  // ── HARD SERVER-SIDE LOCK CHECKS (cannot be bypassed by UI) ──────
-  if(isTermLocked(CQ)){
-    toast(`🔒 Term ${CQ} is locked — grading period ended ${TERM_DATES[CQ]?.end}. No changes allowed.`, true);
-    logAudit('BLOCKED SAVE', `Attempted grade save on locked Term ${CQ} by ${CU?.name||'unknown'}`);
-    return;
-  }
-  if(CU?.role==='adviser'){
-    toast('🔒 Grade saving is restricted to the assigned subject teacher.', true);
-    return;
-  }
   const subj=document.getElementById('enc-subject').value;
   const sect=document.getElementById('enc-section').value;
   const isMapeh = subj.replace(/_\d+$/,'') === 'mapeh';
@@ -4000,19 +3495,15 @@ function buildClassList(){
     // Adviser-Teacher: class list = advisory section only (not teaching sections)
     // Teacher: class list = all assigned sections
     if(isAdviser()){
-      const advSect = getAdvisorySection();
+      const advSect = getAdvisorySection(); // e.g. "G7-DECISIVE"
       if(advSect){
-        list = studentsCache.filter(s=>
-          sectionsMatch(s.section, advSect, s.grade) &&
-          (s.status||'Enrolled') !== 'Dropped'
-        );
+        // Use sectionsMatch which handles G7-DECISIVE vs section="DECISIVE" grade="7"
+        list = studentsCache.filter(s=>sectionsMatch(s.section, advSect, s.grade));
         titleSuffix = ' — ' + advSect.replace(/G(\d+)-/,'Grade $1 – ');
       } else {
+        // Pure adviser with no advisory_section set — fall back to sections array
         const assignedSects = CU?.sections||[];
-        list = studentsCache.filter(s=>
-          assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) &&
-          (s.status||'Enrolled') !== 'Dropped'
-        );
+        list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)));
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — No section';
       }
     } else {
@@ -4022,83 +3513,26 @@ function buildClassList(){
         titleSuffix = ' — No section assigned';
       } else {
         list = studentsCache.filter(s =>
-          assignedSects.some(sect => sectionsMatch(s.section, sect, s.grade)) &&
-          (s.status||'Enrolled') !== 'Dropped'
+          assignedSects.some(sect => sectionsMatch(s.section, sect, s.grade))
         );
         titleSuffix = list[0] ? ' — Grade '+list[0].grade+' '+list[0].section : ' — '+assignedSects[0];
       }
     }
-    // Deduplicate by LRN across all paths
-    const _clSeen = new Set();
-    list = list.filter(s=>{ if(_clSeen.has(s.lrn)) return false; _clSeen.add(s.lrn); return true; });
-    // NOTE: No background auto-refresh here — it caused other views (Students, Encode Grades,
-    // Dashboard) to go blank because studentsCache was replaced without rebuilding those views.
-    // Use the explicit 🔄 Refresh button below instead.
   }
 
   const t = document.getElementById('classlist-title');
   if(t) t.textContent = 'Class List' + titleSuffix;
-
-  // ── Refresh button for non-admin users ────────────────────────────
-  const clActions = document.getElementById('cl-actions');
-  if(clActions && r !== 'admin'){
-    if(!clActions.querySelector('.cl-refresh-btn')){
-      const rb = document.createElement('button');
-      rb.className = 'btn btn-sm btn-outline cl-refresh-btn no-print';
-      rb.title = 'Pull latest students from cloud';
-      rb.innerHTML = '🔄 Refresh';
-      rb.onclick = async () => {
-        if(!isOnline){ toast('No internet connection', true); return; }
-        rb.disabled = true; rb.textContent = '⏳ Loading...';
-        try{
-          const cloudData = (await fetchAllStudentsPaginated()).map(normalizeStudent);
-          if(cloudData && cloudData.length){
-            // Merge: cloud is authoritative; keep local-only students not yet synced
-            const cloudLRNs = new Set(cloudData.map(x=>x.lrn));
-            const localOnly = studentsCache.map(normalizeStudent).filter(x=>!cloudLRNs.has(x.lrn));
-            studentsCache = [...cloudData, ...localOnly];
-            lsSet('students', studentsCache);
-            _searchIndex = null;
-            // Rebuild ALL views that depend on studentsCache
-            buildClassList();
-            buildStudentsList();
-            buildReport();
-            updateStats();
-            populateSectionDropdowns();
-            populateDropdowns();
-            if(typeof loadGradeTable === 'function') loadGradeTable();
-            toast('✅ Class list updated — ' + studentsCache.length + ' student(s) loaded');
-          } else {
-            toast('⚠️ No students found in cloud — showing local data', true);
-          }
-        }catch(e){ toast('Refresh failed: ' + e.message, true); }
-        finally{ rb.disabled=false; rb.innerHTML='🔄 Refresh'; }
-      };
-      clActions.appendChild(rb);
-    }
-  }
-
   const tb = document.getElementById('classlist-tbody'); if(!tb) return;
   if(!list.length){
-    tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:2rem">No students found.<br><small>Try tapping 🔄 Refresh if you expect students here.</small></td></tr>';
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:2rem">No students found.</td></tr>';
     return;
   }
   list.sort((a,b)=>a.name.localeCompare(b.name));
   tb.innerHTML = list.map((s,i)=>`
-    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${esc(s.name)}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td><button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button></td></tr>`).join('');
+    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${s.name}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td><button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button></td></tr>`).join('');
 }
 
-function fmtDate(d){
-  if(!d) return '—';
-  try{
-    // Handle ISO date strings (YYYY-MM-DD), JS date strings, and timestamps
-    // Append T00:00:00 only for plain date strings to avoid timezone shift
-    const iso = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d+'T00:00:00' : d;
-    const dt = new Date(iso);
-    if(isNaN(dt.getTime())) return d; // return raw value if unparseable
-    return dt.toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'});
-  }catch{ return d||'—'; }
-}
+function fmtDate(d){if(!d)return'—';try{return new Date(d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})}catch{return d}}
 
 // ── DROPDOWNS ──────────────────────────────────────────────────────
 // ── POPULATE SF9 / SF10 DROPDOWNS ────────────────────────────────────
@@ -4263,7 +3697,9 @@ async function renderSF9(){
   const sectionKey = 'G'+(s.grade||'10')+'-'+s.section.toUpperCase();
 
 
-  // ── Attendance — from saved records, excluding suspended/holiday days ──
+  // ── Attendance — fetch from cloud then read records ──────────────
+  if(isOnline) await fetchAttendanceForSection(sectionKey);
+
   const months=['jun','jul','aug','sep','oct','nov','dec','jan','feb','mar'];
   const mNums=['06','07','08','09','10','11','12','01','02','03'];
   const mYears=['2026','2026','2026','2026','2026','2026','2026','2027','2027','2027'];
@@ -4273,21 +3709,32 @@ async function renderSF9(){
     const monthStr=yr+'-'+mn;
     const daysInMonth=new Date(+yr,+mn,0).getDate();
     const suspDays=getSuspendedDays(monthStr).map(d=>d.date);
+
+    // Count school days (Mon-Fri, non-suspended)
+    // and collect att keys for this month+section
     let sd=0;
+    const amKeysMonth=[];
     for(let d=1;d<=daysInMonth;d++){
       const dateStr=monthStr+'-'+String(d).padStart(2,'0');
       const dow=new Date(yr,mn-1,d).getDay();
       if(dow===0||dow===6) continue;
+      if(!isWithinSY(dateStr)) continue; // exclude days outside official SY class period
       if(suspDays.includes(dateStr)) continue;
       const amKey=dateStr+'_'+sectionKey+'_AM';
-      if(attCache[amKey]||lsGet('att_'+amKey)) sd++;
+      const rec=attCache[amKey]||lsGet('att_'+amKey)||null;
+      if(rec){ sd++; amKeysMonth.push(amKey); }
     }
-    const amKeys=Object.keys(localStorage)
-      .filter(k=>k.startsWith(LS+'att_'+yr+'-'+mn)&&k.endsWith('_'+sectionKey+'_AM'))
-      .map(k=>k.slice((LS+'att_').length))
-      .filter(k=>{ const ds=k.split('_')[0]; return !suspDays.includes(ds); });
-    const dp=amKeys.reduce((a,k)=>{const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];return a+(v==='P'?1:0)},0);
-    const da=amKeys.reduce((a,k)=>{const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];return a+(v==='A'?1:0)},0);
+
+    // Count present and absent for this student
+    const dp=amKeysMonth.reduce((a,k)=>{
+      const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];
+      return a+(v==='P'?1:0);
+    },0);
+    const da=amKeysMonth.reduce((a,k)=>{
+      const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];
+      return a+(v==='A'?1:0);
+    },0);
+
     // FIX: show 0 (not blank) when school was in session but student had no absences
     // Only leave blank for months where no attendance was recorded at all (sd=0)
     document.getElementById('sf9-sd-'+mo).textContent = sd>0 ? sd : '';
@@ -4310,70 +3757,46 @@ async function renderSF9(){
 
   let sum=0, cnt=0;
 
-  // Helper: blank on print for missing values
+  // Helper: blank on print for missing values (never show '—' on printed form)
   const cellVal = (v,q) => {
     if(q > qtr) return '';
     if(v===null||v===undefined) return '<span class="grade-dash no-print-val">—</span>';
     return v;
   };
 
-  // F-10: detect subjects with incomplete terms (shown at Term 3 view)
-  const incompleteSubjs = [];
-
   document.getElementById('sf9-grade-rows').innerHTML=SUBJS_SF9.map(row=>{
+    // Sub-rows (Music & Arts, PE & Health) share the same MAPEH grade data (idx:7)
     const gData = encodedGrades[row.idx] || {};
-    // q1/q2/q3 — correct variable names matching getStudentGradesFromCache output
-    const q1=gData.t1, q2=gData.t2, q3=gData.t3;
+    const q1=gData.t1, q2=gData.t2, q3=gData.t3, q4=gData.t4;
     const final = gData.final;
 
-    // F-10: count filled terms to detect partial finals
-    const filledTerms = [q1,q2,q3].filter(v=>v!==null&&v!==undefined).length;
-    const finalIsPending = qtr===3 && filledTerms>0 && filledTerms<3 && !row.sub;
-    if(finalIsPending) incompleteSubjs.push(row.name);
-
     const finalDisplay = final!==null && final!==undefined
-      ? finalIsPending
-        ? `<strong style="color:#b45309" title="Based on ${filledTerms}/3 terms — not yet official">${final}*</strong>`
-        : `<strong>${final}</strong>`
+      ? `<strong>${final}</strong>`
       : '<span class="grade-dash no-print-val">—</span>';
 
     const rem = final!==null && final!==undefined
-      ? finalIsPending
-        ? '<span style="color:#b45309;font-size:9px">Pending</span>'
-        : (final>=75?'Passed':'<span style="color:red">Failed</span>')
+      ? (final>=75?'Passed':'<span style="color:red">Failed</span>')
       : '<span class="no-print-val">—</span>';
 
-    // Only add non-pending finals to GWA (main subjects only, not sub-rows)
-    if(final!==null && final!==undefined && !row.sub && !finalIsPending){ sum+=final; cnt++; }
+    // Only add to GWA for main subjects (not sub-rows)
+    if(final!==null && final!==undefined && !row.sub){ sum+=final; cnt++; }
 
+    // Sub-rows: italic, indented label — same grade columns as MAPEH
     const nameCell = row.sub
       ? `<td style="border:1px solid #000;padding:3px 5px;font-style:italic;padding-left:18px;font-size:9px">${row.name}</td>`
       : `<td style="border:1px solid #000;padding:3px 5px">${row.name}</td>`;
 
     return`<tr>
       ${nameCell}
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q1,1)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q2,2)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(q3,3)}</td>
-      <td style="border:1px solid #000;padding:3px;text-align:center"></td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t1,1)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t2,2)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t3,3)}</td>
+      <td style="border:1px solid #000;padding:3px;text-align:center">${cellVal(t4,4)}</td>
       <td style="border:1px solid #000;padding:3px;text-align:center">${finalDisplay}</td>
       <td style="border:1px solid #000;padding:3px;text-align:center">${rem}</td>
     </tr>`;
   }).join('');
 
-  // F-10: show incomplete-terms warning above SF9
-  const oldWarn = document.getElementById('sf9-incomplete-warning');
-  if(oldWarn) oldWarn.remove();
-  if(incompleteSubjs.length && qtr===3){
-    const warn = document.createElement('div');
-    warn.id = 'sf9-incomplete-warning';
-    warn.className = 'no-print';
-    warn.style.cssText = 'margin-bottom:10px;padding:10px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e;';
-    warn.innerHTML = `⚠️ <strong>Incomplete term grades:</strong> <strong>${incompleteSubjs.join(', ')}</strong> are missing one or more terms. `
-      + `Final Grade (marked with *) is provisional. Please complete all 3 terms before printing.`;
-    const sf9Out = document.getElementById('sf9-output');
-    if(sf9Out) sf9Out.prepend(warn);
-  }
   if(cnt>0){
     const avg=(sum/cnt).toFixed(2);
     document.getElementById('sf9-avg').textContent=avg;
@@ -4391,7 +3814,7 @@ async function renderSF9(){
   showCoreValuesSaveBtn(isAdviser());
 }
 
-function renderSF2(){
+async function renderSF2(){
   const monthVal = document.getElementById('sf2-month')?.value||'2026-07';
   const [yr, mo] = monthVal.split('-').map(Number);
   const monthStr = yr+'-'+String(mo).padStart(2,'0');
@@ -4435,6 +3858,9 @@ function renderSF2(){
     if(suspBtn) suspBtn.style.display='none';
   }
 
+  // FIX: fetch attendance from cloud before rendering so SF2 always has latest data
+  const sectionKeyForFetch = resolvedGrade ? 'G'+resolvedGrade+'-'+sect : sect;
+
   if(!sect){
     document.getElementById('sf2-output').innerHTML='<div style="text-align:center;padding:3rem;color:var(--gray-400);font-size:13px">📋 Select a section to generate the SF2.</div>';
     return;
@@ -4464,6 +3890,9 @@ function renderSF2(){
   const girls = students.filter(s=>s.sex==='F');
   const sectionKey = resolvedGrade ? 'G'+resolvedGrade+'-'+sect : 'G10-'+sect;
 
+  // ── Fetch attendance from cloud for this section+month ──────────────
+  if(isOnline) await fetchAttendanceForSection(sectionKey, monthStr);
+
   // Build school days (Mon-Fri) excluding weekends AND suspended/holiday days
   const daysInMonth = new Date(yr,mo,0).getDate();
   const suspDays = getSuspendedDays(monthStr).map(d=>d.date);
@@ -4477,6 +3906,7 @@ function renderSF2(){
     const dow=dt.getDay();
     const dateStr=monthStr+'-'+String(d).padStart(2,'0');
     if(dow===0||dow===6) continue; // weekend
+    if(!isWithinSY(dateStr)) continue; // outside official SY class period (before Jun 8, 2026 or after Apr 8, 2027)
     if(suspDays.includes(dateStr)){
       suspendedInMonth.push({date:d,dateStr,day:shortDay[dow]});
       continue; // excluded from school days
@@ -4508,6 +3938,7 @@ function renderSF2(){
     const dt=new Date(yr,mo-1,d);const dow=dt.getDay();
     if(dow===0||dow===6)continue;
     const dateStr=monthStr+'-'+String(d).padStart(2,'0');
+    if(!isWithinSY(dateStr))continue; // exclude days outside official SY class period
     allWeekdays.push({date:d,dateStr,day:shortDay[dow],susp:suspDays.includes(dateStr)});
   }
 
@@ -4895,11 +4326,10 @@ function initSF2View(){
 async function fetchGradesForSection(sectionKey){
   if(!isOnline) return;
   try{
-    // grade_key format: subjId_G10-SECTION_T1 — filter by section substring
-    const sn = sectionKey.toUpperCase(); // e.g. "G10-STEADFAST"
+    const sn = sectionKey.toUpperCase();
     const {data, error} = await sb.from('grade_records')
       .select('grade_key, data')
-      .like('grade_key', '%_'+sn+'_%'); // matches any subject & quarter for this section
+      .like('grade_key', '%_'+sn+'_%');
     if(error||!data||!data.length) return;
     let loaded = 0;
     data.forEach(rec=>{
@@ -4909,18 +4339,39 @@ async function fetchGradesForSection(sectionKey){
         loaded++;
       }
     });
-    console.log(`Grade Summary: loaded ${loaded} grade records for ${sectionKey} from cloud`);
-  } catch(e){
-    console.warn('fetchGradesForSection error:', e);
-  }
+    console.log(`Grades: loaded ${loaded} records for ${sectionKey} from cloud`);
+  } catch(e){ console.warn('fetchGradesForSection error:', e); }
+}
+
+// Fetch all attendance records for a section (and optionally a specific month)
+// att_key format: 2026-06-18_G7-STEADFAST_AM
+async function fetchAttendanceForSection(sectionKey, monthStr){
+  if(!isOnline) return;
+  try{
+    const sk = sectionKey.toUpperCase();
+    // If monthStr given (e.g. "2026-06"), filter to that month; otherwise fetch all
+    const pattern = monthStr ? monthStr+'%_'+sk+'_%' : '%_'+sk+'_%';
+    const {data, error} = await sb.from('attendance_records')
+      .select('att_key, data')
+      .like('att_key', pattern);
+    if(error||!data||!data.length) return;
+    let loaded = 0;
+    data.forEach(rec=>{
+      if(rec.data && rec.att_key){
+        attCache[rec.att_key] = rec.data;
+        lsSet('att_'+rec.att_key, rec.data);
+        loaded++;
+      }
+    });
+    console.log(`Attendance: loaded ${loaded} records for ${sectionKey} from cloud`);
+  } catch(e){ console.warn('fetchAttendanceForSection error:', e); }
 }
 
 async function buildReport(){
   let sect, list;
   const reportSectEl = document.getElementById('report-section-filter');
   const reportQtrEl  = document.getElementById('report-qtr-filter');
-  const selectedQtr = reportQtrEl?.value || String(CQ||1);
-  const qtr = parseInt(selectedQtr,10) || (CQ||1); // default to current term for consistency
+  const qtr = reportQtrEl ? +reportQtrEl.value||0 : 0; // 0 = all quarters (GWA)
 
   if(isAdmin() && reportSectEl?.value){
     sect = reportSectEl.value;
@@ -4963,28 +4414,15 @@ async function buildReport(){
 
   // ── CLOUD GRADE FETCH ──────────────────────────────────────────────
   // Fetches ALL subject grades for this section from Supabase into gradeCache
-  // This ensures adviser/admin sees grades from ALL teachers, not just their own localStorage
+  // This ensures adviser sees grades from ALL teachers, not just their own localStorage
   if(sect && sect !== 'All Sections'){
     const g0 = (list[0]?.grade||'');
     const sectKey = sect.match(/^G\d+-/) ? sect.toUpperCase() : 'G'+g0+'-'+sect.replace(/^G\d+-/,'').toUpperCase();
     await fetchGradesForSection(sectKey);
   } else if(isAdmin() && isOnline){
-    // Paginated fetch — Supabase caps at 1000 rows by default
-    // A busy school can have thousands of grade_key records (subjects × sections × terms)
     try{
-      const PAGE_SIZE = 1000;
-      let grPage = 0, grKeepGoing = true;
-      while(grKeepGoing){
-        const from = grPage * PAGE_SIZE;
-        const to   = from + PAGE_SIZE - 1;
-        const {data, error} = await sb.from('grade_records')
-          .select('grade_key, data')
-          .range(from, to);
-        if(error || !data || data.length === 0){ grKeepGoing = false; break; }
-        data.forEach(rec=>{ if(rec.data && rec.grade_key) gradeCache[rec.grade_key]=rec.data; });
-        if(data.length < PAGE_SIZE) grKeepGoing = false;
-        else grPage++;
-      }
+      const {data} = await sb.from('grade_records').select('grade_key, data');
+      if(data) data.forEach(rec=>{ if(rec.data) gradeCache[rec.grade_key]=rec.data; });
     }catch(e){ console.warn('fetchAllGrades error:',e); }
   }
 
@@ -5010,10 +4448,10 @@ async function buildReport(){
     } else if(!qtrWrap.innerHTML.trim() || qtrWrap.querySelector('span')){
       // Show JHS quarter dropdown (rebuild if it was replaced by SHS label)
       qtrWrap.innerHTML = `<select class="form-select no-print" id="report-qtr-filter" onchange="buildReport()" style="width:160px;margin-right:8px">
-        <option value="0" ${selectedQtr==='0'?'selected':''}>All Terms Average (GWA)</option>
-        <option value="1" ${selectedQtr==='1'?'selected':''}>Term 1</option>
-        <option value="2" ${selectedQtr==='2'?'selected':''}>Term 2</option>
-        <option value="3" ${selectedQtr==='3'?'selected':''}>Term 3</option>
+        <option value="0">All Terms (GWA)</option>
+        <option value="1">Term 1</option>
+        <option value="2">Term 2</option>
+        <option value="3">Term 3</option>
       </select>`;
     }
   }
@@ -5031,25 +4469,12 @@ async function buildReport(){
     }
   }
 
-  // Adviser / Admin info banner
+  // Adviser info banner — shown for adviser/adviser-teacher
   const advBanner = document.getElementById('report-adviser-banner');
   if(advBanner){
-    const _now = new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
-    if(isAdmin()){
-      // Admin always gets the banner with a Refresh button so they can re-pull cloud grades
+    if(isAdviser() && sect !== 'All Sections'){
       advBanner.style.display = 'flex';
-      advBanner.innerHTML = `
-        <span style="font-size:18px">🏫</span>
-        <div style="flex:1">
-          <strong>${CU.name}</strong> — ${CU.label}<br>
-          <span style="font-size:12px;opacity:0.85">Viewing: ${advSectLabel} &nbsp;·&nbsp; S.Y. ${SY}</span>
-        </div>
-        <div style="text-align:right;font-size:11px;opacity:0.8;margin-right:8px">
-          ☁️ Grades pulled from cloud<br>Last refreshed: ${_now}
-        </div>
-        <button class="btn btn-sm no-print" onclick="buildReport()" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4)">🔄 Refresh</button>`;
-    } else if(isAdviser() && sect !== 'All Sections'){
-      advBanner.style.display = 'flex';
+      const _now = new Date().toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
       advBanner.innerHTML = `
         <span style="font-size:18px">👨‍🏫</span>
         <div style="flex:1">
@@ -5066,49 +4491,7 @@ async function buildReport(){
   }
 
   const isSHSReport = false; // All grades use T1/T2/T3 now
-  let subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
-  const classifyMapehSubject = (subj) => {
-    const idStr = String(subj?.id||'').toLowerCase();
-    const idToken = idStr.split('_')[0];
-    const code = String(subj?.code||'').toLowerCase().trim();
-    const name = String(subj?.name||'').toLowerCase().trim();
-    if(idStr.includes('mapeh') || code.includes('mapeh') || name.includes('mapeh')) return 'mapeh';
-    if(idToken==='ma' || idStr.includes('music') || code.includes('mus') || (name.includes('music') && name.includes('arts'))) return 'ma';
-    if(idToken==='peh' || idStr.includes('health') || ((name.includes('pe')||code.includes('pe')) && name.includes('health')) || code.includes('health')) return 'peh';
-    return null;
-  };
-
-  const mapehIdx = subjects.findIndex(s=>classifyMapehSubject(s)==='mapeh');
-  let maSubjectRef = subjects.find(s=>classifyMapehSubject(s)==='ma') || null;
-  let pehSubjectRef = subjects.find(s=>classifyMapehSubject(s)==='peh') || null;
-  if(mapehIdx>=0){
-    const inserts=[];
-    if(!maSubjectRef){
-      // virtualType:'ma' — lookup uses student's own grade at render time
-      maSubjectRef = {id:'ma_'+grade, name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdx].order||99)+0.1, virtualType:'ma'};
-      inserts.push(maSubjectRef);
-    } else {
-      // Existing configured MA subject — mark so render knows to use student grade
-      maSubjectRef = {...maSubjectRef, virtualType:'ma'};
-      subjects = subjects.map(s=>classifyMapehSubject(s)==='ma' ? {...s, virtualType:'ma'} : s);
-    }
-    if(!pehSubjectRef){
-      pehSubjectRef = {id:'peh_'+grade, name:'PE & Health', code:'PE & HEALTH', order:(subjects[mapehIdx].order||99)+0.2, virtualType:'peh'};
-      inserts.push(pehSubjectRef);
-    } else {
-      pehSubjectRef = {...pehSubjectRef, virtualType:'peh'};
-      subjects = subjects.map(s=>classifyMapehSubject(s)==='peh' ? {...s, virtualType:'peh'} : s);
-    }
-    // Mark MAPEH entry as computed average
-    subjects = subjects.map(s=>
-      classifyMapehSubject(s)==='mapeh' ? {...s, virtualType:'mapehAvg'} : s
-    );
-    // Insert MA then PEH immediately AFTER the MAPEH(avg) column
-    // Result: MAPEH | MUS&ARTS | PE & HEALTH  ✓
-    const insertAfter = subjects.findIndex(s=>s.virtualType==='mapehAvg');
-    if(inserts.length && insertAfter>=0) subjects.splice(insertAfter+1, 0, ...inserts);
-    else if(inserts.length) subjects.splice(mapehIdx+1, 0, ...inserts);
-  }
+  const subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
 
   // SHS with no subjects configured yet — show clear guidance
   if(isSHSReport && subjects.length===0){
@@ -5155,64 +4538,26 @@ async function buildReport(){
 
     if(false){ // SHS unified with JHS
     } else {
-      const getStoredTermGrade = (subjId, q) => {
-        const key1 = subjId+'_'+sk+'_T'+q;
-        const key2 = subjId+'_'+(s.grade||grade)+'_'+sk+'_T'+q;
-        const recCandidates = [
-          gradeCache[key1],
-          lsGet('gr_'+key1),
-          gradeCache[key2],
-          lsGet('gr_'+key2),
-        ];
-        const rec = recCandidates.find(r=>r && typeof r==='object' && Object.keys(r).length>0)
-          || recCandidates.find(r=>r && typeof r==='object')
-          || {};
-        const v = rec[studentIdx];
-        return (v!==undefined&&v!=='') ? parseFloat(v) : null;
-      };
-
-      // Use student's OWN grade for MA/PEH key — critical for "All Sections" admin view
-      // where multiple grade levels appear and the outer `grade` var is from list[0] only
-      const studentGrade = s.grade || grade;
-      const maId  = 'ma_'  + studentGrade;
-      const pehId = 'peh_' + studentGrade;
-
       vals = subjects.map(subj=>{
         const qtrs = qtr>0 ? [qtr] : [1,2,3];
-        const termGrades = [];
+        const grades = [];
         for(const q of qtrs){
-          let termVal = null;
-          if(subj.virtualType==='mapehAvg'){
-            // MAPEH column = average of MUS&ARTS + PE&HEALTH for THIS student's grade
-            const ma  = getStoredTermGrade(maId,  q);
-            const peh = getStoredTermGrade(pehId, q);
-            termVal = (ma!==null&&!isNaN(ma)&&peh!==null&&!isNaN(peh)) ? Math.round((ma+peh)/2)
-                    : (ma!==null&&!isNaN(ma))  ? ma
-                    : (peh!==null&&!isNaN(peh)) ? peh
-                    : null;
-          } else if(subj.virtualType==='ma'){
-            // MUS&ARTS column — always keyed by student's own grade
-            termVal = getStoredTermGrade(maId, q);
-          } else if(subj.virtualType==='peh'){
-            // PE & HEALTH column — always keyed by student's own grade
-            termVal = getStoredTermGrade(pehId, q);
-          } else {
-            termVal = getStoredTermGrade(subj.id, q);
-          }
-          // Only push valid numeric values — guard against NaN from bad stored data
-          if(termVal!==null && !isNaN(termVal)) termGrades.push(termVal);
+          const key1 = subj.id+'_'+sk+'_T'+q;
+          const key2 = subj.id+'_'+grade+'_'+sk+'_T'+q;
+          const rec  = gradeCache[key1]||lsGet('gr_'+key1)||gradeCache[key2]||lsGet('gr_'+key2)||{};
+          const v = rec[studentIdx];
+          if(v!==undefined&&v!=='') grades.push(parseFloat(v));
         }
-        return termGrades.length>0 ? Math.round(termGrades.reduce((a,b)=>a+b,0)/termGrades.length) : null;
+        return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
       });
-      // Exclude nulls AND NaN from GWA computation
-      const filled = vals.filter(v=>v!==null && !isNaN(v));
+      const filled = vals.filter(v=>v!==null);
       avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
-      passing = avg!=='—' && !isNaN(+avg) && +avg>=75;
+      passing = avg!=='—' && +avg>=75;
     }
 
     return`<tr>
       <td>${i+1}</td><td><strong>${s.name}</strong></td>
-      ${vals.map(v=>`<td style="text-align:center">${(v!==null && !isNaN(v))?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
+      ${vals.map(v=>`<td style="text-align:center">${v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
       <td style="text-align:center;background:${isSHSReport?'#fefce8':''}"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
       <td>${avg!=='—'?honorsBadge(avg):''}</td>
     </tr>`;
@@ -5220,28 +4565,19 @@ async function buildReport(){
 }
 
 // ── MPS & PROFICIENCY LEVEL REPORT ────────────────────────────────
-// True MPS (Tab 2 raw scores): (Σ raw scores) ÷ (n × items) × 100
-// Approx MPS (Tab 1 grades): reverse-transmute the mean grade back to 0–100 %
-//   Formula: approxMPS = (meanGrade − 40) ÷ 60 × 100  [inverse of DepEd transmutation]
-// PL = (students with grade ≥ 75) ÷ total takers × 100
-// Mastery descriptors are applied to the MPS % value — NOT the transmuted grade
-
-// Reverse-transmute a DepEd grade (60–100) to approximate raw MPS % (0–100)
-function reverseTransmute(grade){
-  const g = parseFloat(grade);
-  if(isNaN(g)) return null;
-  return Math.max(0, Math.min(100, ((g - 40) / 60) * 100));
-}
+// MPS = (Mean Score / 100) × 100 = class average (grades already on 100-pt scale)
+// PL  = (Students with grade ≥ 75 / Total takers) × 100
+// Mastery levels per DepEd standard
 
 function getMasteryLevel(mps){
   const v = parseFloat(mps);
-  if(v>=96) return {label:'Mastered',                    color:'#14532d', bg:'#dcfce7'};
-  if(v>=86) return {label:'Closely Approximating Mastery',color:'#1e40af', bg:'#dbeafe'};
-  if(v>=66) return {label:'Moving Towards Mastery',       color:'#065f46', bg:'#d1fae5'};
-  if(v>=35) return {label:'Average Mastery',              color:'#92400e', bg:'#fef3c7'};
-  if(v>=15) return {label:'Low Mastery',                  color:'#b45309', bg:'#fff7ed'};
-  if(v>=5)  return {label:'Very Low Mastery',             color:'#dc2626', bg:'#fee2e2'};
-  return          {label:'Absolutely No Mastery',         color:'#7f1d1d', bg:'#fca5a5'};
+  if(v>=96) return {label:'Mastered',           color:'#14532d', bg:'#dcfce7'};
+  if(v>=86) return {label:'Closely Approximating Mastery', color:'#1e40af', bg:'#dbeafe'};
+  if(v>=66) return {label:'Moving Towards Mastery',        color:'#065f46', bg:'#d1fae5'};
+  if(v>=35) return {label:'Average Mastery',               color:'#92400e', bg:'#fef3c7'};
+  if(v>=15) return {label:'Low Mastery',                   color:'#b45309', bg:'#fff7ed'};
+  if(v>=5)  return {label:'Very Low Mastery',              color:'#dc2626', bg:'#fee2e2'};
+  return       {label:'Absolutely No Mastery',             color:'#7f1d1d', bg:'#fca5a5'};
 }
 
 async function buildMPSReport(){
@@ -5336,12 +4672,7 @@ async function buildMPSReport(){
   }
 
   // ── Get subjects ──────────────────────────────────────────────────
-  // Start with configured subjects for this grade, then merge any "orphan"
-  // subject IDs found in saved grade keys for this section/term.
-  // This prevents teacher-saved grades from disappearing in admin/adviser MPS
-  // when subject IDs differ across devices/accounts.
   let subjects = getSubjectsForGrade(grade).filter(s=>!s.subitem);
-  const subjectById = new Map(subjects.map(s=>[s.id, s]));
 
   // For teacher role: filter to only their assigned subjects for this section
   if(role==='teacher'){
@@ -5353,179 +4684,44 @@ async function buildMPSReport(){
     }
   }
 
-  // ── MAPEH classification — shared with buildReport ────────────────
-  const classifyMapehSubjectMPS = (subj) => {
-    const idStr  = String(subj?.id||'').toLowerCase();
-    const idTok  = idStr.split('_')[0];
-    const code   = String(subj?.code||'').toLowerCase().trim();
-    const name   = String(subj?.name||'').toLowerCase().trim();
-    if(idStr.includes('mapeh')||code.includes('mapeh')||name.includes('mapeh')) return 'mapeh';
-    if(idTok==='ma'||idStr.includes('music')||code.includes('mus')||(name.includes('music')&&name.includes('arts'))) return 'ma';
-    if(idTok==='peh'||idStr.includes('health')||((name.includes('pe')||code.includes('pe'))&&name.includes('health'))||code.includes('health')) return 'peh';
-    return null;
-  };
-
-  // Merge subject IDs discovered from grade cache + localStorage keys.
-  // Key format: {subjId}_{section}_T{term}
-  const suffix = `_${sect}_T${term}`;
-  const discoveredIds = new Set();
-  const tryAddDiscoveredId = (k) => {
-    if(!k || !k.endsWith(suffix)) return;
-    const subjId = k.slice(0, -suffix.length);
-    if(subjId) discoveredIds.add(subjId);
-  };
-
-  Object.keys(gradeCache||{}).forEach(tryAddDiscoveredId);
-  for(let i=0;i<localStorage.length;i++){
-    const lk = localStorage.key(i);
-    if(!lk) continue;
-    const stripped = lk.startsWith(LS) ? lk.slice(LS.length) : lk;
-    if(stripped.startsWith('gr_')) tryAddDiscoveredId(stripped.slice(3));
-  }
-
-  const canSeeAllSectionSubjects = role==='admin' || role==='adviser' || role==='adviser-teacher';
-  if(canSeeAllSectionSubjects){
-    discoveredIds.forEach(id=>{
-      if(subjectById.has(id)) return;
-      const cls = classifyMapehSubjectMPS({id});
-      // Skip if a subject of this MAPEH type already exists — prevents duplicate MA/PEH rows
-      // when both a configured subject (e.g. 'music_arts') and virtual id (e.g. 'ma_7') are present
-      if(cls==='ma'  && subjects.some(s=>classifyMapehSubjectMPS(s)==='ma'))  return;
-      if(cls==='peh' && subjects.some(s=>classifyMapehSubjectMPS(s)==='peh')) return;
-      // Give MA/PEH discovered IDs their proper display names instead of raw "Ma"/"Peh"
-      let friendly;
-      if(cls==='ma')       friendly = 'Music & Arts';
-      else if(cls==='peh') friendly = 'PE & Health';
-      else friendly = id.replace(/_\d+(_\d+)?$/,'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-      const entry = {id, name:friendly||id, code:'', order:999};
-      subjects.push(entry);
-      subjectById.set(id, entry);
-    });
-  }
-
-  subjects.sort((a,b)=> (a.order??999)-(b.order??999) || a.name.localeCompare(b.name));
-
-  // ── Apply MAPEH ordering + virtualType (mirrors buildReport logic) ─
-  const mapehIdxMPS = subjects.findIndex(s=>classifyMapehSubjectMPS(s)==='mapeh');
-  let maRef  = subjects.find(s=>classifyMapehSubjectMPS(s)==='ma')  || null;
-  let pehRef = subjects.find(s=>classifyMapehSubjectMPS(s)==='peh') || null;
-  if(mapehIdxMPS>=0){
-    const inserts=[];
-    if(!maRef){
-      maRef = {id:'ma_'+grade, name:'Music & Arts', code:'MUS&ARTS', order:(subjects[mapehIdxMPS].order||99)+0.1, virtualType:'ma'};
-      inserts.push(maRef);
-    } else {
-      maRef = {...maRef, virtualType:'ma'};
-      subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='ma' ? {...s, virtualType:'ma'} : s);
-    }
-    if(!pehRef){
-      pehRef = {id:'peh_'+grade, name:'PE & Health', code:'PE & HEALTH', order:(subjects[mapehIdxMPS].order||99)+0.2, virtualType:'peh'};
-      inserts.push(pehRef);
-    } else {
-      pehRef = {...pehRef, virtualType:'peh'};
-      subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='peh' ? {...s, virtualType:'peh'} : s);
-    }
-    subjects = subjects.map(s=>classifyMapehSubjectMPS(s)==='mapeh' ? {...s, virtualType:'mapehAvg'} : s);
-    const insertAfterIdx = subjects.findIndex(s=>s.virtualType==='mapehAvg');
-    if(inserts.length && insertAfterIdx>=0) subjects.splice(insertAfterIdx+1, 0, ...inserts);
-    else if(inserts.length) subjects.splice(mapehIdxMPS+1, 0, ...inserts);
-  }
-
   if(!subjects.length){
-    const isSHS = grade==='11'||grade==='12';
-    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">${
-      isSHS
-        ? `No subjects configured for Grade ${grade} (SHS). Go to Subject Manager to add subjects for Grade ${grade}.`
-        : `No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.`
-    }</div></div>`;
+    document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No subjects configured for Grade ${grade}. Go to Subject Manager to add subjects.</div></div>`;
     document.getElementById('mps-output').classList.remove('hidden');
     document.getElementById('mps-placeholder').classList.add('hidden');
     return;
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
-  // Returns per-student grade array WITH nulls — index matches student index exactly.
-  // Required for MAPEH avg so student i's MA and PEH grades are paired correctly.
-  const getGradePerStudent = (subjId) => {
-    if(!subjId) return students.map(()=>null);
-    const key = subjId + '_' + sect + '_T' + term;
-    const rec = gradeCache[key] || lsGet('gr_' + key) || {};
-    return students.map((_,i) => {
-      const v = rec[i];
-      return (v!==undefined && v!=='' && v!==null && !isNaN(parseFloat(v))) ? parseFloat(v) : null;
-    });
-  };
-
-  // Try multiple subject IDs in order — use whichever has at least one grade.
-  // Grades are ALWAYS stored under virtual IDs (ma_7, peh_7) regardless of what
-  // Subject Manager configured, so we try the virtual ID as well as the configured one.
-  const getGradePerStudentMulti = (...ids) => {
-    for(const id of ids.filter(Boolean)){
-      const arr = getGradePerStudent(id);
-      if(arr.some(v=>v!==null)) return arr;
-    }
-    return students.map(()=>null);
-  };
-
-  // Filtered helper (for non-MAPEH subjects) — drops nulls for MPS computation
-  const getEncodedGrades = (subjId) =>
-    getGradePerStudent(subjId).filter(v => v!==null);
-
-  const maId  = 'ma_'  + grade;
-  const pehId = 'peh_' + grade;
-
   const rows = subjects.map(subj=>{
-    let encodedGrades;
+    const gradeKey = shsSect
+      ? subj.id+'_'+sect+'_'+term
+      : subj.id+'_'+sect+'_Q'+term;
 
-    if(subj.virtualType === 'mapehAvg'){
-      // Per-student MA + PEH arrays — indices align with students array
-      // Try configured ID first, fall back to virtual ID (ma_grade / peh_grade)
-      const maPerStu  = getGradePerStudentMulti(maRef?.id,  maId);
-      const pehPerStu = getGradePerStudentMulti(pehRef?.id, pehId);
-      encodedGrades = students.map((_,i) => {
-        const ma  = maPerStu[i];
-        const peh = pehPerStu[i];
-        if(ma!==null && peh!==null) return Math.round((ma+peh)/2);
-        if(ma!==null)  return ma;
-        if(peh!==null) return peh;
-        return null;
-      }).filter(v => v!==null);
+    const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
 
-    } else if(subj.virtualType === 'ma'){
-      // Always try virtual maId — that is where doSaveGrades/mapehChanged actually writes
-      const arr = getGradePerStudentMulti(maId, maRef?.id);
-      encodedGrades = arr.filter(v => v!==null);
+    // Collect all encoded grades for this subject
+    const encodedGrades = students.map((_,i)=>{
+      const v = rec[i];
+      return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
+    }).filter(v=>v!==null);
 
-    } else if(subj.virtualType === 'peh'){
-      const arr = getGradePerStudentMulti(pehId, pehRef?.id);
-      encodedGrades = arr.filter(v => v!==null);
-
-    } else {
-      encodedGrades = getEncodedGrades(subj.id);
-    }
-
-    const takers    = encodedGrades.length;
-    const enrolled  = students.length;
-    const notEncoded = enrolled - takers;
-    if(takers===0) return {subj:subj.name, takers:0, enrolled, notEncoded, mps:null, gradeAvg:null, passed:0, failed:0, pl:null};
+    const takers = encodedGrades.length;
+    if(takers===0) return {subj:subj.name, takers:0, mps:null, passed:0, failed:0, pl:null};
 
     const totalScore = encodedGrades.reduce((a,b)=>a+b,0);
-    const meanGrade  = totalScore / takers;
-    const gradeAvg   = meanGrade.toFixed(2);
-    const approxMPS  = reverseTransmute(meanGrade);
-    const mps        = approxMPS!==null ? approxMPS.toFixed(2) : gradeAvg;
+    const meanScore  = totalScore/takers;
+    // MPS: since grades are on 100-pt scale, MPS = mean score
+    const mps        = meanScore.toFixed(2);
     const passed     = encodedGrades.filter(v=>v>=75).length;
     const failed     = takers - passed;
     const pl         = ((passed/takers)*100).toFixed(2);
 
-    return {subj:subj.name, takers, enrolled, notEncoded, mps, gradeAvg, passed, failed, pl};
+    return {subj:subj.name, takers, mps, passed, failed, pl};
   });
 
-  // ── Overall MPS (mean of per-subject reverse-transmuted MPS values) ──
+  // ── Compute overall MPS & PL across all subjects ──────────────────
   const allMPS = rows.filter(r=>r.mps!==null).map(r=>parseFloat(r.mps));
   const overallMPS = allMPS.length>0 ? (allMPS.reduce((a,b)=>a+b)/allMPS.length).toFixed(2) : null;
-  const allGA  = rows.filter(r=>r.gradeAvg!==null).map(r=>parseFloat(r.gradeAvg));
-  const overallGA  = allGA.length>0  ? (allGA.reduce((a,b)=>a+b)/allGA.length).toFixed(2)  : null;
   const totalTakers = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.takers,0);
   const totalPassed = rows.filter(r=>r.takers>0).reduce((a,r)=>a+r.passed,0);
   const overallPL   = totalTakers>0 ? ((totalPassed/totalTakers)*100).toFixed(2) : null;
@@ -5539,63 +4735,46 @@ async function buildMPSReport(){
       </tr>`;
     }
     const mastery = getMasteryLevel(r.mps);
-    const partialNote = r.notEncoded>0
-      ? `<div style="font-size:10px;color:#b45309;margin-top:1px">⚠️ ${r.notEncoded} not encoded</div>`
-      : '';
     return`<tr>
       <td><strong>${r.subj}</strong></td>
-      <td style="text-align:center">
-        ${r.takers}${r.notEncoded>0?`<div style="font-size:10px;color:#b45309">of ${r.enrolled}</div>`:''}
-      </td>
-      <td style="text-align:center">
-        <span style="font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</span>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:1px">Grade avg: ${r.gradeAvg}</div>
-        ${partialNote}
-      </td>
+      <td style="text-align:center">${r.takers}</td>
+      <td style="text-align:center;font-weight:700;font-size:15px;color:var(--navy)">${r.mps}%</td>
       <td style="text-align:center">
         <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color}">${mastery.label}</span>
       </td>
       <td style="text-align:center">
-        <span style="font-weight:600;color:${parseFloat(r.pl)>=75?'var(--green)':'var(--red)'}">${r.pl}%</span>
+        <span style="font-weight:600;color:${r.pl>=75?'var(--green)':'var(--red)'}">${r.pl}%</span>
       </td>
       <td style="text-align:center">
-        <span style="color:var(--green);font-weight:600">${r.passed} ✓</span>&nbsp;/&nbsp;
-        <span style="color:var(--red)">${r.failed} ✗</span>&nbsp;
+        <span style="color:var(--green);font-weight:600">${r.passed} ✓</span>
+        &nbsp;/&nbsp;
+        <span style="color:var(--red)">${r.failed} ✗</span>
+        &nbsp;
         <span style="font-size:11px;color:var(--gray-400)">of ${r.takers}</span>
       </td>
     </tr>`;
   }).join('');
 
   const overallMastery = overallMPS ? getMasteryLevel(overallMPS) : null;
-  const sectionLabel   = sect.replace(/G(\d+)-/,'Grade $1 – ');
-  // F-09: generation timestamp
-  const generatedAt = new Date().toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const sectionLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
 
   document.getElementById('mps-output').innerHTML=`
     <div class="deped-page">
       <!-- Header -->
-      <div style="text-align:center;margin-bottom:8px;">
+      <div style="text-align:center;margin-bottom:12px;">
         <div style="font-weight:700;font-size:13px;">${SCHOOL_NAME}</div>
         <div style="font-size:11px;color:var(--gray-600)">${DIVISION} &nbsp;·&nbsp; ${REGION}</div>
         <div style="font-size:12px;font-weight:600;margin-top:4px;">MPS &amp; Proficiency Level Report</div>
         <div style="font-size:11px;color:var(--gray-500)">${sectionLabel} &nbsp;·&nbsp; ${termLabel} &nbsp;·&nbsp; S.Y. ${SY}</div>
-        <div style="font-size:10px;color:var(--gray-400);margin-top:2px">Generated: ${generatedAt}</div>
       </div>
 
-      <!-- F-01/02 notice -->
-      <div style="margin-bottom:12px;padding:7px 12px;background:#fef9c3;border:1px solid #fcd34d;border-radius:8px;font-size:11px;color:#92400e;">
-        ℹ️ <strong>MPS shown here is approximated</strong> from encoded transmuted grades using the inverse of DepEd's transmutation:
-        <em>Approx MPS = (Grade − 40) ÷ 60 × 100</em>. For raw-score MPS, use the <strong>From Raw Scores</strong> tab.
-      </div>
-
-      <!-- Summary Cards -->
+      <!-- Overall Summary Cards -->
       ${overallMPS ? `
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;">
         <div style="background:var(--navy);color:white;border-radius:12px;padding:16px;text-align:center">
-          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall Approx MPS</div>
+          <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Overall MPS</div>
           <div style="font-size:28px;font-weight:800">${overallMPS}%</div>
-          <div style="font-size:10px;opacity:0.75;margin-top:2px">${overallMastery.label}</div>
-          <div style="font-size:10px;opacity:0.6">Grade avg: ${overallGA}</div>
+          <div style="font-size:10px;opacity:0.75;margin-top:4px">${overallMastery.label}</div>
         </div>
         <div style="background:var(--green);color:white;border-radius:12px;padding:16px;text-align:center">
           <div style="font-size:11px;opacity:0.8;margin-bottom:4px">Proficiency Level</div>
@@ -5615,25 +4794,24 @@ async function buildMPSReport(){
           <tr style="background:var(--navy);color:white;">
             <th style="padding:10px 12px;text-align:left;border-radius:8px 0 0 0">Subject</th>
             <th style="padding:10px 8px;text-align:center">Takers</th>
-            <th style="padding:10px 8px;text-align:center">Approx MPS<br><span style="font-size:9px;font-weight:400;opacity:0.75">(Grade Avg)</span></th>
+            <th style="padding:10px 8px;text-align:center">MPS</th>
             <th style="padding:10px 8px;text-align:center">Mastery Level</th>
             <th style="padding:10px 8px;text-align:center">PL (%)</th>
             <th style="padding:10px 12px;text-align:center;border-radius:0 8px 0 0">Passed ✓ / Failed ✗</th>
           </tr>
         </thead>
-        <tbody>${tableRows}</tbody>
+        <tbody>
+          ${tableRows}
+        </tbody>
         ${overallMPS ? `<tfoot>
           <tr style="background:var(--gray-50);font-weight:700;border-top:2px solid var(--navy)">
             <td style="padding:10px 12px">OVERALL</td>
             <td style="text-align:center;padding:10px 8px">${students.length}</td>
-            <td style="text-align:center;padding:10px 8px">
-              <span style="font-size:15px;color:var(--navy)">${overallMPS}%</span>
-              <div style="font-size:10px;color:var(--gray-400)">avg: ${overallGA}</div>
-            </td>
+            <td style="text-align:center;padding:10px 8px;font-size:15px;color:var(--navy)">${overallMPS}%</td>
             <td style="text-align:center;padding:10px 8px">
               <span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${overallMastery.bg};color:${overallMastery.color}">${overallMastery.label}</span>
             </td>
-            <td style="text-align:center;padding:10px 8px;color:${parseFloat(overallPL)>=75?'var(--green)':'var(--red)'}">${overallPL}%</td>
+            <td style="text-align:center;padding:10px 8px;color:${overallPL>=75?'var(--green)':'var(--red)'}">${overallPL}%</td>
             <td style="text-align:center;padding:10px 12px">${totalPassed} ✓ / ${totalTakers-totalPassed} ✗</td>
           </tr>
         </tfoot>` : ''}
@@ -5641,7 +4819,7 @@ async function buildMPSReport(){
 
       <!-- Mastery Level Legend -->
       <div style="margin-top:16px;border:1px solid var(--gray-200);border-radius:10px;overflow:hidden;">
-        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference — applied to MPS % (DepEd Standard)</div>
+        <div style="background:var(--gray-50);padding:8px 12px;font-weight:600;font-size:12px;border-bottom:1px solid var(--gray-200)">📊 Mastery Level Reference (DepEd)</div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">
           ${[
             {range:'96–100',label:'Mastered',color:'#14532d',bg:'#dcfce7'},
@@ -5658,9 +4836,9 @@ async function buildMPSReport(){
         </div>
       </div>
 
-      <!-- Formulas -->
+      <!-- Formulas reference -->
       <div style="margin-top:12px;font-size:10px;color:var(--gray-400);text-align:center;font-style:italic;">
-        Approx MPS = (Mean Grade − 40) ÷ 60 × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; For true MPS use raw scores (Tab 2)
+        MPS = (Mean Score ÷ 100) × 100 &nbsp;·&nbsp; PL = (Learners ≥75 ÷ Total Takers) × 100 &nbsp;·&nbsp; DepEd Standard
       </div>
     </div>`;
 
@@ -5809,14 +4987,10 @@ async function loadSavedRawTests(){
         badgeHtml = `<span style="display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${mastery.bg};color:${mastery.color};margin-top:4px">${mastery.label}</span>`;
       }
 
-      // Admin: delete only (manages all records — no editing raw scores for other teachers)
-      // Teachers / Advisers: edit + delete their own tests (already filtered to their sections above)
-      const actionBtns = isAdmin()
-        ? `<button class="btn btn-sm" onclick="deleteRawTest('${esc(t.key)}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>`
-        : `<div style="display:flex;gap:6px">
-             <button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${esc(t.key)}')" style="font-size:11px">✏️ Edit</button>
-             <button class="btn btn-sm" onclick="deleteRawTest('${esc(t.key)}')" style="font-size:11px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;">🗑️ Delete</button>
-           </div>`;
+      const canEdit = !isAdmin();
+      const editBtn = canEdit
+        ? `<button class="btn btn-sm btn-outline" onclick="loadSavedTestIntoForm('${t.key}')" style="font-size:11px">✏️ Edit</button>`
+        : `<button class="btn btn-sm" style="font-size:11px;background:var(--gray-100);color:var(--gray-500);cursor:default" disabled>👁️ View Only</button>`;
 
       return `<div class="card" style="padding:0">
         <div style="padding:12px 14px;border-bottom:1px solid var(--gray-100)">
@@ -5826,7 +5000,7 @@ async function loadSavedRawTests(){
               <div style="font-size:11px;color:var(--gray-500)">${sectLabel} &nbsp;·&nbsp; ${termLabel}</div>
               <div style="font-size:10px;color:var(--gray-400);margin-top:2px">${items} items &nbsp;·&nbsp; ${takers} takers</div>
             </div>
-            <div>${actionBtns}</div>
+            <div>${editBtn}</div>
           </div>
         </div>
         <div style="padding:10px 14px">
@@ -5840,80 +5014,36 @@ async function loadSavedRawTests(){
     }).join('') + '</div>';
 }
 
-async function deleteRawTest(cacheKey){
-  if(!confirm('Delete the saved test "' + cacheKey.replace(/^raw_/,'').replace(/_/g,' ') + '"?\n\nThis cannot be undone.')) return;
-
-  // 1 — Remove from Supabase
-  if(isOnline){
-    try{
-      const {error} = await sb.from('grade_records').delete().eq('grade_key', cacheKey);
-      if(error) console.warn('deleteRawTest cloud error:', error);
-    }catch(e){ console.warn('deleteRawTest cloud error:', e); }
-  }
-
-  // 2 — Remove from localStorage (two key forms used across app versions)
-  const lsKey1 = LS + 'rawsc_' + cacheKey;
-  const lsKey2 = LS + cacheKey;
-  localStorage.removeItem(lsKey1);
-  localStorage.removeItem(lsKey2);
-
-  // 3 — Remove from in-memory cache
-  delete rawScoreCache[cacheKey];
-
-  toast('🗑️ Test record deleted.');
-
-  // 4 — Refresh list
-  loadSavedRawTests();
-}
-
 function loadSavedTestIntoForm(cacheKey){
+  // Parse key and pre-fill the Raw Scores form, then switch to that tab
   const match = cacheKey.match(/^raw_(G\d+-[^_]+)_(.+?)_(.+)$/);
   if(!match) return;
   const sect = match[1], qtr = match[2], subj = match[3].replace(/_/g,' ');
 
-  // F-07: tag this key as "edit mode" so saveRawScores uses upsert (not a new insert)
-  window._editingRawKey = cacheKey;
-
-  // Switch to Raw Scores tab
+  // Switch to Raw tab
   const btn = document.getElementById('mps-tab-raw-btn');
   switchMPSTab('raw', btn);
 
+  // Fill in dropdowns/inputs
   setTimeout(()=>{
-    const sectEl  = document.getElementById('raw-section');
-    const qtrEl   = document.getElementById('raw-qtr');
-    const subjEl  = document.getElementById('raw-subject');
-    const itemsEl = document.getElementById('raw-items');
+    const sectEl = document.getElementById('raw-section');
+    const qtrEl  = document.getElementById('raw-qtr');
+    const subjEl = document.getElementById('raw-subject');
+    const itemsEl= document.getElementById('raw-items');
     if(sectEl) sectEl.value = sect;
 
+    // Load data from cache
     const data = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{};
     if(itemsEl) itemsEl.value = data.items||'';
     if(subjEl)  subjEl.value  = subj;
 
+    // Update qtr dropdown — T1/T2/T3 for all grades (DepEd Trimester SY2026-2027)
     if(qtrEl){
-      qtrEl.innerHTML = [1,2,3].map(t=>{
-        const locked = isTermLocked(t);
-        return `<option value="${t}" ${String(t)===qtr?'selected':''} ${locked&&!isAdmin()?'disabled':''}>${locked?'🔒 ':''}Term ${t}</option>`;
-      }).join('');
+      qtrEl.innerHTML = [1,2,3].map(q=>`<option value="${q}" ${String(q)===qtr?'selected':''}>Term ${q}</option>`).join('');
     }
-
-    // Pre-load scores into cache under canonical key so save always upserts the same record
-    rawScoreCache[cacheKey] = data;
 
     initRawScoreTable();
-
-    // Show edit-mode or locked banner
-    const hint = document.getElementById('raw-hint');
-    const termLocked = isTermLocked(parseInt(qtr));
-    if(hint){
-      if(termLocked){
-        hint.innerHTML = `🔒 <strong>Term ${qtr} is locked.</strong> This test is read-only — the grading period has ended.`;
-        hint.style.color = '#dc2626';
-      } else {
-        hint.innerHTML = `✏️ <strong>Editing saved test</strong> — <code style="background:#eff6ff;padding:1px 5px;border-radius:4px;font-size:11px">${cacheKey}</code>. Saving will overwrite the existing record.`;
-        hint.style.color = '#1e40af';
-      }
-    }
-    toast(termLocked ? `🔒 Term ${qtr} is locked — view only` : '✓ Test loaded for editing');
+    toast('✓ Test loaded — you can now edit the scores');
   }, 150);
 }
 
@@ -5938,27 +5068,23 @@ function populateRawSectionDropdown(){
   sel.innerHTML = '<option value="">Select section...</option>' +
     sects.map(s=>`<option value="${s}" ${s===cur?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('');
 
-  // Rebuild term dropdown with lock indicators
+  // Update quarter dropdown for SHS sections
   const sect = sel.value;
-  const qtrEl = document.getElementById('raw-qtr');
-  if(qtrEl){
-    const curQ = qtrEl.value||'1';
-    qtrEl.innerHTML = [1,2,3].map(t=>{
-      const locked = isTermLocked(t);
-      return `<option value="${t}" ${String(t)===curQ?'selected':''} ${locked&&!isAdmin()?'disabled':''}>Term ${t}${locked?' 🔒':''}</option>`;
-    }).join('');
-  }
-
-  // F-03: Populate subject-link dropdown based on section's grade level
-  const linkSel = document.getElementById('raw-subject-link');
-  if(linkSel){
-    if(sect){
-      const grade = sect.match(/G(\d+)-/)?.[1]||'';
-      const subjList = grade ? getSubjectsForGrade(grade).filter(s=>!s.subitem) : [];
-      linkSel.innerHTML = '<option value="">— None (manual grade entry) —</option>' +
-        subjList.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-    } else {
-      linkSel.innerHTML = '<option value="">— Select a section first —</option>';
+  if(sect){
+    const g = sect.match(/G(\d+)-/)?.[1]||'';
+    const isSHS = g==='11'||g==='12';
+    const qtrEl = document.getElementById('raw-qtr');
+    const curQ = qtrEl?.value||'1';
+    if(qtrEl){
+      if(isSHS){
+        qtrEl.innerHTML = `
+          <option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option>`;
+      } else {
+        qtrEl.innerHTML = `
+          <option value="1" ${curQ==='1'?'selected':''}>Term 1</option>
+          <option value="2" ${curQ==='2'?'selected':''}>Term 2</option>
+          <option value="3" ${curQ==='3'?'selected':''}>Term 3</option>`;
+      }
     }
   }
 }
@@ -5978,20 +5104,12 @@ function onRawItemsChange(){
 }
 
 function initRawScoreTable(){
-  // F-07: if user changes fields (not via loadSavedTestIntoForm), clear edit-mode flag
-  const newKey = getRawCacheKey();
-  if(window._editingRawKey && window._editingRawKey !== newKey){
-    window._editingRawKey = null;
-    const hint = document.getElementById('raw-hint');
-    if(hint) hint.innerHTML = 'Enter the number of items, then type each student\'s raw score.';
-  }
-
   const sect   = document.getElementById('raw-section')?.value||'';
   const qtr    = document.getElementById('raw-qtr')?.value||'1';
   const subj   = document.getElementById('raw-subject')?.value.trim()||'';
   const items  = parseInt(document.getElementById('raw-items')?.value)||0;
 
-  // Always refresh section+subject-link dropdowns
+  // Update quarter dropdown if section changed
   populateRawSectionDropdown();
 
   if(!sect||!items||items<1){
@@ -6000,34 +5118,9 @@ function initRawScoreTable(){
     return;
   }
 
-  // Lock state for this term
-  const rawTerm   = parseInt(qtr);
-  const termLocked = isTermLocked(rawTerm);
-
-  // Show/remove lock banner above table
-  const existingBanner = document.getElementById('raw-lock-banner');
-  if(existingBanner) existingBanner.remove();
-  const tableWrap = document.getElementById('raw-score-table-wrap');
-  if(termLocked && tableWrap){
-    const banner = document.createElement('div');
-    banner.id = 'raw-lock-banner';
-    banner.style.cssText = 'margin-bottom:10px;padding:9px 14px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;';
-    banner.innerHTML = `🔒 <strong>Term ${rawTerm} is locked</strong> — grading period ended ${TERM_DATES[rawTerm]?.end||''}. Raw scores are read-only.`
-      + (isAdmin() ? ` <a href="#" onclick="showView('audit',document.getElementById('nav-audit'));renderTermLockPanel();return false;" style="color:#6366f1;font-weight:600;margin-left:8px">⚙️ Manage Lock</a>` : '');
-    tableWrap.parentNode.insertBefore(banner, tableWrap);
-  }
-
-  // Disable save button when locked
-  const saveBtn = document.getElementById('raw-save-btn');
-  if(saveBtn){
-    saveBtn.disabled = termLocked;
-    saveBtn.style.opacity = termLocked ? '0.5' : '';
-    saveBtn.textContent = termLocked ? `🔒 Term ${rawTerm} Locked` : '💾 Save Raw Scores';
-  }
-
   const cacheKey = getRawCacheKey();
+  // Load saved data
   const saved = rawScoreCache[cacheKey]||lsGet('rawsc_'+cacheKey)||{items,scores:{}};
-  rawScoreCache[cacheKey] = saved;
 
   const sectName = sect.replace(/^G\d+-/,'');
   const students = studentsCache
@@ -6044,12 +5137,12 @@ function initRawScoreTable(){
   }
 
   const termLabels={'1':'Term 1','2':'Term 2','3':'Term 3'};
-  const termLabel = termLabels[qtr]||'Term '+qtr;
+  const termLabel = isNaN(parseInt(qtr)) ? (termLabels[qtr]||qtr) : 'Term '+qtr;
   const sectLabel = sect.replace(/G(\d+)-/,'Grade $1 – ');
 
   document.getElementById('raw-score-table-wrap').classList.remove('hidden');
   document.getElementById('raw-placeholder').classList.add('hidden');
-  document.getElementById('raw-table-title').textContent = (subj||'Test') + ' — ' + sectLabel + ' · ' + termLabel + (termLocked?' 🔒':'');
+  document.getElementById('raw-table-title').textContent = (subj||'Test') + ' — ' + sectLabel + ' · ' + termLabel;
   document.getElementById('raw-table-sub').textContent = `${students.length} students · ${items} items`;
   document.getElementById('raw-items-header').textContent = '/ '+items;
 
@@ -6057,9 +5150,6 @@ function initRawScoreTable(){
     const raw = saved.scores?.[s.lrn]!==undefined ? saved.scores[s.lrn] : '';
     const pct  = raw!=='' ? ((parseFloat(raw)/items)*100).toFixed(1) : '';
     const pass = pct!=='' ? parseFloat(pct)>=75 : null;
-    const roAttr = termLocked
-      ? 'readonly style="background:var(--gray-50);color:var(--gray-500);cursor:not-allowed;width:70px;text-align:center" title="Term locked"'
-      : 'style="width:70px;text-align:center"';
     return `<tr id="raw-row-${i}">
       <td>${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
@@ -6067,7 +5157,8 @@ function initRawScoreTable(){
       <td style="text-align:center">
         <input type="number" class="grade-input${pass===true?' passing':pass===false?' failing':''}"
           min="0" max="${items}" value="${raw}"
-          ${termLocked ? roAttr : `oninput="onRawInput(this,'${s.lrn}',${items})" ${roAttr}`}/>
+          oninput="onRawInput(this,'${s.lrn}',${items})"
+          style="width:70px;text-align:center"/>
       </td>
       <td style="text-align:center" id="raw-pct-${i}">
         ${pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>'}
@@ -6082,21 +5173,15 @@ function initRawScoreTable(){
 }
 
 function onRawInput(el, lrn, items){
-  // LOCK GUARD
-  const rawTerm = parseInt(document.getElementById('raw-qtr')?.value||'1');
-  if(isTermLocked(rawTerm)){
-    const cacheKey = getRawCacheKey();
-    el.value = (rawScoreCache[cacheKey]?.scores||{})[lrn]??'';
-    toast(`🔒 Term ${rawTerm} is locked — raw scores cannot be edited.`, true);
-    return;
-  }
   const raw = parseFloat(el.value);
   const valid = !isNaN(raw) && raw>=0 && raw<=items;
   const pct   = valid ? ((raw/items)*100).toFixed(1) : '';
   const pass  = pct!=='' ? parseFloat(pct)>=75 : null;
 
+  // Update input color
   el.className = 'grade-input'+(pass===true?' passing':pass===false?' failing':'');
 
+  // Find row index
   const row = el.closest('tr');
   const i   = row?.id.replace('raw-row-','');
 
@@ -6105,11 +5190,13 @@ function onRawInput(el, lrn, items){
   if(pctEl)  pctEl.innerHTML  = pct!=='' ? `<strong style="color:${pass?'var(--green)':'var(--red)'}">${pct}%</strong>` : '<span style="color:#ccc">—</span>';
   if(passEl) passEl.innerHTML = pass===true ? '<span class="badge badge-green">Passed</span>' : pass===false ? '<span class="badge badge-red">Failed</span>' : '<span class="badge badge-gray">—</span>';
 
+  // Update cache
   const cacheKey = getRawCacheKey();
   if(!rawScoreCache[cacheKey]) rawScoreCache[cacheKey]={items,scores:{}};
   if(el.value==='') delete rawScoreCache[cacheKey].scores[lrn];
   else rawScoreCache[cacheKey].scores[lrn] = parseFloat(el.value);
 
+  // Get students list for live MPS
   const sect = document.getElementById('raw-section')?.value||'';
   const sectName = sect.replace(/^G\d+-/,'');
   const students = studentsCache
@@ -6186,36 +5273,23 @@ function computeLiveRawMPS(students, items){
 }
 
 async function saveRawScores(){
-  // ── LOCK GUARD ───────────────────────────────────────────────────
-  const rawTerm = parseInt(document.getElementById('raw-qtr')?.value||'1');
-  if(isTermLocked(rawTerm)){
-    toast(`🔒 Term ${rawTerm} is locked — raw scores cannot be saved.`, true);
-    logAudit('BLOCKED SAVE', `Attempted raw score save on locked Term ${rawTerm} by ${CU?.name||'unknown'}`);
-    return;
-  }
-  // F-06: subject/test name required
-  const subjName = document.getElementById('raw-subject')?.value.trim();
-  if(!subjName){ toast('❌ Enter a Subject / Test Name before saving.', true); return; }
-
   const cacheKey = getRawCacheKey();
-  if(!cacheKey){ toast('Please fill in all fields first', true); return; }
+  if(!cacheKey){ toast('Please fill all fields first',true); return; }
   const items = parseInt(document.getElementById('raw-items')?.value)||0;
-  if(!items){ toast('Enter number of items first', true); return; }
+  if(!items){ toast('Enter number of items first',true); return; }
 
   const obj = rawScoreCache[cacheKey]||{items,scores:{}};
-  obj.items    = items;
+  obj.items = items;
   obj.saved_by = CU?.name||'';
   obj.saved_at = new Date().toISOString();
-  obj.term     = rawTerm;
   rawScoreCache[cacheKey] = obj;
   lsSet('rawsc_'+cacheKey, obj);
 
   if(isOnline){
     try{
-      await sb.from('grade_records').upsert(
-        { grade_key: cacheKey, data: obj, updated_at: obj.saved_at },
-        { onConflict:'grade_key' }
-      );
+      await sb.from('grade_records').upsert({
+        grade_key: cacheKey, data: obj, updated_at: obj.saved_at
+      },{onConflict:'grade_key'});
       toast('✅ Raw scores saved & synced!');
     } catch(e){
       queueForSync('grades', cacheKey, obj);
@@ -6225,43 +5299,7 @@ async function saveRawScores(){
     queueForSync('grades', cacheKey, obj);
     toast('✅ Raw scores saved offline — syncs when online');
   }
-  logAudit('RAW SCORES', `Saved: ${cacheKey} | ${Object.keys(obj.scores||{}).length} students | ${items} items`);
-
-  // ── F-03: Auto-transmute raw scores → Term grade record if subject linked ──
-  const linkedSubjId = document.getElementById('raw-subject-link')?.value||'';
-  if(linkedSubjId){
-    const sect = document.getElementById('raw-section')?.value||'';
-    const gradeKey = linkedSubjId+'_'+sect+'_T'+rawTerm;
-    const sectName = sect.replace(/^G\d+-/,'');
-    const students = studentsCache
-      .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()
-        &&`G${s.grade}-${s.section.toUpperCase()}`===sect
-        &&s.status!=='Dropped')
-      .sort((a,b)=>a.name.localeCompare(b.name));
-    if(students.length && items>0){
-      const gradeObj={};
-      students.forEach((s,idx)=>{
-        const raw = (obj.scores||{})[s.lrn];
-        if(raw!==undefined&&raw!==null&&raw!==''){
-          // DepEd transmutation: transmuted = (rawPct × 60) + 40, clamped 60–100
-          const transmuted = Math.max(60, Math.min(100, Math.round((parseFloat(raw)/items)*60+40)));
-          gradeObj[idx]=String(transmuted);
-        }
-      });
-      gradeCache[gradeKey]=gradeObj;
-      lsSet('gr_'+gradeKey, gradeObj);
-      if(isOnline){
-        try{
-          await sb.from('grade_records').upsert(
-            { grade_key:gradeKey, data:gradeObj, updated_at:new Date().toISOString() },
-            { onConflict:'grade_key' }
-          );
-        } catch(e){ queueForSync('grades', gradeKey, gradeObj); }
-      } else { queueForSync('grades', gradeKey, gradeObj); }
-      logAudit('AUTO-TRANSMUTE', `Raw→Grade: ${gradeKey} (${Object.keys(gradeObj).length} students)`);
-      toast(`🔄 Grades auto-transmuted into Term ${rawTerm} record for linked subject.`);
-    }
-  }
+  logAudit('RAW SCORES','Saved raw scores: '+cacheKey);
 }
 
 function clearRawScores(){
@@ -6329,12 +5367,6 @@ function renderCVCell(cell,row,q,val){
 
 function saveCoreValues(){
   if(!cvCurrentLRN){toast('Select a student first',true);return;}
-  // LOCK GUARD: core values are tied to a term — lock if the displayed term is closed
-  const sf9qtr = parseInt(document.getElementById('sf9-qtr')?.value||'3');
-  if(isTermLocked(sf9qtr)){
-    toast(`🔒 Term ${sf9qtr} is locked — core values cannot be edited.`, true);
-    return;
-  }
   const data={};
   for(let q=1;q<=4;q++){
     data[q]={};
@@ -6448,79 +5480,31 @@ function openEnrollModal(lrn){
 
 function saveEnrollment(){
   _searchIndex=null;
-  const lrn    = document.getElementById('enroll-lrn').value.trim();
-  const name   = document.getElementById('enroll-name').value.trim().toUpperCase();
-  const sex    = document.getElementById('enroll-sex').value;
-  const bday   = document.getElementById('enroll-bday').value;
-  const grade  = document.getElementById('enroll-grade').value;
-  const section= getEnrollSection();
-  const strand = (grade==='11'||grade==='12') ? (document.getElementById('enroll-strand')?.value||'') : '';
-  const parent = document.getElementById('enroll-parent').value.trim();
-  const contact= document.getElementById('enroll-contact').value.trim();
-  const address= document.getElementById('enroll-address').value.trim();
-  const status = document.getElementById('enroll-status').value;
-
-  // ── Required fields ──
-  if(!lrn||!name||!sex||!bday||!grade||!section){
-    toast('Please fill all required (*) fields', true); return;
-  }
-  // ── LRN: exactly 12 digits ──
-  if(lrn.length!==12||!/^\d{12}$/.test(lrn)){
-    beep(); toast('❌ LRN must be exactly 12 digits (numbers only)', true); return;
-  }
-  // ── Name: must contain at least one letter, no digits ──
-  if(!/[A-Za-z]/.test(name)){
-    toast('❌ Student name must contain letters (no numbers-only names allowed)', true); return;
-  }
-  if(/\d/.test(name)){
-    toast('❌ Student name must not contain numbers', true); return;
-  }
-  // ── Name format: Last, First Middle (comma required) ──
-  if(!name.includes(',')){
-    toast('❌ Name must be in "LAST, FIRST MIDDLE" format (include a comma)', true); return;
-  }
-  // ── Birthday: must be in the past and reasonable (age 5–30) ──
-  if(bday){
-    const bdayDate = new Date(bday);
-    const today    = new Date();
-    const age      = (today - bdayDate) / (365.25*24*60*60*1000);
-    if(bdayDate >= today){
-      toast('❌ Birthday cannot be today or a future date', true); return;
-    }
-    if(age < 5 || age > 30){
-      toast('❌ Birthday seems incorrect — student age must be between 5 and 30 years', true); return;
-    }
-  }
-  // ── SHS strand required ──
-  if((grade==='11'||grade==='12')&&!strand){
-    toast('❌ Please select a Track/Strand for Grade '+grade+' students.', true); return;
-  }
-  // ── Contact: digits only if provided ──
-  if(contact && !/^[\d\s\-\+\(\)]+$/.test(contact)){
-    toast('❌ Contact number should contain digits only', true); return;
-  }
-
-  const obj = normalizeStudent({lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]});
+  const lrn=document.getElementById('enroll-lrn').value.trim();
+  const name=document.getElementById('enroll-name').value.trim().toUpperCase();
+  const sex=document.getElementById('enroll-sex').value;
+  const bday=document.getElementById('enroll-bday').value;
+  const grade=document.getElementById('enroll-grade').value;
+  const section=getEnrollSection();
+  const strand=(grade==='11'||grade==='12') ? (document.getElementById('enroll-strand')?.value||'') : '';
+  const parent=document.getElementById('enroll-parent').value.trim();
+  const contact=document.getElementById('enroll-contact').value.trim();
+  const address=document.getElementById('enroll-address').value.trim();
+  const status=document.getElementById('enroll-status').value;
+  if(!lrn||!name||!sex||!bday||!grade||!section){toast('Please fill all required (*) fields',true);return}
+  if((grade==='11'||grade==='12')&&!strand){toast('❌ Please select a Strand for Grade '+grade+' students.',true);return}
+  if(lrn.length!==12||!/^\d+$/.test(lrn)){beep();toast('❌ LRN must be exactly 12 digits',true);return}
+  const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]};
   if(editingStudentLRN){
     const idx=studentsCache.findIndex(x=>x.lrn===editingStudentLRN);
-    if(idx>=0){ obj.grades=studentsCache[idx].grades||[]; studentsCache[idx]={...studentsCache[idx],...obj}; }
-    logAudit('STUDENT EDIT','Updated: '+name+' ('+lrn+')');
+    if(idx>=0){obj.grades=studentsCache[idx].grades||obj.grades; studentsCache[idx]={...studentsCache[idx],...obj};}
+    logAudit('STUDENT EDIT','Updated student: '+name+' ('+lrn+')');
     toast('✅ Student updated!'+(isOnline?'':' (will sync when online)'));
-  } else {
-    if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return;}
-    // Warn if same name already exists in the same section (different LRN = likely duplicate entry)
-    const sameName = studentsCache.find(s=>
-      s.name.trim().toUpperCase()===name &&
-      s.section.toUpperCase()===section.toUpperCase() &&
-      s.grade===grade &&
-      (s.status||'Enrolled')!=='Dropped'
-    );
-    if(sameName){
-      if(!confirm(`⚠️ A student named "${name}" already exists in ${grade}-${section} with LRN ${sameName.lrn}.\n\nAre you sure this is a different student and not a duplicate entry?\n\nClick OK to proceed, Cancel to go back.`)) return;
-    }
+  }else{
+    if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return}
     studentsCache.push(obj);
     studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
-    logAudit('STUDENT ENROLL','Enrolled: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
+    logAudit('STUDENT ENROLL','Enrolled new student: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
     toast('✅ Student enrolled!'+(isOnline?'':' (will sync when online)'));
   }
   lsSet('students',studentsCache);
@@ -6529,6 +5513,7 @@ function saveEnrollment(){
   _searchIndex=null;
   buildStudentsList(); buildClassList(); buildReport();
   populateDropdowns(); populateSectionDropdowns(); updateStats();
+  // Refresh SF2 section dropdown live
   const sf2Wrap=document.getElementById('sf2-section-wrap');
   if(sf2Wrap&&isAdmin()) populateSectionDropdowns();
 }
@@ -6664,13 +5649,7 @@ function confirmImport(){
   if(!importData.length){toast("No data to import. Please upload a file first.",true);return;}
   _searchIndex=null; // invalidate search index
   let added=0,skipped=0;
-  importData.forEach(s=>{
-    if(studentsCache.some(x=>x.lrn===s.lrn)){skipped++;return;}
-    const ns = normalizeStudent(s);
-    studentsCache.push(ns);
-    queueForSync('student',ns.lrn,ns);
-    added++;
-  });
+  importData.forEach(s=>{if(studentsCache.some(x=>x.lrn===s.lrn)){skipped++;return}studentsCache.push(s);queueForSync('student',s.lrn,s);added++;});
   studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
   lsSet('students',studentsCache);
   logAudit('BULK IMPORT','Imported '+added+' students'+(skipped>0?', '+skipped+' duplicates skipped':''));
@@ -6818,11 +5797,11 @@ async function loadAccountsView(){
   }
 }
 
-async function refreshAccountsFromCloud(evtOrBtn){
+async function refreshAccountsFromCloud(){
   if(!isOnline){toast('No internet connection',true);return;}
-  const btn = evtOrBtn?.currentTarget || evtOrBtn?.target || evtOrBtn || null;
+  const btn = event?.currentTarget;
   if(btn){btn.disabled=true; btn.textContent='⏳ Loading...';}
-  _accountsCloudLoaded = false;
+  _accountsCloudLoaded = false; // allow re-fetch
   try{
     const{data,error}=await sb.from('accounts').select('*').order('name');
     if(error){toast('Cloud error: '+error.message, true); return;}
@@ -7561,7 +6540,8 @@ function initAttendance(){
   const todayStr=new Date().toISOString().slice(0,10);
   // BUG-008 FIX: prevent future date selection at the browser level
   el.max=todayStr;
-  if(!el.value) el.value=todayStr;
+  el.min=SY_START; // FIX: prevent encoding attendance before official SY start (Jun 8, 2026)
+  if(!el.value) el.value=todayStr>SY_START ? todayStr : SY_START;
   currentSession='AM';
   document.getElementById('att-am-tab')?.classList.add('active');
   document.getElementById('att-pm-tab')?.classList.remove('active');
@@ -7760,11 +6740,8 @@ function loadAttendance(){
   const sect=document.getElementById('att-section').value;
   if(!date||!sect)return;
   const sn=sect.replace(/^G\d+-/,'');
-  let list=studentsCache.filter(s=>s.section===sn && (s.status||'Enrolled')!=='Dropped');
-  if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect && (s.status||'Enrolled')!=='Dropped');
-  // Deduplicate by LRN
-  const _attSeen=new Set();
-  list=list.filter(s=>{ if(_attSeen.has(s.lrn)) return false; _attSeen.add(s.lrn); return true; });
+  let list=studentsCache.filter(s=>s.section===sn);
+  if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
   const amRec=attCache[amKey]||lsGet('att_'+amKey)||{};
   const pmRec=attCache[pmKey]||lsGet('att_'+pmKey)||{};
@@ -7874,21 +6851,12 @@ function _saveAttendanceCore(){
   const sect = document.getElementById('att-section')?.value;
   if (!date || !sect) { toast('Please select a date and section', true); return; }
   if (!Object.keys(attRec).length) { toast('No attendance data to save', true); return; }
-
-  // LOCK GUARD: check if this date's term is locked
-  const attTerm = getTermFromDate(date);
-  if(attTerm && isTermLocked(attTerm)){
-    const td = TERM_DATES[attTerm];
-    toast(`🔒 Term ${attTerm} (${td?.label}) is locked — attendance for ${date} cannot be edited.`, true);
-    logAudit('BLOCKED ATTENDANCE', `Attempted attendance save on locked Term ${attTerm} date ${date} by ${CU?.name||'unknown'}`);
-    return;
-  }
-
   const key = date + '_' + sect + '_' + currentSession;
   attCache[key] = {...attRec};
   lsSet('att_' + key, attRec);
   queueForSync('attendance', key, attRec);
   logAudit('SAVE ATTENDANCE', date + ' · ' + sect + ' · ' + currentSession + ' · ' + Object.keys(attRec).length + ' students');
+  // Refresh calendar dot if visible
   if (!document.getElementById('att-tab-calendar')?.classList.contains('hidden')) renderCalendar();
   toast('✅ Attendance saved' + (isOnline ? '!' : ' offline — syncs when online'));
 }
@@ -7921,7 +6889,7 @@ function renderCalendar(){
       }else{dotHtml=`<div class="cal-dots"><div class="cal-dot no-record"></div></div>`;}
     }
     const cls=['att-cal-day',isWeekend?'weekend':'',isToday?'today':''].filter(Boolean).join(' ');
-    const clickable=!isWeekend&&!isFuture?`onclick="showCalDay(event,'${dateStr}','${sect}')"`:'' ;
+    const clickable=!isWeekend&&!isFuture?`onclick="showCalDay('${dateStr}','${sect}')"`:'' ;
     html+=`<div class="${cls}" ${clickable}><div class="cal-date">${d}</div>${dotHtml}</div>`;
   }
   document.getElementById('att-cal-grid').innerHTML=html;
@@ -7934,10 +6902,10 @@ function changeCalMonth(dir){
   renderCalendar();
 }
 
-function showCalDay(evt,dateStr,sect){
+function showCalDay(dateStr,sect){
   calSelectedDate=dateStr;
   document.querySelectorAll('.att-cal-day').forEach(el=>el.classList.remove('selected'));
-  (evt?.currentTarget||evt?.target)?.classList.add('selected');
+  event.currentTarget.classList.add('selected');
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
@@ -8704,35 +7672,13 @@ function chunkArray(arr, n){ const chunks=[]; for(let i=0;i<arr.length;i+=n) chu
 
 async function processSyncQueue() {
   const q = getPendingQueue();
-  if (!q.length) { setSyncBadge('synced', '☁️ Synced'); refreshPendingBanners(); return; }
+  if (!q.length) { setSyncBadge('synced', '☁️ Synced'); return; }
   if (!isOnline) return;
 
   const total = q.length;
   setSyncBadge('syncing', '⏳ Syncing ' + total + ' items...');
 
-  const failed  = [];   // transient failures — will retry next time
-  const dropped = [];   // permanent 400/406/422 failures — never retry
-
-  // HTTP 400, 406, 409, 422 = bad request / schema mismatch / constraint violation
-  // These will NEVER succeed on retry — drop them so the queue doesn't loop forever
-  const isPermanentError = (err) => {
-    if(!err) return false;
-    const code = err.code || err.status || err.statusCode || '';
-    const msg  = String(err.message || err.details || err.hint || '');
-    // Supabase returns these codes for schema/RLS/constraint errors
-    if(['400','406','409','422','42501','42P01','23503','23505','PGRST'].some(c=>String(code).startsWith(c))) return true;
-    if(msg.includes('violates') || msg.includes('does not exist') || msg.includes('permission denied')) return true;
-    return false;
-  };
-
-  const handleErr = (err, items, label) => {
-    if(isPermanentError(err)){
-      console.warn(`[Sync] Permanent error in ${label} — dropping ${items.length} item(s):`, err);
-      items.forEach(x => dropped.push({...x, _dropReason: err?.message||String(err)}));
-    } else {
-      items.forEach(x => failed.push(x));
-    }
-  };
+  const failed = [];
 
   // Group by type
   const students    = q.filter(x => x.type === 'student');
@@ -8743,70 +7689,33 @@ async function processSyncQueue() {
   const acctDeletes = q.filter(x => x.type === 'account_delete');
   const hist        = q.filter(x => x.type === 'hist');
   const audit       = q.filter(x => x.type === 'audit');
+  // FIX v11: corevalues was queued but never processed — added handler below
   const corevalues  = q.filter(x => x.type === 'corevalues');
+  // FIX v11: suspended days cross-device sync
   const suspdays    = q.filter(x => x.type === 'suspdays');
 
-  // Remove audit items from queue immediately — non-critical, must never block sync
+  // Remove audit items from queue immediately — they are non-critical
+  // and should never block student/grade/attendance sync
   const nonAuditQueue = q.filter(x => x.type !== 'audit');
   savePendingQueue(nonAuditQueue);
 
-  // ── Columns guaranteed to exist in the students table ────────────
-  // These match the original schema the app was built against.
-  // Optional columns (strand, parent, contact, address, status) are sent
-  // in the first attempt but stripped if Supabase returns 400/406, allowing
-  // the record to be saved with just the core identity fields.
-  const CORE_STUDENT_COLS  = ['lrn','name','sex','bday','grade','section'];
-  const FULL_STUDENT_COLS  = [...CORE_STUDENT_COLS,'strand','parent','contact','address','status'];
-
-  const pickCols = (s, cols) => {
-    if(!s) return s;
-    const out = {};
-    cols.forEach(c=>{ if(s[c] !== undefined) out[c] = s[c]; });
-    return out;
-  };
-
-  // Upsert a single student — tries full object first, falls back to core columns on 400/406
-  const upsertStudent = async (data) => {
-    // First attempt: all known columns (no local-only fields like grades)
-    const full = pickCols(data, FULL_STUDENT_COLS);
-    const {error: e1} = await sb.from('students').upsert(full, {onConflict:'lrn'});
-    if(!e1) return null; // success
-
-    if(isPermanentError(e1)){
-      // Second attempt: core columns only — handles schema mismatches (missing optional columns)
-      console.warn('[Sync] Full student upsert failed, retrying with core columns only. Error:', e1.message||e1);
-      const core = pickCols(data, CORE_STUDENT_COLS);
-      const {error: e2} = await sb.from('students').upsert(core, {onConflict:'lrn'});
-      if(!e2) return null; // core-only succeeded
-      return e2; // both failed — truly permanent error
-    }
-    return e1; // transient error
-  };
-
-  // Chunked upsert students
+  // Chunked upsert students — 20 at a time to avoid Supabase size limit
   for (const chunk of chunkArray(students, 20)) {
     try {
-      // Try the whole chunk first (fast path)
-      const full = chunk.map(x => pickCols(x.data, FULL_STUDENT_COLS));
-      const {error: batchErr} = await sb.from('students').upsert(full, {onConflict:'lrn'});
-      if(batchErr){
-        // Batch failed — try one-by-one with progressive fallback
-        console.error('[Sync] Student batch upsert error:', batchErr.message||batchErr);
+      const { error, data } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
+      if (error) {
+        console.error('Student upsert error:', error);
+        // Try one by one if batch fails
         for(const item of chunk){
           try{
-            const err = await upsertStudent(item.data);
-            if(err){
-              if(isPermanentError(err)){
-                dropped.push({...item, _dropReason: err?.message||String(err)});
-                console.warn('[Sync] Student permanently dropped:', item.data?.lrn, err?.message||err);
-              } else {
-                failed.push(item);
-              }
-            }
-          }catch(ex){ failed.push(item); }
+            const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
+            if(e2){ console.error('Single upsert error:', e2); failed.push(item); }
+          }catch{ failed.push(item); }
         }
+      } else {
+        setSyncBadge('syncing', '⏳ Syncing... (' + (students.length - students.indexOf(chunk[chunk.length-1]) - 1) + ' left)');
       }
-    } catch(e) { console.error('[Sync] Chunk error:', e); chunk.forEach(x => failed.push(x)); }
+    } catch(e) { console.error('Chunk error:', e); chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 300));
   }
 
@@ -8817,8 +7726,8 @@ async function processSyncQueue() {
         chunk.map(x => ({ grade_key: x.key, data: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'grade_key' }
       );
-      if (error) handleErr(error, chunk, 'grades');
-    } catch(e) { chunk.forEach(x => failed.push(x)); }
+      if (error) chunk.forEach(x => failed.push(x));
+    } catch { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
@@ -8829,78 +7738,72 @@ async function processSyncQueue() {
         chunk.map(x => ({ att_key: x.key, data: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'att_key' }
       );
-      if (error) handleErr(error, chunk, 'attendance');
-    } catch(e) { chunk.forEach(x => failed.push(x)); }
+      if (error) chunk.forEach(x => failed.push(x));
+    } catch { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
-  // Batch upsert accounts
+  // Batch upsert accounts (usually small)
   if (accounts.length) {
     try {
       const { error } = await sb.from('accounts').upsert(accounts.map(x => x.data), { onConflict: 'username' });
-      if (error) handleErr(error, accounts, 'accounts');
-    } catch(e) { accounts.forEach(x => failed.push(x)); }
+      if (error) accounts.forEach(x => failed.push(x));
+    } catch { accounts.forEach(x => failed.push(x)); }
   }
 
-  // Audit logs — always drop, never block
+  // Audit logs — non-critical, silently drop if table doesn't exist
   if (audit.length) {
-    try { await sb.from('audit_logs').insert(audit.map(x => x.data)); }
-    catch(e) { console.log('Audit log skipped:', e.message); }
+    try {
+      await sb.from('audit_logs').insert(audit.map(x => x.data));
+    } catch(e) {
+      // Audit table may not exist — that's OK, just skip
+      console.log('Audit log skipped:', e.message);
+    }
+    // Always remove audit items from queue — never let them block sync
+    // (they are already in localStorage)
   }
 
   // Individual: deletions and historical records
   for (const item of [...deletions, ...acctDeletes, ...hist]) {
+    let ok = false;
     try {
-      let error;
-      if (item.type === 'student_delete') ({ error } = await sb.from('students').delete().eq('lrn', item.key));
-      if (item.type === 'account_delete') ({ error } = await sb.from('accounts').delete().eq('username', item.key));
-      if (item.type === 'hist')           ({ error } = await sb.from('historical_records').upsert(item.data,{onConflict:'lrn,grade_level'}));
-      if (error) handleErr(error, [item], item.type);
-    } catch { failed.push(item); }
+      if (item.type === 'student_delete') { const{error}=await sb.from('students').delete().eq('lrn', item.key); ok=!error; }
+      if (item.type === 'account_delete') { const{error}=await sb.from('accounts').delete().eq('username', item.key); ok=!error; }
+      if (item.type === 'hist') { const{error}=await sb.from('historical_records').upsert(item.data,{onConflict:'lrn,grade_level'}); ok=!error; }
+    } catch { ok = false; }
+    if (!ok) failed.push(item);
   }
 
-  // Core values
+  // FIX v11: sync core values to Supabase
   for (const chunk of chunkArray(corevalues, 20)) {
     try {
       const { error } = await sb.from('core_values').upsert(
         chunk.map(x => ({ lrn: x.key, data: x.data.data, updated_at: new Date().toISOString() })),
         { onConflict: 'lrn' }
       );
-      if (error) handleErr(error, chunk, 'corevalues');
-    } catch(e) { chunk.forEach(x => failed.push(x)); }
+      if (error) chunk.forEach(x => failed.push(x));
+    } catch { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
   }
 
-  // Suspended days
+  // FIX v11: sync no-class days to Supabase so all devices see same suspended days
   for (const chunk of chunkArray(suspdays, 20)) {
     try {
       const { error } = await sb.from('suspended_days').upsert(
         chunk.map(x => ({ month_key: x.key, days: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'month_key' }
       );
-      if (error) handleErr(error, chunk, 'suspdays');
-    } catch(e) { chunk.forEach(x => failed.push(x)); }
+      if (error) chunk.forEach(x => failed.push(x));
+    } catch { chunk.forEach(x => failed.push(x)); }
     await new Promise(r => setTimeout(r, 200));
-  }
-
-  // Save dropped items separately so they can be inspected/cleared — never re-queue them
-  if(dropped.length){
-    const existing = JSON.parse(localStorage.getItem(LS+'droppedSync')||'[]');
-    const merged = [...existing, ...dropped].slice(-100); // keep last 100
-    localStorage.setItem(LS+'droppedSync', JSON.stringify(merged));
-    console.warn(`[Sync] ${dropped.length} item(s) permanently dropped due to Supabase errors. See localStorage key "snhs_droppedSync".`);
   }
 
   savePendingQueue(failed);
   pendingSyncCount = failed.length;
   updateSyncBadge();
-
-  if (!failed.length && !dropped.length) {
+  if (!failed.length) {
     setSyncBadge('synced', '☁️ Synced');
     toast('✅ All data synced to cloud!');
-  } else if(dropped.length && !failed.length){
-    setSyncBadge('synced', '☁️ Synced');
-    toast(`⚠️ ${dropped.length} item(s) had database errors and were cleared. Contact admin if data is missing.`, true);
   } else {
     setSyncBadge('pending', '⚠️ ' + failed.length + ' pending');
     toast('⚠️ ' + failed.length + ' items still pending — will retry automatically', true);
@@ -8965,7 +7868,13 @@ function buildStudentsList() {
 // search index invalidation merged into confirmImport directly
 
 // ── 7. OPTIMISE buildAttSummary WITH KEY INDEX ─────────────────────
-function buildAttSummary() {
+async function buildAttSummary() {
+  // Fetch latest attendance from cloud for this section
+  const sect = document.getElementById('att-sum-section')?.value || '';
+  if(sect && isOnline){
+    await fetchAttendanceForSection(sect);
+    _attKeyIndex = null; // force rebuild — new cloud data was just written to localStorage
+  }
   // Pre-warm the att key index before summary builds
   if (!_attKeyIndex) buildAttKeyIndex();
   _origBuildAttSummary_v9();
@@ -9041,131 +7950,7 @@ function getEnrollSection(){
 }
 
 
-// ── RESET ALL DATA FOR NEW SCHOOL YEAR ───────────────────────────────
-async function resetForNewSchoolYear(btn){
-  // Double-confirm — two separate dialogs to prevent accidental clicks
-  if(!confirm(
-    '⚠️ FINAL WARNING\n\n' +
-    'This will permanently delete:\n' +
-    '• All students\n• All grade records\n• All attendance records\n' +
-    '• All MPS/raw score tests\n• All audit logs\n• All suspended days\n\n' +
-    'From BOTH Supabase (cloud) AND this device.\n\n' +
-    'This CANNOT be undone.\n\nClick OK to proceed.'
-  )) return;
-
-  if(!confirm(
-    'Are you absolutely sure?\n\n' +
-    'Type OK to confirm — this will erase all school data for the current test period.'
-  )) return;
-
-  const prog = document.getElementById('reset-progress');
-  const step = (msg) => {
-    prog.classList.remove('hidden');
-    prog.innerHTML = '⏳ ' + msg;
-    console.log('[Reset]', msg);
-  };
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Resetting...';
-
-  try {
-    // ── STEP 1: Cloud deletion (Supabase) ──────────────────────────
-    if(isOnline){
-      step('Deleting students from cloud...');
-      await sb.from('students').delete().neq('lrn','__never__');
-
-      step('Deleting grade records from cloud...');
-      await sb.from('grade_records').delete().neq('grade_key','__never__');
-
-      step('Deleting attendance records from cloud...');
-      await sb.from('attendance_records').delete().neq('att_key','__never__');
-
-      step('Deleting audit logs from cloud...');
-      try{ await sb.from('audit_logs').delete().neq('id',0); }catch{}
-
-      step('Deleting suspended days from cloud...');
-      try{ await sb.from('suspended_days').delete().neq('month_key','__never__'); }catch{}
-    } else {
-      step('⚠️ Offline — skipping cloud deletion. Run again when online to clear cloud data.');
-      await new Promise(r=>setTimeout(r,1500));
-    }
-
-    // ── STEP 2: Clear localStorage (this device) ───────────────────
-    step('Clearing local data on this device...');
-
-    // Keys to KEEP — accounts, subjects, strands, school info, session
-    const KEEP_PREFIXES = [
-      LS+'accounts',
-      LS+'subjects',
-      LS+'strands',
-      LS+'schoolInfo',
-      LS+'session',
-    ];
-
-    const keysToDelete = [];
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(!k || !k.startsWith(LS)) continue;
-      if(KEEP_PREFIXES.some(p => k === p || k.startsWith(p+'_'))) continue;
-      keysToDelete.push(k);
-    }
-    keysToDelete.forEach(k => localStorage.removeItem(k));
-
-    // ── STEP 3: Reset in-memory caches ────────────────────────────
-    step('Resetting in-memory data...');
-    studentsCache = [];
-    gradeCache    = {};
-    attCache      = {};
-    attRec        = {};
-    rawScoreCache = {};
-    _searchIndex  = null;
-    _attKeyIndex  = null;
-
-    // ── STEP 4: Clear pending sync queue ──────────────────────────
-    savePendingQueue([]);
-
-    // ── STEP 5: Rebuild all views ──────────────────────────────────
-    step('Done! Rebuilding views...');
-    await new Promise(r=>setTimeout(r,400));
-
-    buildStudentsList();
-    buildClassList();
-    buildReport();
-    updateStats();
-    updateSyncBadge();
-    populateSectionDropdowns();
-    populateDropdowns();
-    initBackupView();
-
-    prog.style.background = '#f0fdf4';
-    prog.style.border = '1px solid #86efac';
-    prog.style.color = '#15803d';
-    prog.innerHTML =
-      '✅ <strong>Reset complete!</strong> All student, grade, attendance and test data has been cleared.<br><br>' +
-      '<strong>Next steps:</strong><br>' +
-      '1. Update the School Year in School Settings<br>' +
-      '2. Go to <strong>Students → Import CSV</strong> to upload the new student list<br>' +
-      '3. Review teacher section assignments in <strong>Accounts</strong>';
-
-    btn.textContent = '✅ Reset Complete';
-    btn.style.background = '#16a34a';
-    document.getElementById('reset-confirm-check').checked = false;
-
-    logAudit('SYSTEM RESET', 'School year data reset performed by ' + (CU?.name||'admin'));
-
-    toast('✅ All school data has been reset. Ready for the new school year!');
-
-  } catch(err) {
-    console.error('[Reset] Error:', err);
-    prog.style.background = '#fff5f5';
-    prog.style.border = '1px solid #fca5a5';
-    prog.style.color = '#dc2626';
-    prog.innerHTML = '❌ Reset failed: ' + (err?.message||String(err)) + '<br>Some data may have been partially deleted. Check Supabase dashboard.';
-    btn.disabled = false;
-    btn.textContent = '🗑️ Reset All Data Now';
-    toast('❌ Reset failed: ' + (err?.message||err), true);
-  }
-}
+// ── FILTER SECTION DROPDOWN (Student Masterlist) ─────────────────
 
 
 
@@ -9638,7 +8423,7 @@ async function exportFullBackup(){
           sb.from('students').select('*').order('name'),
           sb.from('accounts').select('*').order('name'),
         ]);
-        if(s&&s.length){ studentsCache=s.map(normalizeStudent); lsSet('students',studentsCache); }
+        if(s&&s.length){ studentsCache=s; lsSet('students',s); }
         if(a&&a.length){ accountsCache=a.map(normalizeAccount); lsSet('accounts',accountsCache); }
       }catch(e){ console.warn('Cloud refresh skipped:',e.message); }
     }
@@ -9698,16 +8483,18 @@ async function fetchAllStudentsPaginated(){
   return all;
 }
 
-async function reloadStudentsFromCloud(evtOrBtn){
+async function reloadStudentsFromCloud(){
   if(!isOnline){ toast('No internet — using local data'); buildStudentsList(); return; }
-  // Accept either an event (from onclick="reloadStudentsFromCloud(event)") or a button element directly
-  const btn = evtOrBtn?.currentTarget || evtOrBtn?.target || evtOrBtn || null;
-  const orig = btn?.textContent;
-  if(btn){ btn.textContent = '⏳ Loading...'; btn.disabled = true; }
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = '⏳ Loading...'; btn.disabled = true;
   try{
-    const data = (await fetchAllStudentsPaginated()).map(normalizeStudent);
+    // Paginated fetch for 1,700+ students
+    const data = await fetchAllStudentsPaginated();
+    const error = null;
     if(!data || data.length===0){
-      const local = (lsGet('students')||[]).map(normalizeStudent);
+      // Cloud is empty — show local
+      const local = lsGet('students')||[];
       if(local.length > 0){
         studentsCache = local;
         toast('☁️ Cloud empty — showing '+local.length+' local students. Click ⚠️ to sync.');
@@ -9715,8 +8502,8 @@ async function reloadStudentsFromCloud(evtOrBtn){
         toast('No students found in cloud or local storage.', true);
       }
     } else {
-      // Merge: cloud authoritative + local-only pending records
-      const localStudents = (lsGet('students')||[]).map(normalizeStudent);
+      // Merge cloud with local pending
+      const localStudents = lsGet('students')||[];
       const cloudLRNs = new Set(data.map(x=>x.lrn));
       const localOnly = localStudents.filter(x=>!cloudLRNs.has(x.lrn));
       studentsCache = [...data, ...localOnly];
@@ -9724,18 +8511,14 @@ async function reloadStudentsFromCloud(evtOrBtn){
       toast('✅ Loaded '+studentsCache.length+' students from cloud'+(localOnly.length>0?' (+'+localOnly.length+' local pending)':'')+'!');
     }
     _searchIndex = null;
-    // Rebuild ALL views that depend on studentsCache
     buildStudentsList();
-    buildClassList();
-    buildReport();
     updateStats();
     populateSectionDropdowns();
     populateDropdowns();
-    if(typeof loadGradeTable === 'function') loadGradeTable();
   } catch(e){
     toast('Reload failed: '+e.message, true);
   } finally {
-    if(btn){ btn.textContent = orig; btn.disabled = false; }
+    btn.textContent = orig; btn.disabled = false;
   }
 }
 
