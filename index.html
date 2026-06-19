@@ -3858,9 +3858,6 @@ async function renderSF2(){
     if(suspBtn) suspBtn.style.display='none';
   }
 
-  // FIX: fetch attendance from cloud before rendering so SF2 always has latest data
-  const sectionKeyForFetch = resolvedGrade ? 'G'+resolvedGrade+'-'+sect : sect;
-
   if(!sect){
     document.getElementById('sf2-output').innerHTML='<div style="text-align:center;padding:3rem;color:var(--gray-400);font-size:13px">📋 Select a section to generate the SF2.</div>';
     return;
