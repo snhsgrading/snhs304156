@@ -979,7 +979,7 @@
 
       <!-- ENCODE GRADES -->
       <div class="view" id="view-encode">
-        <div class="card" style="margin-bottom:1.25rem;">
+        <div class="card no-print" style="margin-bottom:1.25rem;">
           <div class="card-header"><div><div class="card-title">Grade Encoding</div><div class="card-sub">Select subject and section to begin</div></div></div>
           <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;">
             <div style="flex:1;min-width:180px;"><label class="form-label">Subject</label>
@@ -1011,10 +1011,13 @@
             <div style="display:flex;gap:8px;">
               <button class="btn btn-outline btn-sm" onclick="autoFill()">🎲 Auto-fill (Demo)</button>
               <button class="btn btn-outline btn-sm" onclick="clearGrades()">✕ Clear</button>
+              <button class="btn btn-outline btn-sm" onclick="printMyGrades()">🖨️ Print Grades</button>
             </div>
             <button class="btn btn-green" id="save-grades-btn" onclick="doSaveGrades()">💾 Save Grades</button>
           </div>
         </div>
+        <!-- Printable class record — built fresh each time, hidden in normal view -->
+        <div id="grade-print-view" class="deped-page hidden"></div>
       </div>
 
       <!-- ATTENDANCE V6 -->
@@ -3396,6 +3399,125 @@ function clearGrades(){
     document.querySelectorAll('.grade-input').forEach((inp,i)=>{inp.value='';inp.className='grade-input';const r=document.getElementById('rmk_'+i);if(r){r.className='badge badge-gray';r.textContent='—';}});
   }
   updateEncStatus();
+}
+
+// ── PRINT MY GRADES ───────────────────────────────────────────────
+// Lets any encoding-capable role (Subject Teacher, Adviser, Adviser-Teacher)
+// print a clean class record of T1/T2/T3/Final grades for the subject+section
+// they currently have loaded. Scoped to their own assigned subject only —
+// does not require SF9/SF2/Grade-Summary access, which not all roles have.
+function printMyGrades(){
+  const subj = document.getElementById('enc-subject')?.value;
+  const sect = document.getElementById('enc-section')?.value;
+  if(!subj || !sect){ toast('Select a subject and section first', true); return; }
+
+  const grade = sect.match(/^G(\d+)-/)?.[1] || '10';
+  const isMapeh = subj.replace(/_\d+$/,'') === 'mapeh';
+  const subjects = getSubjectsForGrade(grade);
+  const subjObj = subjects.find(s=>s.id===subj) || {name:subj};
+  const subjLabel = isMapeh ? 'MAPEH (Music & Arts + PE & Health)' : (subjObj.name || subj);
+
+  // Same student filtering/sorting used by buildGradeTable — must match exactly
+  // since grades are stored by index position within this sorted list.
+  const sn = sect.replace(/^G\d+-/,'');
+  let list = studentsCache.filter(s=>s.section===sn);
+  if(!list.length) list = studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  list = list.sort((a,b)=>a.name.localeCompare(b.name));
+
+  if(!list.length){ toast('No students found in this section', true); return; }
+
+  let getTermGrade;
+  if(isMapeh){
+    const maId = 'ma_'+grade, pehId = 'peh_'+grade;
+    getTermGrade = (i, term) => {
+      const maKey  = maId +'_'+sect+'_T'+term;
+      const pehKey = pehId+'_'+sect+'_T'+term;
+      const ma  = (gradeCache[maKey] ||lsGet('gr_'+maKey) ||{})[i];
+      const peh = (gradeCache[pehKey]||lsGet('gr_'+pehKey)||{})[i];
+      if(ma && peh) return Math.round((+ma + +peh)/2);
+      if(ma)  return +ma;
+      if(peh) return +peh;
+      return null;
+    };
+  } else {
+    getTermGrade = (i, term) => {
+      const key = subj+'_'+sect+'_T'+term;
+      const v = (gradeCache[key]||lsGet('gr_'+key)||{})[i];
+      return v ? +v : null;
+    };
+  }
+
+  let passedCount=0, failedCount=0;
+  const rows = list.map((s,i)=>{
+    const t1=getTermGrade(i,1), t2=getTermGrade(i,2), t3=getTermGrade(i,3);
+    const vals=[t1,t2,t3].filter(v=>v!==null);
+    const final = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    const remark = final===null ? '—' : (final>=75 ? 'Passed' : 'Failed');
+    if(final!==null){ final>=75 ? passedCount++ : failedCount++; }
+    const fmt = v => v===null ? '—' : v;
+    return `<tr>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${i+1}</td>
+      <td style="border:1px solid #000;padding:3px 4px;font-family:monospace;font-size:9px;">${s.lrn}</td>
+      <td style="border:1px solid #000;padding:3px 6px;">${s.name}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${fmt(t1)}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${fmt(t2)}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${fmt(t3)}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;font-weight:bold;">${fmt(final)}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;font-size:9px;">${remark}</td>
+    </tr>`;
+  }).join('');
+
+  const sectLabel   = sect.replace(/G(\d+)-/,'Grade $1 – ');
+  const teacherName = (CU?.name||'').toUpperCase();
+  const printedOn   = new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'});
+
+  document.getElementById('grade-print-view').innerHTML = `
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="font-weight:700;font-size:13px;">${SCHOOL_NAME}</div>
+      <div style="font-size:11px;color:#555;">${DIVISION} · ${REGION}</div>
+      <div style="font-size:12px;font-weight:600;margin-top:4px;">Class Record of Grades</div>
+      <div style="font-size:11px;color:#777;">${sectLabel} · ${subjLabel} · S.Y. ${SY}</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px;">
+      <thead>
+        <tr style="background:#f0f0f0;">
+          <th style="border:1px solid #000;padding:4px;width:24px;">#</th>
+          <th style="border:1px solid #000;padding:4px;width:90px;">LRN</th>
+          <th style="border:1px solid #000;padding:4px;text-align:left;">Student Name</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T1</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T2</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T3</th>
+          <th style="border:1px solid #000;padding:4px;width:40px;">Final</th>
+          <th style="border:1px solid #000;padding:4px;width:55px;">Remarks</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="font-size:9.5px;color:#555;margin-bottom:24px;">
+      Total: ${list.length} students &nbsp;·&nbsp; Passed: ${passedCount} &nbsp;·&nbsp; Failed: ${failedCount} &nbsp;·&nbsp; Not yet encoded: ${list.length-passedCount-failedCount}
+    </div>
+    <div style="display:flex;justify-content:flex-end;">
+      <div style="text-align:center;min-width:220px;">
+        <div style="border-bottom:1px solid #000;min-width:200px;height:14px;">&nbsp;</div>
+        <div style="margin-top:2px;font-weight:600;font-size:10px;">${teacherName||'________________________'}</div>
+        <div style="font-size:9px;font-style:italic;">Subject Teacher</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;font-size:8.5px;color:#999;text-align:right;">Printed on ${printedOn}</div>
+  `;
+
+  // Hide the editing table, show the printable sheet, print, then revert.
+  document.getElementById('grade-table-wrap').classList.add('hidden');
+  document.getElementById('grade-print-view').classList.remove('hidden');
+
+  window.print();
+
+  const revert = () => {
+    document.getElementById('grade-table-wrap').classList.remove('hidden');
+    document.getElementById('grade-print-view').classList.add('hidden');
+    window.removeEventListener('afterprint', revert);
+  };
+  window.addEventListener('afterprint', revert);
 }
 
 function selectQtr(q,el){CQ=Math.min(q,3);document.querySelectorAll('.qtr-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');loadGradeTable();}
