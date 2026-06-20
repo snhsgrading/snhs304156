@@ -7713,17 +7713,20 @@ async function processSyncQueue() {
       const { error, data } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
       if (error) {
         console.error('Student upsert error:', error);
-        // Try one by one if batch fails
+        // Try one by one if batch fails — capture the REAL error reason per item
         for(const item of chunk){
           try{
             const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
-            if(e2){ console.error('Single upsert error:', e2); failed.push(item); }
-          }catch{ failed.push(item); }
+            if(e2){
+              console.error('Single upsert error:', e2);
+              failed.push({...item, lastError: e2.message || e2.details || e2.hint || JSON.stringify(e2)});
+            }
+          }catch(ex){ failed.push({...item, lastError: ex.message||String(ex)}); }
         }
       } else {
         setSyncBadge('syncing', '⏳ Syncing... (' + (students.length - students.indexOf(chunk[chunk.length-1]) - 1) + ' left)');
       }
-    } catch(e) { console.error('Chunk error:', e); chunk.forEach(x => failed.push(x)); }
+    } catch(e) { console.error('Chunk error:', e); chunk.forEach(x => failed.push({...x, lastError: e.message||String(e)})); }
     await new Promise(r => setTimeout(r, 300));
   }
 
@@ -7989,6 +7992,40 @@ function getEnrollSection(){
 
 // ── FORCE SYNC (manual trigger) ───────────────────────────────────
 // ── CLEAR STUCK SYNC QUEUE ────────────────────────────────────────
+// Show exactly what's stuck in the sync queue and WHY it's failing.
+// This was the missing piece — errors were only logged to console.error()
+// (invisible to the admin), so a stuck item looked identical to "just hasn't
+// synced yet" with no way to tell the difference or diagnose the real cause.
+function showSyncErrors(){
+  const q = getPendingQueue();
+  if(!q.length){ alert('✅ Sync queue is empty — nothing pending.'); return; }
+
+  const lines = ['=== PENDING SYNC QUEUE ('+q.length+' items) ===', ''];
+  q.forEach((item,i)=>{
+    const label = item.type==='student'
+      ? `${item.data?.name||'(no name)'} — LRN ${item.key}`
+      : item.key;
+    lines.push(`${i+1}. [${item.type}] ${label}`);
+    if(item.lastError){
+      lines.push(`   ❌ ERROR: ${item.lastError}`);
+    } else {
+      lines.push(`   ⏳ Not yet attempted, or no error captured (will retry automatically)`);
+    }
+    lines.push('');
+  });
+  lines.push('— Common causes —');
+  lines.push('• "duplicate key value violates unique constraint" → LRN already exists in cloud (different record)');
+  lines.push('• "new row violates row-level security policy" → Supabase RLS is blocking this account from writing');
+  lines.push('• "null value in column ... violates not-null constraint" → a required field is empty (check birthdate/section/grade)');
+  lines.push('• "invalid input syntax for type date" → birthdate field is malformed');
+  lines.push('');
+  lines.push('Copy this message and share it for help diagnosing.');
+
+  const msg = lines.join('\n');
+  alert(msg);
+  console.log(msg);
+}
+
 function clearSyncQueue(){
   const q = getPendingQueue();
   if(!q.length){ toast('Queue is already empty — nothing to clear.'); return; }
@@ -8007,6 +8044,12 @@ async function forceSyncNow(){
   toast('Syncing ' + q.length + ' items to cloud...');
   try {
     await processSyncQueue();
+    // If items are STILL stuck after a real attempt, show WHY instead of leaving
+    // the admin guessing — this is the diagnostic step that was missing before.
+    const stillStuck = getPendingQueue();
+    if(stillStuck.length){
+      setTimeout(()=>showSyncErrors(), 400);
+    }
   } catch(e) {
     toast('Sync error: ' + e.message, true);
     updateSyncBadge();
