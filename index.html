@@ -1909,7 +1909,7 @@ const DEFAULT_JHS_SUBJECTS = [
   {id:'math',  name:'Mathematics',                               code:'MATH',  order:3},
   {id:'sci',   name:'Science',                                   code:'SCI',   order:4},
   {id:'ap',    name:'Araling Panlipunan (AP)',                   code:'AP',    order:5},
-  {id:'esp',   name:'Edukasyon sa Pagpapakatao (EsP)',           code:'ESP',   order:6},
+  {id:'esp',   name:'Values Education',                          code:'Val Ed',order:6},
   {id:'tle',   name:'Technology and Livelihood Education (TLE)', code:'TLE',   order:7},
   {id:'mapeh', name:'MAPEH',                                     code:'MAPEH', order:8},
 ];
@@ -2968,12 +2968,36 @@ function populateSectionDropdowns(){
 // ── SUBJECTS ──────────────────────────────────────────────────────
 function loadSubjectsCache(){
   const saved=lsGet('jhs_subjects');
-  if(saved&&Object.keys(saved).length){subjectsCache=saved;return}
+  if(saved&&Object.keys(saved).length){
+    subjectsCache=saved;
+    migrateESPSubjectName(); // FIX: rename any saved "ESP" entries to "Values Education" without touching IDs
+    return;
+  }
   subjectsCache={};
   ['7','8','9','10'].forEach(g=>{
     subjectsCache[g]=DEFAULT_JHS_SUBJECTS.map(s=>({...s,id:s.id+'_'+g,grade:g}));
   });
   lsSet('jhs_subjects',subjectsCache);
+}
+
+// FIX: one-time, safe migration — renames the display name/code of any subject
+// whose ID matches the ESP pattern (esp, esp_7, esp_8, esp_9, esp_10) to the
+// new "Values Education" label. Deliberately matches by ID, never by old name
+// text, and never modifies the ID itself — so existing encoded grades for this
+// subject (keyed by ID) remain fully linked. Runs automatically for every
+// account/device that already has a saved subject list in localStorage.
+function migrateESPSubjectName(){
+  let changed=false;
+  Object.keys(subjectsCache).forEach(grade=>{
+    (subjectsCache[grade]||[]).forEach(subj=>{
+      if(/^esp(_\d+)?$/.test(subj.id) && subj.name!=='Values Education'){
+        subj.name='Values Education';
+        subj.code='Val Ed';
+        changed=true;
+      }
+    });
+  });
+  if(changed) lsSet('jhs_subjects',subjectsCache);
 }
 
 function getSubjectsForGrade(grade){
