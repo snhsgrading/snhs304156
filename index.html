@@ -3448,7 +3448,12 @@ function printMyGrades(){
   }
 
   let passedCount=0, failedCount=0;
-  const rows = list.map((s,i)=>{
+
+  // Build rows for a given group of students, using their ORIGINAL index
+  // (position in the full alphabetical list) for grade lookup — never the
+  // group-local position, since that's how grades are actually keyed/stored.
+  // Display numbering restarts at 1 per group, matching SF2 convention.
+  const buildRows = (group) => group.map(({s,i},gi)=>{
     const t1=getTermGrade(i,1), t2=getTermGrade(i,2), t3=getTermGrade(i,3);
     const vals=[t1,t2,t3].filter(v=>v!==null);
     const final = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
@@ -3456,7 +3461,7 @@ function printMyGrades(){
     if(final!==null){ final>=75 ? passedCount++ : failedCount++; }
     const fmt = v => v===null ? '—' : v;
     return `<tr>
-      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${i+1}</td>
+      <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${gi+1}</td>
       <td style="border:1px solid #000;padding:3px 4px;font-family:monospace;font-size:9px;">${s.lrn}</td>
       <td style="border:1px solid #000;padding:3px 6px;">${s.name}</td>
       <td style="text-align:center;border:1px solid #000;padding:3px 4px;">${fmt(t1)}</td>
@@ -3466,6 +3471,35 @@ function printMyGrades(){
       <td style="text-align:center;border:1px solid #000;padding:3px 4px;font-size:9px;">${remark}</td>
     </tr>`;
   }).join('');
+
+  // Pair each student with its ORIGINAL index before splitting by sex
+  const indexed = list.map((s,i)=>({s,i}));
+  const maleGroup   = indexed.filter(x=>x.s.sex==='M');
+  const femaleGroup = indexed.filter(x=>x.s.sex==='F');
+  const otherGroup  = indexed.filter(x=>x.s.sex!=='M'&&x.s.sex!=='F'); // safety net, shouldn't normally have entries
+
+  const theadRow = `<tr style="background:#f0f0f0;">
+          <th style="border:1px solid #000;padding:4px;width:24px;">#</th>
+          <th style="border:1px solid #000;padding:4px;width:90px;">LRN</th>
+          <th style="border:1px solid #000;padding:4px;text-align:left;">Student Name</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T1</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T2</th>
+          <th style="border:1px solid #000;padding:4px;width:34px;">T3</th>
+          <th style="border:1px solid #000;padding:4px;width:40px;">Final</th>
+          <th style="border:1px solid #000;padding:4px;width:55px;">Remarks</th>
+        </tr>`;
+
+  const sectionTable = (label, group) => {
+    if(!group.length) return '';
+    return `
+    <div style="font-weight:700;font-size:10.5px;background:#e5e5e5;border:1px solid #000;border-bottom:none;padding:4px 6px;">${label} (${group.length})</div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:10px;">
+      <thead>${theadRow}</thead>
+      <tbody>${buildRows(group)}</tbody>
+    </table>`;
+  };
+
+  const rows = sectionTable('MALE', maleGroup) + sectionTable('FEMALE', femaleGroup) + sectionTable('OTHER', otherGroup);
 
   const sectLabel   = sect.replace(/G(\d+)-/,'Grade $1 – ');
   const teacherName = (CU?.name||'').toUpperCase();
@@ -3478,23 +3512,9 @@ function printMyGrades(){
       <div style="font-size:12px;font-weight:600;margin-top:4px;">Class Record of Grades</div>
       <div style="font-size:11px;color:#777;">${sectLabel} · ${subjLabel} · S.Y. ${SY}</div>
     </div>
-    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6px;">
-      <thead>
-        <tr style="background:#f0f0f0;">
-          <th style="border:1px solid #000;padding:4px;width:24px;">#</th>
-          <th style="border:1px solid #000;padding:4px;width:90px;">LRN</th>
-          <th style="border:1px solid #000;padding:4px;text-align:left;">Student Name</th>
-          <th style="border:1px solid #000;padding:4px;width:34px;">T1</th>
-          <th style="border:1px solid #000;padding:4px;width:34px;">T2</th>
-          <th style="border:1px solid #000;padding:4px;width:34px;">T3</th>
-          <th style="border:1px solid #000;padding:4px;width:40px;">Final</th>
-          <th style="border:1px solid #000;padding:4px;width:55px;">Remarks</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+    ${rows}
     <div style="font-size:9.5px;color:#555;margin-bottom:24px;">
-      Total: ${list.length} students &nbsp;·&nbsp; Passed: ${passedCount} &nbsp;·&nbsp; Failed: ${failedCount} &nbsp;·&nbsp; Not yet encoded: ${list.length-passedCount-failedCount}
+      Total: ${list.length} students &nbsp;·&nbsp; Male: ${maleGroup.length} &nbsp;·&nbsp; Female: ${femaleGroup.length} &nbsp;·&nbsp; Passed: ${passedCount} &nbsp;·&nbsp; Failed: ${failedCount} &nbsp;·&nbsp; Not yet encoded: ${list.length-passedCount-failedCount}
     </div>
     <div style="display:flex;justify-content:flex-end;">
       <div style="text-align:center;min-width:220px;">
