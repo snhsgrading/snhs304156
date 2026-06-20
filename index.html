@@ -2175,6 +2175,17 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>{isOnline=false;updateSyncBadge();toast('Offline — data saved locally, syncs when WiFi returns');});
 
+// FIX: genuine automatic background retry for pending sync items.
+// Previously the app only retried on next save / page reload / reconnect —
+// the "will retry automatically" message was shown but no real retry loop existed.
+// This silently retries every 30s in the background so enrolled students,
+// grades, and attendance don't sit stuck as "pending" waiting for a manual click.
+setInterval(()=>{
+  if(isOnline && pendingSyncCount>0 && typeof CU!=='undefined' && CU){
+    processSyncQueue();
+  }
+}, 30000);
+
 // ── LOADING ────────────────────────────────────────────────────────
 function showLoading(msg='Loading...'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading-overlay').classList.remove('hidden')}
 function hideLoading(){document.getElementById('loading-overlay').classList.add('hidden')}
