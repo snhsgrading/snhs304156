@@ -2081,6 +2081,20 @@ const LS = 'snhs_';
 function lsGet(k){try{return JSON.parse(localStorage.getItem(LS+k)||'null')}catch{return null}}
 function lsSet(k,v){try{localStorage.setItem(LS+k,JSON.stringify(v))}catch{toast('Storage full! Clear browser cache.',true)}}
 
+// FIX: Safe error serializer — prevents DataCloneError when raw Supabase/Fetch
+// error objects (which contain non-cloneable Headers) are passed to console/toast.
+function safeErr(e){
+  if(!e) return 'Unknown error';
+  if(typeof e === 'string') return e;
+  // Supabase errors have message, details, hint, code
+  const parts = [e.message, e.details, e.hint, e.code].filter(Boolean);
+  if(parts.length) return parts.join(' | ');
+  // Fallback: try JSON, but never pass the raw object anywhere
+  try{ return JSON.stringify(e, Object.getOwnPropertyNames(e)); }
+  catch{ return String(e) || 'Error'; }
+}
+
+
 // ── SYNC ENGINE ────────────────────────────────────────────────────
 function getPendingQueue(){return lsGet('pendingQueue')||[]}
 function savePendingQueue(q){lsSet('pendingQueue',q)}
@@ -2167,13 +2181,28 @@ window.addEventListener('online',()=>{
         accountsCache=[...a.map(normalizeAccount),...localOnly.map(normalizeAccount)];
         lsSet('accounts',accountsCache);
       } else if(accountsCache.length>0){
-        // Cloud empty — re-push local accounts
         accountsCache.forEach(acc=>queueForSync('account',acc.username,acc));
       }
       if(st&&st.length>0){strandsCache=st;lsSet('strands',st);}
       buildStudentsList(); buildAccountsList(); updateStats();
-    }catch(e){ console.warn('Online sync error:',e); }
-    processSyncQueue();
+      // FIX: reload attendance for the adviser's section so Summary/SF2
+      // immediately reflects any records saved on another device while offline
+      if(CU && typeof getAdvisorySection === 'function'){
+        const advSect = getAdvisorySection();
+        if(advSect){
+          await fetchAttendanceForSection(advSect);
+          _attKeyIndex = null; // force index rebuild with fresh cloud data
+        }
+      }
+    }catch(e){
+      // FIX: always serialize to string — raw Supabase errors contain a
+      // non-cloneable Headers object that was causing DataCloneError here,
+      // crashing the entire handler so processSyncQueue below never ran.
+      console.warn('Online sync error:', safeErr(e));
+    }
+    // FIX: must await this — without await it fires-and-forgets and the
+    // pending badge never updates correctly after reconnect.
+    await processSyncQueue();
   },1500);
 });
 window.addEventListener('offline',()=>{isOnline=false;updateSyncBadge();toast('Offline — data saved locally, syncs when WiFi returns');});
@@ -2384,7 +2413,7 @@ async function doLogin(isAutoLogin=false){
         }
       }
     } catch(e){
-      console.error('Login network error:', e);
+      console.error('Login network error:', safeErr(e));
       toast('⚠️ Network error during login: '+e.message, true);
     }
   }
@@ -4513,7 +4542,7 @@ async function fetchGradesForSection(sectionKey){
       }
     });
     console.log(`Grades: loaded ${loaded} records for ${sectionKey} from cloud`);
-  } catch(e){ console.warn('fetchGradesForSection error:', e); }
+  } catch(e){ console.warn('fetchGradesForSection error:', safeErr(e)); }
 }
 
 // Fetch all attendance records for a section (and optionally a specific month)
@@ -4537,7 +4566,7 @@ async function fetchAttendanceForSection(sectionKey, monthStr){
       }
     });
     console.log(`Attendance: loaded ${loaded} records for ${sectionKey} from cloud`);
-  } catch(e){ console.warn('fetchAttendanceForSection error:', e); }
+  } catch(e){ console.warn('fetchAttendanceForSection error:', safeErr(e)); }
 }
 
 async function buildReport(){
@@ -4596,7 +4625,7 @@ async function buildReport(){
     try{
       const {data} = await sb.from('grade_records').select('grade_key, data');
       if(data) data.forEach(rec=>{ if(rec.data) gradeCache[rec.grade_key]=rec.data; });
-    }catch(e){ console.warn('fetchAllGrades error:',e); }
+    }catch(e){ console.warn('fetchAllGrades error:', safeErr(e)); }
   }
 
   // Derive grade from section key first (reliable), then fall back to first student
@@ -5076,7 +5105,7 @@ async function loadSavedRawTests(){
         // Update local cache
         rawScoreCache[rec.grade_key] = rec.data;
       });
-    }catch(e){ console.warn('loadSavedRawTests cloud error:', e); }
+    }catch(e){ console.warn('loadSavedRawTests cloud error:', safeErr(e)); }
   }
 
   // Parse key: raw_{sect}_{qtr}_{subj}
@@ -5901,7 +5930,7 @@ async function pushAllAccountsToCloud(){
         pushed++;
       }
     }catch(e){
-      console.error('Push exception for', acc.username, ':', e);
+      console.error('Push exception for', acc.username, ':', safeErr(e));
       failed++;
     }
     await new Promise(r=>setTimeout(r,100));
@@ -6614,7 +6643,7 @@ async function saveTeacher(){
         _accountsCloudLoaded = false;
       }
     } catch(e){
-      console.error('Save account exception:', e);
+      console.error('Save account exception:', safeErr(e));
       queueForSync('account', username, obj);
       toast('⚠️ Network error: '+e.message, true);
     }
@@ -6918,30 +6947,63 @@ function loadAttendance(){
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
   const amRec=attCache[amKey]||lsGet('att_'+amKey)||{};
   const pmRec=attCache[pmKey]||lsGet('att_'+pmKey)||{};
+  const amSaved = Object.keys(amRec).length > 0;
+  const pmSaved = Object.keys(pmRec).length > 0;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const isToday  = date === todayStr;
 
-  // DEFAULT: if no record exists for today, pre-mark ALL as Present
-  if(currentSession==='AM'&&Object.keys(amRec).length===0){
-    list.forEach(s=>amRec[s.lrn]='P');
-    toast('💡 All students pre-marked as Present. Click ✕ to mark absent.');
+  // FIX: Only pre-mark all-Present for TODAY if no record exists yet.
+  // For PAST dates — show blank (unsaved) state so teacher knows they must
+  // actively encode and save each session. Phantom pre-fills were causing
+  // sessions to appear recorded in memory but never reach cloud/localStorage.
+  if(isToday){
+    if(currentSession==='AM' && !amSaved){
+      list.forEach(s=>amRec[s.lrn]='P');
+      toast('💡 All students pre-marked Present for today. Click ✕ to mark absent.');
+    }
+    if(currentSession==='PM' && !pmSaved){
+      list.forEach(s=>pmRec[s.lrn]='P');
+    }
+  } else {
+    // Past date with no saved record — warn teacher
+    if(currentSession==='AM' && !amSaved){
+      toast('⚠️ No AM attendance saved for this date yet — mark and save to record it.',true);
+    }
+    if(currentSession==='PM' && !pmSaved){
+      toast('⚠️ No PM attendance saved for this date yet — mark and save to record it.',true);
+    }
   }
-  if(currentSession==='PM'&&Object.keys(pmRec).length===0){
-    list.forEach(s=>pmRec[s.lrn]='P');
-  }
+
   attRec=currentSession==='AM'?{...amRec}:{...pmRec};
 
   const dateObj=new Date(date+'T00:00:00');
   const dateLabel=dateObj.toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-
-  // Check if this day is suspended
   const suspended = isSuspended(date);
   updateSuspendBtnState();
 
+  // FIX: show AM/PM save status badges so teacher knows what's already saved
+  const amBadge = amSaved
+    ? `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">AM ✓ Saved</span>`
+    : `<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-weight:600">AM ✗ Not saved</span>`;
+  const pmBadge = pmSaved
+    ? `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">PM ✓ Saved</span>`
+    : `<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-weight:600">PM ✗ Not saved</span>`;
+
   document.getElementById('att-table-title').textContent='Attendance — '+sect.replace(/G(\d+)-/,'G$1 – ')+(suspended?' 🚫 NO CLASS DAY':'');
-  document.getElementById('att-table-sub').textContent=dateLabel+' · '+list.length+' students · '+(currentSession==='AM'?'☀️ Morning':'🌤️ Afternoon')+(suspended?' · This day is marked as suspended/holiday':' · '+list.length+' students');
+  document.getElementById('att-table-sub').innerHTML=
+    dateLabel+' &nbsp;·&nbsp; '+list.length+' students &nbsp;·&nbsp; '
+    +(currentSession==='AM'?'☀️ Morning':'🌤️ Afternoon')
+    +(suspended?' &nbsp;·&nbsp; <span style="color:red">This day is marked as suspended/holiday</span>':'')
+    +'<div style="margin-top:4px;display:flex;gap:6px">'+amBadge+pmBadge+'</div>';
 
   document.getElementById('att-tbody').innerHTML=list.map((s,i)=>{
-    const amSt=amRec[s.lrn]||'P', pmSt=pmRec[s.lrn]||'P';
+    // FIX: for past dates without a saved record, show 'P' as default mark in
+    // the buttons (so teacher can just save directly) but do NOT mark attRec
+    // until teacher actively clicks Save — this way unsaved = truly unrecorded.
+    const amSt=amRec[s.lrn]||(amSaved?'P':'P'), pmSt=pmRec[s.lrn]||(pmSaved?'P':'P');
     const curSt=currentSession==='AM'?amSt:pmSt;
+    // Also populate attRec so saving works even without individual button clicks
+    if(!attRec[s.lrn]) attRec[s.lrn]='P';
     const badge=(v)=>`<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${v==='P'?'var(--green-bg)':'var(--red-bg)'};color:${v==='P'?'var(--green)':'var(--red)'}">${v==='P'?'Present':'Absent'}</span>`;
     return`<tr style="${curSt==='A'?'background:#fff5f5':''}">
       <td style="color:var(--gray-400)">${i+1}</td>
@@ -7028,10 +7090,13 @@ function _saveAttendanceCore(){
   attCache[key] = {...attRec};
   lsSet('att_' + key, attRec);
   queueForSync('attendance', key, attRec);
+  _attKeyIndex = null; // force rebuild so Summary picks up this save immediately
   logAudit('SAVE ATTENDANCE', date + ' · ' + sect + ' · ' + currentSession + ' · ' + Object.keys(attRec).length + ' students');
   // Refresh calendar dot if visible
   if (!document.getElementById('att-tab-calendar')?.classList.contains('hidden')) renderCalendar();
-  toast('✅ Attendance saved' + (isOnline ? '!' : ' offline — syncs when online'));
+  toast('✅ Attendance saved for '+date+' ('+currentSession+')' + (isOnline ? '' : ' — syncs when online'));
+  // FIX: reload the attendance table so AM/PM saved badges update immediately
+  loadAttendance();
 }
 
 // ── CALENDAR ────────────────────────────────────────────────────────
@@ -7894,13 +7959,13 @@ async function processSyncQueue() {
     try {
       const { error, data } = await sb.from('students').upsert(chunk.map(x => x.data), { onConflict: 'lrn' });
       if (error) {
-        console.error('Student upsert error:', error);
+        console.error('Student upsert error:', safeErr(error));
         // Try one by one if batch fails — capture the REAL error reason per item
         for(const item of chunk){
           try{
             const {error:e2} = await sb.from('students').upsert(item.data, {onConflict:'lrn'});
             if(e2){
-              console.error('Single upsert error:', e2);
+              console.error('Single upsert error:', safeErr(e2));
               failed.push({...item, lastError: e2.message || e2.details || e2.hint || JSON.stringify(e2)});
             }
           }catch(ex){ failed.push({...item, lastError: ex.message||String(ex)}); }
@@ -8410,7 +8475,7 @@ async function diagnoseSyncIssue(){
     if(error) toast('Supabase error: '+error.message+'. Check if SQL setup was run.', true);
     else toast('Supabase connection OK. Retrying sync...');
   } catch(e) {
-    console.error('Connection test failed:', e);
+    console.error('Connection test failed:', safeErr(e));
     toast('Cannot reach Supabase: '+e.message, true);
   }
 
