@@ -4136,18 +4136,17 @@ async function renderSF2(){
     const cells=allWeekdays.map(({date,susp})=>{
       if(susp) return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:8px;background:#f3f4f6;color:#9ca3af">—</td>`;
       const v=getAtt(stu.lrn,date,'AM');
-      if(v==='P')presentCount++;
+      if(v==='P') presentCount++;
       const bg=v==='A'?'background:#fee2e2;':'';
-      return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;${bg}">${v==='A'?'A':''}</td>`;
+      // FIX: show 'P' for present and 'A' for absent — SF2 requires both marks visible
+      const display = v==='P'?'P':v==='A'?'A':'';
+      const color   = v==='P'?'color:#166534;':'';
+      return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;${bg}${color}">${display}</td>`;
     }).join('');
-    // Auto-detect remarks from student status
     const st = (stu.status||'Enrolled').toLowerCase();
     let remarkVal='', remarkBg='';
     if(st==='dropped')      { remarkVal='NLS'; remarkBg='background:#fee2e2;color:#991b1b;font-weight:bold'; }
     else if(st==='transferred'){ remarkVal='Trans Out'; remarkBg='background:#fef3c7;color:#92400e;font-weight:bold'; }
-    // "Transferred In" = students enrolled mid-year (enrolled after 1st Friday)
-    // Heuristic: enrolled but lrn starts with different school code — just mark Enrolled for now
-    // The adviser can see NLS and Trans Out automatically
     const remarkCell=`<td style="border:1px solid #999;padding:2px 3px;text-align:center;font-size:8px;${remarkBg}">${remarkVal}</td>`;
     return`<tr>
       <td style="border:1px solid #999;padding:2px 4px;text-align:center;font-size:9px">${num}</td>
@@ -4306,7 +4305,7 @@ async function renderSF2(){
       </tr>
       <tr>
         <td style="padding:2px 0">Adviser: <strong>${isAdviser()?CU.name:'_________________________'}</strong></td>
-        <td style="padding:2px 0">No. of School Days this Month: <strong>${daysOfClass}</strong>${suspendedInMonth.length>0?` <span style="color:#92400e">(${suspendedInMonth.length} suspended)</span>`:''}</td>
+        <td style="padding:2px 0">No. of School Days this Month: <strong>${daysOfClass}</strong>${suspendedInMonth.length>0?` <span style="color:#92400e">(${suspendedInMonth.length} suspended)</span>`:''}<span style="font-size:9px;color:#777;margin-left:6px">[${allWeekdays.length} weekdays${suspendedInMonth.length>0?` − ${suspendedInMonth.length} suspended = ${daysOfClass} class days`:''}]</span></td>
         <td style="padding:2px 0">Registered Learners: <strong>${registeredLearners}</strong></td>
       </tr>
     </table>
@@ -7122,16 +7121,24 @@ function _origBuildAttSummary_v9(){
   const lbl = document.getElementById('att-sum-days-label');
   if(lbl) lbl.textContent = totalAMDays+' AM days · '+totalPMDays+' PM days recorded';
 
-  document.getElementById('att-sum-tbody').innerHTML = list.map((s,i)=>{
+  document.getElementById('att-sum-tbody').innerHTML = list.map((s)=>{
     let amP=0,amA=0,pmP=0,pmA=0;
-    amKeys.forEach(k=>{ const rec=attCache[k]||lsGet('att_'+k)||{}; const v=rec[s.lrn]; if(v==='P')amP++; else if(v==='A')amA++; });
-    pmKeys.forEach(k=>{ const rec=attCache[k]||lsGet('att_'+k)||{}; const v=rec[s.lrn]; if(v==='P')pmP++; else if(v==='A')pmA++; });
-    const total = amP+amA+pmP+pmA;
+    amKeys.forEach(k=>{
+      const rec=attCache[k]||lsGet('att_'+k)||{};
+      const v=rec[s.lrn];
+      if(v==='P') amP++; else if(v==='A') amA++;
+    });
+    pmKeys.forEach(k=>{
+      const rec=attCache[k]||lsGet('att_'+k)||{};
+      const v=rec[s.lrn];
+      if(v==='P') pmP++; else if(v==='A') pmA++;
+    });
+    const total   = amP+amA+pmP+pmA;
     const present = amP+pmP;
-    const rate = total>0 ? Math.round(present/total*100)+'%' : '—';
-    const rateColor = present/total>=0.95?'var(--green)':present/total>=0.75?'var(--gold)':'var(--red)';
+    const rate    = total>0 ? Math.round(present/total*100)+'%' : '—';
+    const rateColor = total===0?'var(--gray-400)':present/total>=0.95?'var(--green)':present/total>=0.75?'var(--gold)':'var(--red)';
     return`<tr>
-      <td>${i+1}</td><td><strong>${s.name}</strong></td>
+      <td>${list.indexOf(s)+1}</td><td><strong>${s.name}</strong></td>
       <td style="text-align:center;color:var(--green)">${amP}</td>
       <td style="text-align:center;color:var(--red)">${amA}</td>
       <td style="text-align:center;color:var(--green)">${pmP}</td>
@@ -7807,19 +7814,28 @@ let _attKeyIndex = null; // {sectionKey: [date1, date2, ...]}
 
 function buildAttKeyIndex() {
   _attKeyIndex = {};
+
+  // Helper to index a single key
+  const indexKey = (key) => {
+    const parts = key.split('_');
+    if (parts.length < 3) return;
+    const session = parts[parts.length - 1];           // AM or PM
+    const sect    = parts.slice(1, parts.length - 1).join('_'); // G7-STEADFAST
+    const ik      = sect + '_' + session;
+    if (!_attKeyIndex[ik]) _attKeyIndex[ik] = [];
+    if (!_attKeyIndex[ik].includes(key)) _attKeyIndex[ik].push(key);
+  };
+
+  // 1. From localStorage (primary — covers offline saves and previous sessions)
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k.startsWith(LS + 'att_')) continue;
-    const key = k.slice((LS + 'att_').length); // e.g. "2026-08-15_G10-Steadfast_AM"
-    const parts = key.split('_');
-    if (parts.length < 3) continue;
-    const session = parts[parts.length - 1];           // AM or PM
-    const sect = parts.slice(1, parts.length - 1).join('_'); // G10-Steadfast
-    const date = parts[0];                             // 2026-08-15
-    const indexKey = sect + '_' + session;
-    if (!_attKeyIndex[indexKey]) _attKeyIndex[indexKey] = [];
-    _attKeyIndex[indexKey].push(key);
+    if (!k || !k.startsWith(LS + 'att_')) continue;
+    indexKey(k.slice((LS + 'att_').length));
   }
+
+  // 2. From attCache (covers cloud-fetched records loaded this session that
+  //    may not yet be flushed to localStorage on all browsers/devices)
+  Object.keys(attCache).forEach(key => indexKey(key));
 }
 
 function getAttKeys(sect, session) {
