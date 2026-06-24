@@ -6976,39 +6976,59 @@ function loadAttendance(){
 
   attRec=currentSession==='AM'?{...amRec}:{...pmRec};
 
+  // FIX: detect students enrolled AFTER this attendance record was first saved.
+  // Their LRNs are missing from the stored record — auto-add them as 'P' (default)
+  // into attRec so one Save brings the record up to date with the full class list.
+  const curRec = currentSession==='AM' ? amRec : pmRec;
+  const missingStudents = list.filter(s => curRec[s.lrn]===undefined);
+  missingStudents.forEach(s => { attRec[s.lrn] = 'P'; });
+  const hasIncomplete = (currentSession==='AM' ? amSaved : pmSaved) && missingStudents.length > 0;
+
   const dateObj=new Date(date+'T00:00:00');
   const dateLabel=dateObj.toLocaleDateString('en-PH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
   const suspended = isSuspended(date);
   updateSuspendBtnState();
 
-  // FIX: show AM/PM save status badges so teacher knows what's already saved
-  const amBadge = amSaved
-    ? `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">AM ✓ Saved</span>`
-    : `<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-weight:600">AM ✗ Not saved</span>`;
-  const pmBadge = pmSaved
-    ? `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">PM ✓ Saved</span>`
-    : `<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-weight:600">PM ✗ Not saved</span>`;
+  // AM/PM save status badges — amber if saved but incomplete (missing students)
+  const makeBadge=(saved, missing)=>{
+    if(!saved)     return `<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:4px;padding:2px 7px;font-weight:600">✗ Not saved</span>`;
+    if(missing>0)  return `<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 7px;font-weight:600">⚠️ Incomplete — ${missing} student${missing>1?'s':''} missing · Save to update</span>`;
+    return             `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">✓ Saved</span>`;
+  };
+  const amMissing = list.filter(s=>amRec[s.lrn]===undefined).length;
+  const pmMissing = list.filter(s=>pmRec[s.lrn]===undefined).length;
+  const amBadge = makeBadge(amSaved, amSaved ? amMissing : 0);
+  const pmBadge = makeBadge(pmSaved, pmSaved ? pmMissing : 0);
+
+  // Prompt teacher to re-save if current session has missing students
+  if(hasIncomplete){
+    toast(`⚠️ ${missingStudents.length} student${missingStudents.length>1?'s':''} not in this ${currentSession} record (enrolled later). They are pre-marked Present — click Save to add them.`, true);
+  }
 
   document.getElementById('att-table-title').textContent='Attendance — '+sect.replace(/G(\d+)-/,'G$1 – ')+(suspended?' 🚫 NO CLASS DAY':'');
   document.getElementById('att-table-sub').innerHTML=
     dateLabel+' &nbsp;·&nbsp; '+list.length+' students &nbsp;·&nbsp; '
     +(currentSession==='AM'?'☀️ Morning':'🌤️ Afternoon')
     +(suspended?' &nbsp;·&nbsp; <span style="color:red">This day is marked as suspended/holiday</span>':'')
-    +'<div style="margin-top:4px;display:flex;gap:6px">'+amBadge+pmBadge+'</div>';
+    +'<div style="margin-top:4px;display:flex;gap:8px">'
+    +'<span style="font-size:10px;font-weight:600;color:var(--gray-500)">AM:</span>'+amBadge
+    +'&nbsp;<span style="font-size:10px;font-weight:600;color:var(--gray-500)">PM:</span>'+pmBadge
+    +'</div>';
 
   document.getElementById('att-tbody').innerHTML=list.map((s,i)=>{
-    // FIX: for past dates without a saved record, show 'P' as default mark in
-    // the buttons (so teacher can just save directly) but do NOT mark attRec
-    // until teacher actively clicks Save — this way unsaved = truly unrecorded.
-    const amSt=amRec[s.lrn]||(amSaved?'P':'P'), pmSt=pmRec[s.lrn]||(pmSaved?'P':'P');
+    const inRecord = curRec[s.lrn] !== undefined;
+    const amSt=amRec[s.lrn]||'P';
+    const pmSt=pmRec[s.lrn]||'P';
     const curSt=currentSession==='AM'?amSt:pmSt;
-    // Also populate attRec so saving works even without individual button clicks
-    if(!attRec[s.lrn]) attRec[s.lrn]='P';
+    // Highlight rows for students not in the original saved record
+    const rowBg = curSt==='A' ? 'background:#fff5f5' : (!inRecord && (currentSession==='AM'?amSaved:pmSaved)) ? 'background:#fffbeb' : '';
+    const newTag = (!inRecord && (currentSession==='AM'?amSaved:pmSaved))
+      ? `<span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px;margin-left:4px">NEW</span>` : '';
     const badge=(v)=>`<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${v==='P'?'var(--green-bg)':'var(--red-bg)'};color:${v==='P'?'var(--green)':'var(--red)'}">${v==='P'?'Present':'Absent'}</span>`;
-    return`<tr style="${curSt==='A'?'background:#fff5f5':''}">
+    return`<tr style="${rowBg}">
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
-      <td><strong>${s.name}</strong></td>
+      <td><strong>${s.name}</strong>${newTag}</td>
       <td style="text-align:center">${badge(amSt)}</td>
       <td style="text-align:center">
         ${currentSession==='AM'?`<div style="display:flex;gap:4px;justify-content:center">
