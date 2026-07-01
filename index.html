@@ -1262,7 +1262,7 @@
               <!-- Principal & Teacher signatures -->
               <div style="display:flex;justify-content:space-between;margin:10px 0 6px;font-size:9.5px;">
                 <div style="min-width:220px;">
-                  <div style="font-weight:bold;">ROSEMARIE S. MACARANDAN, PhD</div>
+                  <div style="font-weight:bold;">LEONARDA L. ARAZO</div>
                   <div style="font-size:8.5px;font-style:italic;">Principal III</div>
                 </div>
                 <div style="min-width:220px;text-align:right;">
@@ -1897,8 +1897,8 @@ const SY_END   = '2027-04-08'; // Term 3 end
 const isWithinSY = (dateStr) => dateStr >= SY_START && dateStr <= SY_END;
 const SCHOOL_NAME = 'SUAREZ NATIONAL HIGH SCHOOL';
 const SCHOOL_ID = '304156';
-const PRINCIPAL = 'ROSEMARIE S. MACARANDAN, PhD';
-const PRINCIPAL_TITLE = 'PRINCIPAL III';
+const PRINCIPAL = 'LEONARDA L. ARAZO';
+const PRINCIPAL_TITLE = 'PRINCIPAL';
 const DIVISION = 'Division of Iligan City';
 const REGION = 'Region X – Northern Mindanao';
 
@@ -2207,16 +2207,36 @@ window.addEventListener('online',()=>{
 });
 window.addEventListener('offline',()=>{isOnline=false;updateSyncBadge();toast('Offline — data saved locally, syncs when WiFi returns');});
 
-// FIX: genuine automatic background retry for pending sync items.
-// Previously the app only retried on next save / page reload / reconnect —
-// the "will retry automatically" message was shown but no real retry loop existed.
-// This silently retries every 30s in the background so enrolled students,
-// grades, and attendance don't sit stuck as "pending" waiting for a manual click.
+// Auto-retry pending sync items every 30 seconds
 setInterval(()=>{
   if(isOnline && pendingSyncCount>0 && typeof CU!=='undefined' && CU){
     processSyncQueue();
   }
 }, 30000);
+
+// FIX: refresh student list every 2 minutes while online so deletions made
+// by admin on another device appear on all active teacher sessions without
+// requiring a page reload. Only runs when logged in and online.
+// Uses a lightweight count check first to avoid unnecessary full fetches.
+setInterval(async()=>{
+  if(!isOnline || !CU) return;
+  try{
+    const {data,error} = await sb.from('students').select('count').limit(1);
+    if(error) return;
+    const cloudCount = data?.[0]?.count ?? data?.length ?? null;
+    if(cloudCount!==null && cloudCount !== studentsCache.length){
+      // Count mismatch — someone was added or deleted — pull full list
+      const fresh = await fetchAllStudentsPaginated();
+      if(fresh && fresh.length > 0){
+        studentsCache = fresh;
+        lsSet('students', fresh);
+        buildStudentsList(); buildClassList(); updateStats();
+        // Invalidate search + attendance indexes so stale data doesn't linger
+        _searchIndex = null; _attKeyIndex = null;
+      }
+    }
+  }catch{ /* silent — network hiccup, will retry next interval */ }
+}, 120000); // every 2 minutes
 
 // ── LOADING ────────────────────────────────────────────────────────
 function showLoading(msg='Loading...'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading-overlay').classList.remove('hidden')}
@@ -5721,15 +5741,37 @@ function saveEnrollment(){
 }
 
 function editStudent(lrn){openEnrollModal(lrn)}
-function deleteStudent(lrn,name){
+async function deleteStudent(lrn,name){
   _searchIndex=null;
-  if(!confirm('⚠️ Remove '+name+' from the masterlist?\n\nThis cannot be undone.'))return;
+  if(!confirm('⚠️ Remove '+name+' from the masterlist?\n\nThis will delete them from the cloud database and all accounts.'))return;
+
+  // 1. Remove from local cache immediately
   studentsCache=studentsCache.filter(s=>s.lrn!==lrn);
   lsSet('students',studentsCache);
-  queueForSync('student_delete',lrn,null);
+
+  // 2. Delete from Supabase NOW (not just queued) so other accounts see it immediately
+  if(isOnline){
+    try{
+      const {error}=await sb.from('students').delete().eq('lrn',lrn);
+      if(error){
+        // Cloud delete failed — queue it for retry
+        queueForSync('student_delete',lrn,null);
+        toast('⚠️ Removed locally — cloud sync pending',true);
+      } else {
+        toast('✅ Student removed from all accounts');
+      }
+    }catch(e){
+      queueForSync('student_delete',lrn,null);
+      toast('⚠️ Removed locally — cloud sync pending: '+safeErr(e),true);
+    }
+  } else {
+    // Offline — queue for when WiFi returns
+    queueForSync('student_delete',lrn,null);
+    toast('Student removed (syncs to cloud when online)');
+  }
+
   logAudit('STUDENT DELETE','Removed student: '+name+' ('+lrn+')');
   buildStudentsList(); buildClassList(); updateStats();
-  toast('Student removed'+(isOnline?'':' (will sync when online)'));
 }
 
 // ── BULK IMPORT ─────────────────────────────────────────────────────
