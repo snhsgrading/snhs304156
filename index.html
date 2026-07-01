@@ -8882,6 +8882,108 @@ async function reloadStudentsFromCloud(){
   }
 }
 
+
+
+// ── REALTIME STUDENT SYNC ─────────────────────────────────────────
+// Sync student deletions, inserts, and updates across all accounts instantly.
+let studentsRealtimeChannel = null;
+
+function setupStudentsRealtimeSync(){
+  if(!sb || studentsRealtimeChannel) return;
+
+  studentsRealtimeChannel = sb
+    .channel('students-realtime-sync')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'students'
+      },
+      async(payload) => {
+        console.log('Realtime change received:', payload.eventType);
+
+        try{
+          // Reload latest students from cloud
+          const latestStudents = await fetchAllStudentsPaginated();
+
+          if(latestStudents && latestStudents.length >= 0){
+            studentsCache = latestStudents;
+
+            // Save fresh copy locally
+            lsSet('students', studentsCache);
+
+            // Refresh UI
+            _searchIndex = null;
+            buildStudentsList();
+            updateStats();
+            populateSectionDropdowns();
+            populateDropdowns();
+
+            // Silent sync toast
+            toast('🔄 Student records synced');
+          }
+        } catch(err){
+          console.error('Realtime sync failed:', err);
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log('Realtime status:', status);
+    });
+
+  console.log('✅ Students realtime sync enabled');
+}
+
+// ── FALLBACK COUNT VERIFICATION ───────────────────────────────────
+async function verifyStudentSync(){
+  try{
+    const { count, error } = await sb
+      .from('students')
+      .select('*', {
+        count: 'exact',
+        head: true
+      });
+
+    if(error){
+      console.error('Count verification failed:', error);
+      return;
+    }
+
+    const localCount = (studentsCache || []).length;
+
+    if(count !== localCount){
+      console.log('⚠️ Student count mismatch detected. Reloading...');
+
+      const latestStudents = await fetchAllStudentsPaginated();
+
+      studentsCache = latestStudents || [];
+      lsSet('students', studentsCache);
+
+      _searchIndex = null;
+      buildStudentsList();
+      updateStats();
+      populateSectionDropdowns();
+      populateDropdowns();
+
+      toast('🔄 Student data resynced');
+    }
+  } catch(err){
+    console.error('Sync verification error:', err);
+  }
+}
+
+// ── START REALTIME SYNC AFTER PAGE LOAD ───────────────────────────
+setTimeout(() => {
+  setupStudentsRealtimeSync();
+
+  // Verify sync every 30 seconds
+  setInterval(() => {
+    verifyStudentSync();
+  }, 30000);
+}, 2000);
+
+
 </script>
 </body>
 </html>
