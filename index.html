@@ -2214,29 +2214,74 @@ setInterval(()=>{
   }
 }, 30000);
 
-// FIX: refresh student list every 2 minutes while online so deletions made
-// by admin on another device appear on all active teacher sessions without
-// requiring a page reload. Only runs when logged in and online.
-// Uses a lightweight count check first to avoid unnecessary full fetches.
-setInterval(async()=>{
+// FIX: Supabase Realtime subscription for instant student list sync across all accounts.
+// When admin adds or deletes a student, ALL currently-logged-in accounts see the
+// change within seconds — no page reload needed.
+// Previous approach (2-min count poll) used wrong Supabase v2 count syntax and never worked.
+let _realtimeChannel = null;
+function subscribeToStudentChanges(){
+  if(_realtimeChannel || !isOnline || !CU) return;
+  try{
+    _realtimeChannel = sb.channel('students-sync')
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'students' },
+        (payload) => {
+          const deletedLrn = payload.old?.lrn;
+          if(!deletedLrn) return;
+          const before = studentsCache.length;
+          studentsCache = studentsCache.filter(s => s.lrn !== deletedLrn);
+          if(studentsCache.length !== before){
+            lsSet('students', studentsCache);
+            _searchIndex = null; _attKeyIndex = null;
+            buildStudentsList(); buildClassList(); updateStats();
+            toast('ℹ️ A student was removed from the masterlist by admin');
+          }
+        }
+      )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'students' },
+        async () => {
+          // New student added — refresh full list
+          const fresh = await fetchAllStudentsPaginated();
+          if(fresh && fresh.length > studentsCache.length){
+            studentsCache = fresh;
+            lsSet('students', fresh);
+            _searchIndex = null;
+            buildStudentsList(); updateStats();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if(status === 'SUBSCRIBED'){
+          console.log('✓ Realtime student sync active');
+        } else if(status === 'CHANNEL_ERROR'){
+          // Fallback: poll every 3 minutes if Realtime not available
+          console.warn('Realtime unavailable — using polling fallback');
+          _realtimeChannel = null;
+          setTimeout(pollStudentCount, 180000);
+        }
+      });
+  }catch(e){
+    console.warn('Realtime subscribe error:', safeErr(e));
+  }
+}
+
+// Fallback polling if Realtime is not enabled on this Supabase project
+async function pollStudentCount(){
   if(!isOnline || !CU) return;
   try{
-    const {data,error} = await sb.from('students').select('count').limit(1);
-    if(error) return;
-    const cloudCount = data?.[0]?.count ?? data?.length ?? null;
-    if(cloudCount!==null && cloudCount !== studentsCache.length){
-      // Count mismatch — someone was added or deleted — pull full list
+    // FIX: correct Supabase v2 count syntax
+    const { count, error } = await sb.from('students').select('*', { count: 'exact', head: true });
+    if(!error && count !== null && count !== studentsCache.length){
       const fresh = await fetchAllStudentsPaginated();
-      if(fresh && fresh.length > 0){
+      if(fresh){
         studentsCache = fresh;
         lsSet('students', fresh);
-        buildStudentsList(); buildClassList(); updateStats();
-        // Invalidate search + attendance indexes so stale data doesn't linger
         _searchIndex = null; _attKeyIndex = null;
+        buildStudentsList(); buildClassList(); updateStats();
       }
     }
-  }catch{ /* silent — network hiccup, will retry next interval */ }
-}, 120000); // every 2 minutes
+  }catch(e){ console.warn('pollStudentCount error:', safeErr(e)); }
+  setTimeout(pollStudentCount, 180000); // retry every 3 minutes
+}
 
 // ── LOADING ────────────────────────────────────────────────────────
 function showLoading(msg='Loading...'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading-overlay').classList.remove('hidden')}
@@ -2528,11 +2573,16 @@ async function doLogin(isAutoLogin=false){
   logAudit('LOGIN','Logged in successfully');
   // Build performance indexes in background
   setTimeout(()=>{ buildSearchIndex(); buildAttKeyIndex(); },500);
+  // Start Realtime sync for instant deletion propagation across all accounts
+  // Falls back to polling every 3 minutes if Realtime is not enabled
+  setTimeout(()=>{ subscribeToStudentChanges(); pollStudentCount(); },2000);
   showView('dashboard',document.getElementById('nav-dashboard'));
 }
 
 function doLogout(){
   try{ logAudit('LOGOUT','Logged out'); }catch(e){}
+  // Unsubscribe Realtime channel so it doesn't fire after logout
+  if(_realtimeChannel){ try{ sb.removeChannel(_realtimeChannel); }catch(e){} _realtimeChannel=null; }
   clearSession();
   // Reset UI
   document.getElementById('login-screen').style.display='flex';
@@ -8170,14 +8220,39 @@ function buildStudentsList() {
   const renderBatch = (items) => items.map(s => {
     const sc = s.status === 'Enrolled' ? 'badge-green' : s.status === 'Transferred' ? 'badge-blue' : 'badge-red';
     const gradeLabel = `Grade ${s.grade}${s.strand?' <span class="badge badge-purple" style="font-size:10px">'+s.strand+'</span>':''}`;
-    return `<tr><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${s.name}</strong></td><td>${gradeLabel}</td><td>${s.section}</td><td>${s.sex === 'F' ? 'Female' : 'Male'}</td><td><span class="badge ${sc}">${s.status || 'Enrolled'}</span></td><td style="display:flex;gap:5px"><button class="btn btn-xs btn-outline" onclick="editStudent('${s.lrn}')">✏️ Edit</button><button class="btn btn-xs btn-red" onclick="deleteStudent('${s.lrn}','${s.name.replace(/'/g, "\'")}')">🗑</button></td></tr>`;
+    // FIX: use data attributes instead of inline JS string args — names with
+    // commas (e.g. "PELIPAS, JHON ALREY, BAYO") broke the onclick attribute
+    // because the comma was interpreted as a JS argument separator.
+    const safeLrn  = s.lrn.replace(/"/g,'&quot;');
+    const safeName = s.name.replace(/"/g,'&quot;');
+    return `<tr>
+      <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
+      <td><strong>${s.name}</strong></td>
+      <td>${gradeLabel}</td>
+      <td>${s.section}</td>
+      <td>${s.sex === 'F' ? 'Female' : 'Male'}</td>
+      <td><span class="badge ${sc}">${s.status || 'Enrolled'}</span></td>
+      <td style="display:flex;gap:5px">
+        <button class="btn btn-xs btn-outline"
+          data-lrn="${safeLrn}"
+          onclick="editStudent(this.dataset.lrn)">✏️ Edit</button>
+        <button class="btn btn-xs btn-red"
+          data-lrn="${safeLrn}" data-name="${safeName}"
+          onclick="deleteStudent(this.dataset.lrn, this.dataset.name)">🗑</button>
+      </td>
+    </tr>`;
   }).join('');
 
-  tb.innerHTML = renderBatch(filtered.slice(0, BATCH));
+  tb.innerHTML = renderBatch(filtered.slice(0, BATCH)).join('');
 
   if (filtered.length > BATCH) {
     const more = document.createElement('tr');
-    more.innerHTML = `<td colspan="7" style="text-align:center;padding:1rem;color:var(--blue);cursor:pointer;font-size:13px" onclick="this.parentElement.innerHTML += '${renderBatch(filtered.slice(BATCH)).replace(/'/g,"\'")}';this.remove()">▼ Show ${filtered.length - BATCH} more students</td>`;
+    more.id = 'students-load-more';
+    more.innerHTML = `<td colspan="7" style="text-align:center;padding:1rem;color:var(--blue);cursor:pointer;font-size:13px">▼ Show ${filtered.length - BATCH} more students</td>`;
+    more.onclick = () => {
+      more.insertAdjacentHTML('beforebegin', renderBatch(filtered.slice(BATCH)).join(''));
+      more.remove();
+    };
     tb.appendChild(more);
   }
 }
@@ -8881,108 +8956,6 @@ async function reloadStudentsFromCloud(){
     btn.textContent = orig; btn.disabled = false;
   }
 }
-
-
-
-// ── REALTIME STUDENT SYNC ─────────────────────────────────────────
-// Sync student deletions, inserts, and updates across all accounts instantly.
-let studentsRealtimeChannel = null;
-
-function setupStudentsRealtimeSync(){
-  if(!sb || studentsRealtimeChannel) return;
-
-  studentsRealtimeChannel = sb
-    .channel('students-realtime-sync')
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'students'
-      },
-      async(payload) => {
-        console.log('Realtime change received:', payload.eventType);
-
-        try{
-          // Reload latest students from cloud
-          const latestStudents = await fetchAllStudentsPaginated();
-
-          if(latestStudents && latestStudents.length >= 0){
-            studentsCache = latestStudents;
-
-            // Save fresh copy locally
-            lsSet('students', studentsCache);
-
-            // Refresh UI
-            _searchIndex = null;
-            buildStudentsList();
-            updateStats();
-            populateSectionDropdowns();
-            populateDropdowns();
-
-            // Silent sync toast
-            toast('🔄 Student records synced');
-          }
-        } catch(err){
-          console.error('Realtime sync failed:', err);
-        }
-      }
-    )
-    .subscribe((status) => {
-      console.log('Realtime status:', status);
-    });
-
-  console.log('✅ Students realtime sync enabled');
-}
-
-// ── FALLBACK COUNT VERIFICATION ───────────────────────────────────
-async function verifyStudentSync(){
-  try{
-    const { count, error } = await sb
-      .from('students')
-      .select('*', {
-        count: 'exact',
-        head: true
-      });
-
-    if(error){
-      console.error('Count verification failed:', error);
-      return;
-    }
-
-    const localCount = (studentsCache || []).length;
-
-    if(count !== localCount){
-      console.log('⚠️ Student count mismatch detected. Reloading...');
-
-      const latestStudents = await fetchAllStudentsPaginated();
-
-      studentsCache = latestStudents || [];
-      lsSet('students', studentsCache);
-
-      _searchIndex = null;
-      buildStudentsList();
-      updateStats();
-      populateSectionDropdowns();
-      populateDropdowns();
-
-      toast('🔄 Student data resynced');
-    }
-  } catch(err){
-    console.error('Sync verification error:', err);
-  }
-}
-
-// ── START REALTIME SYNC AFTER PAGE LOAD ───────────────────────────
-setTimeout(() => {
-  setupStudentsRealtimeSync();
-
-  // Verify sync every 30 seconds
-  setInterval(() => {
-    verifyStudentSync();
-  }, 30000);
-}, 2000);
-
 
 </script>
 </body>
