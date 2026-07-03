@@ -426,8 +426,28 @@
     #sf9-grade-rows td    { padding:2px 4px !important; font-size:9px !important; }
     .sf9-grades th        { padding:4px 6px !important; font-size:9px !important; }
 
-    /* ── Page margins & paper size ── */
+    /* ── Page margins & paper size (SF9, grade print, etc.) ── */
     @page { size: 8.5in 13in; margin: 10mm; }
+
+    /* ── SF2: landscape legal paper, 12pt font ── */
+    @page sf2-landscape { size: 13in 8.5in landscape; margin: 8mm; }
+    #view-sf2 .sf2-month-page {
+      page: sf2-landscape;
+      font-size: 12pt !important;
+    }
+    /* Scale all SF2 text to 12pt */
+    #view-sf2 table,
+    #view-sf2 td,
+    #view-sf2 th,
+    #view-sf2 div,
+    #view-sf2 span {
+      font-size: 12pt !important;
+    }
+    /* Keep header text a bit smaller so it fits */
+    #view-sf2 .sf2-header-cell { font-size: 10pt !important; }
+    /* Ensure SF2 table uses full landscape width */
+    #view-sf2 .deped-page { width:100% !important; max-width:100% !important; }
+    #view-sf2 table { width:100% !important; table-layout:auto !important; }
 
     /* ── SF10: page 1 ends, page 2 starts fresh ── */
     #sf10-page1           { page-break-after:always !important; }
@@ -1466,7 +1486,7 @@
                 }
                 const mv=document.getElementById('sf2-month')?.value;
                 if(!mv){toast('Please select a month before printing.',true);return;}
-                window.print();">🖨️ Print SF2</button>
+                printSF2();">🖨️ Print SF2 (Landscape)</button>
             </div>
           </div>
         </div>
@@ -4088,6 +4108,40 @@ async function renderSF9(){
   for(let i=1;i<=7;i++)for(let q=1;q<=4;q++){const el=document.getElementById('ov-'+i+'-'+q);if(el)el.textContent='';}
   loadCoreValues(s.lrn);
   showCoreValuesSaveBtn(isAdviser());
+}
+
+// ── SF2 LANDSCAPE PRINT ───────────────────────────────────────────
+// Injects a temporary <style> tag that overrides @page to landscape
+// and sets all SF2 text to 12pt, then restores after printing.
+// This works on all browsers including Chrome on Android/mobile
+// where named @page rules may be ignored.
+function printSF2(){
+  // Inject landscape override style
+  const styleId = 'sf2-print-override';
+  let style = document.getElementById(styleId);
+  if(!style){
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = `
+    @media print {
+      @page { size: 13in 8.5in landscape !important; margin: 8mm !important; }
+      #view-sf2 table, #view-sf2 td, #view-sf2 th,
+      #view-sf2 div, #view-sf2 span, #view-sf2 p {
+        font-size: 12pt !important;
+      }
+      #view-sf2 .deped-page { width:100% !important; max-width:100% !important; }
+      #view-sf2 table { width:100% !important; }
+    }
+  `;
+  // Print, then remove the override so SF9/other forms are unaffected
+  window.print();
+  const cleanup = () => {
+    style.textContent = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
 }
 
 async function renderSF2(){
