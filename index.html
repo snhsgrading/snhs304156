@@ -1053,10 +1053,8 @@
           <div class="card" style="margin-bottom:1.25rem">
             <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
               <div style="flex:1;min-width:140px">
-                <label class="form-label">Date <span style="font-size:10px;color:var(--gray-400)">(past or current date only)</span></label>
+                <label class="form-label">Date</label>
                 <input type="date" class="form-input" id="att-date" onchange="
-                  const today=new Date().toISOString().slice(0,10);
-                  if(this.value>today){this.value=today;toast('Cannot record attendance for a future date.',true);return;}
                   loadAttendance();updateSuspendBtnState();" />
               </div>
               <!-- Section: adviser auto-locked, admin/teacher sees dropdown -->
@@ -6886,8 +6884,7 @@ async function deleteStrand(id,name){
 function initAttendance(){
   const el=document.getElementById('att-date');
   const todayStr=new Date().toISOString().slice(0,10);
-  // BUG-008 FIX: prevent future date selection at the browser level
-  el.max=todayStr;
+  // Future dates now allowed for attendance encoding
   el.min=SY_START; // FIX: prevent encoding attendance before official SY start (Jun 8, 2026)
   if(!el.value) el.value=todayStr>SY_START ? todayStr : SY_START;
   currentSession='AM';
