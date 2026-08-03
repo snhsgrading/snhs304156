@@ -8303,14 +8303,14 @@ function buildStudentsList() {
     </tr>`;
   }).join('');
 
-  tb.innerHTML = renderBatch(filtered.slice(0, BATCH)).join('');
+  tb.innerHTML = renderBatch(filtered.slice(0, BATCH));
 
   if (filtered.length > BATCH) {
     const more = document.createElement('tr');
     more.id = 'students-load-more';
     more.innerHTML = `<td colspan="7" style="text-align:center;padding:1rem;color:var(--blue);cursor:pointer;font-size:13px">▼ Show ${filtered.length - BATCH} more students</td>`;
     more.onclick = () => {
-      more.insertAdjacentHTML('beforebegin', renderBatch(filtered.slice(BATCH)).join(''));
+      more.insertAdjacentHTML('beforebegin', renderBatch(filtered.slice(BATCH)));
       more.remove();
     };
     tb.appendChild(more);
