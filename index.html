@@ -1053,8 +1053,10 @@
           <div class="card" style="margin-bottom:1.25rem">
             <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
               <div style="flex:1;min-width:140px">
-                <label class="form-label">Date</label>
+                <label class="form-label">Date <span style="font-size:10px;color:var(--gray-400)">(past or current date only)</span></label>
                 <input type="date" class="form-input" id="att-date" onchange="
+                  const today=new Date().toISOString().slice(0,10);
+                  if(this.value>today){this.value=today;toast('Cannot record attendance for a future date.',true);return;}
                   loadAttendance();updateSuspendBtnState();" />
               </div>
               <!-- Section: adviser auto-locked, admin/teacher sees dropdown -->
@@ -6884,7 +6886,8 @@ async function deleteStrand(id,name){
 function initAttendance(){
   const el=document.getElementById('att-date');
   const todayStr=new Date().toISOString().slice(0,10);
-  // Future dates now allowed for attendance encoding
+  // BUG-008 FIX: prevent future date selection at the browser level
+  el.max=todayStr;
   el.min=SY_START; // FIX: prevent encoding attendance before official SY start (Jun 8, 2026)
   if(!el.value) el.value=todayStr>SY_START ? todayStr : SY_START;
   currentSession='AM';
@@ -8253,9 +8256,15 @@ function buildStudentsList() {
   const filtered = _searchIndex
     .filter(({s, search}) => {
       if (q && !search.includes(q)) return false;
-      if (fg && s.grade !== fg) return false;
+      // BUG FIX: grade from Supabase can come back as a number (int column)
+      // while the filter dropdown value is always a string ("9"), so a strict
+      // !== comparison silently excluded every already-synced student.
+      if (fg && String(s.grade) !== String(fg)) return false;
       if (fs && !s.section.toLowerCase().includes(fs.toLowerCase())) return false;
-      if (fst && s.status !== fst) return false;
+      // BUG FIX: some records (older/imported) can be missing an explicit
+      // status field; default to 'Enrolled' here too so it matches the badge
+      // shown in the row, and so a status change always shows up when filtered.
+      if (fst && (s.status || 'Enrolled') !== fst) return false;
       return true;
     })
     .map(({s}) => s);
