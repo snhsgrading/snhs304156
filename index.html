@@ -920,7 +920,7 @@
       <div class="nav-item hidden" onclick="showView('encode',this)" id="nav-encode"><span class="nav-icon">✏️</span> Encode Grades</div>
       <div class="nav-item hidden" onclick="showView('attendance',this);initAttendance()" id="nav-attendance"><span class="nav-icon">📅</span> Attendance</div>
       <div class="nav-item hidden" onclick="showView('classlist',this);buildClassList()" id="nav-classlist"><span class="nav-icon">📋</span> My Class List</div>
-      <div class="nav-item hidden" onclick="showView('sf9',this)" id="nav-sf9"><span class="nav-icon">📄</span> Generate SF9</div>
+      <div class="nav-item hidden" onclick="showView('sf9',this)" id="nav-sf9"><span class="nav-icon">📄</span> Temporary SF9</div>
       <div class="nav-item hidden" onclick="showView('sf2',this)" id="nav-sf2"><span class="nav-icon">📋</span> Generate SF2</div>
       <div class="nav-item hidden" onclick="showView('report',this);buildReport()" id="nav-report"><span class="nav-icon">📊</span> Grade Summary</div>
       <div class="nav-item hidden" onclick="showView('mps',this);buildMPSReport()" id="nav-mps"><span class="nav-icon">📈</span> MPS &amp; PL Report</div>
@@ -1013,7 +1013,7 @@
               <div style="padding:1rem;display:flex;flex-direction:column;gap:8px;">
                 <button class="btn btn-outline" onclick="showView('classlist',document.getElementById('nav-classlist'));buildClassList()">📋 My Class List</button>
                 <button class="btn btn-outline" onclick="showView('attendance',document.getElementById('nav-attendance'));initAttendance()">📅 Take Attendance</button>
-                <button class="btn btn-outline" onclick="showView('sf9',document.getElementById('nav-sf9'))">📄 Generate SF9</button>
+                <button class="btn btn-outline" onclick="showView('sf9',document.getElementById('nav-sf9'))">📄 Temporary SF9</button>
                 <button class="btn btn-outline" onclick="showView('sf2',document.getElementById('nav-sf2'))">📋 Generate SF2</button>
                 <button class="btn btn-outline" onclick="showView('report',document.getElementById('nav-report'));buildReport()">📊 Grade Summary</button>
               </div>
@@ -2653,7 +2653,7 @@ function showView(name,el){
     encode:      ['Encode Grades','Enter grades per quarter'],
     attendance:  ['Attendance','Daily attendance records'],
     classlist:   ['Class List','S.Y. '+SY],
-    sf9:         ['Generate Report Card','Learner\'s Report Card — Half A4 (A5)'],
+    sf9:         ['Temporary SF9','Learner\'s Report Card — Half A4 (A5)'],
     sf2:         ['Generate SF2','Daily Attendance Report with Formulas'],
     report:      ['Grade Summary','Class performance overview'],
     mps:         ['MPS & Proficiency Level Report','Mean Percentage Score per subject — all sections'],
@@ -3962,6 +3962,15 @@ async function renderSF9(){
     return v;
   };
 
+  // Map a numeric grade to the SY 2026-2027 descriptor scale
+  const gradeDescriptor = (v) => {
+    if(v>=90) return 'Advancing';
+    if(v>=80) return 'Benchmarking';
+    if(v>=75) return 'Connecting';
+    if(v>=65) return 'Developing';
+    return 'Emerging';
+  };
+
   document.getElementById('sf9-grade-rows').innerHTML=SUBJS_SF9.map(row=>{
     // Sub-rows (Music & Arts, PE & Health) share the same MAPEH grade data (idx:7)
     const gData = encodedGrades[row.idx] || {};
@@ -3973,7 +3982,7 @@ async function renderSF9(){
       : '<span class="grade-dash no-print-val">—</span>';
 
     const rem = final!==null && final!==undefined
-      ? (final>=75?'Passed':'<span style="color:red">Failed</span>')
+      ? (final<65?`<span style="color:red">${gradeDescriptor(final)}</span>`:gradeDescriptor(final))
       : '<span class="no-print-val">—</span>';
 
     // Only add to GWA for main subjects (not sub-rows)
