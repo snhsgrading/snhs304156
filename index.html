@@ -3252,21 +3252,41 @@ function buildGradeTable(subj,sect){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  // Canonical alphabetical order — this index is what grades are stored/keyed by.
+  // Never change this order; it must stay stable for existing saved data.
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
   const key=subj+'_'+sect+'_T'+CQ;
   const saved=gradeCache[key]||lsGet('gr_'+key)||{};
   gradeCache[key]=saved;
-  document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
-    const v=saved[i]||'';
+
+  // Display order: boys first, then girls — each alphabetical (canonical index preserved)
+  const boys  = list.filter(s=>s.sex!=='F');
+  const girls = list.filter(s=>s.sex==='F');
+  const displayList = [...boys, ...girls];
+
+  let displayPos = 0;
+  const rowsHTML = [];
+  const groupDivider = (label) => `<tr><td colspan="5" style="background:var(--gray-100);font-weight:700;color:var(--navy);padding:6px 10px;letter-spacing:0.03em;">${label}</td></tr>`;
+  if(boys.length) rowsHTML.push(groupDivider('BOYS'));
+  boys.forEach(s=>rowsHTML.push(gradeRowHTML(s)));
+  if(girls.length) rowsHTML.push(groupDivider('GIRLS'));
+  girls.forEach(s=>rowsHTML.push(gradeRowHTML(s)));
+
+  function gradeRowHTML(s){
+    const origIdx = list.findIndex(st=>st.lrn===s.lrn);
+    const v=saved[origIdx]||'';
     const cls=v?(+v>=75?'passing':'failing'):'';
+    displayPos++;
     return`<tr>
-      <td style="color:var(--gray-400)">${i+1}</td>
+      <td style="color:var(--gray-400)">${displayPos}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
-      <td><input type="number" class="grade-input ${cls}" id="gr_${i}" min="60" max="100" value="${v}" oninput="gradeChanged(this,${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')" placeholder="—"></td>
-      <td><span id="rmk_${i}" class="badge ${v?(+v>=75?'badge-green':'badge-red'):'badge-gray'}">${v?(+v>=75?'Passed':'Failed'):'—'}</span></td>
+      <td><input type="number" class="grade-input ${cls}" id="gr_${origIdx}" data-row="${displayPos}" min="60" max="100" value="${v}" oninput="gradeChanged(this,${origIdx},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${subj}','${sect}')" placeholder="—"></td>
+      <td><span id="rmk_${origIdx}" class="badge ${v?(+v>=75?'badge-green':'badge-red'):'badge-gray'}">${v?(+v>=75?'Passed':'Failed'):'—'}</span></td>
     </tr>`;
-  }).join('');
+  }
+
+  document.getElementById('grade-tbody').innerHTML=rowsHTML.join('');
   updateEncStatus();
 }
 
@@ -3280,6 +3300,7 @@ function buildMAPEHTable(subjId, sect){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length) list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  // Canonical alphabetical order — this index is what grades are stored/keyed by.
   list=list.sort((a,b)=>a.name.localeCompare(b.name));
 
   const maKey  = maId +'_'+sect+'_T'+CQ;
@@ -3296,27 +3317,43 @@ function buildMAPEHTable(subjId, sect){
     <th style="background:#f0fdf4;font-weight:700">MAPEH (avg)</th>
     <th>Remarks</th>`;
 
-  document.getElementById('grade-tbody').innerHTML=list.map((s,i)=>{
-    const ma  = maSaved[i]||'';
-    const peh = pehSaved[i]||'';
+  // Display order: boys first, then girls — each alphabetical (canonical index preserved)
+  const boys  = list.filter(s=>s.sex!=='F');
+  const girls = list.filter(s=>s.sex==='F');
+
+  let displayPos = 0;
+  const rowsHTML = [];
+  const groupDivider = (label) => `<tr><td colspan="7" style="background:var(--gray-100);font-weight:700;color:var(--navy);padding:6px 10px;letter-spacing:0.03em;">${label}</td></tr>`;
+  if(boys.length) rowsHTML.push(groupDivider('BOYS'));
+  boys.forEach(s=>rowsHTML.push(mapehRowHTML(s)));
+  if(girls.length) rowsHTML.push(groupDivider('GIRLS'));
+  girls.forEach(s=>rowsHTML.push(mapehRowHTML(s)));
+
+  function mapehRowHTML(s){
+    const origIdx = list.findIndex(st=>st.lrn===s.lrn);
+    const ma  = maSaved[origIdx]||'';
+    const peh = pehSaved[origIdx]||'';
     const mapeh = (ma!==''&&peh!=='') ? Math.round((+ma + +peh)/2)
                 : ma!=='' ? +ma : peh!=='' ? +peh : '';
     const mapehCls = mapeh!=='' ? (mapeh>=75?'badge-green':'badge-red') : 'badge-gray';
     const mapehTxt = mapeh!=='' ? (mapeh>=75?'Passed':'Failed') : '—';
     const maCls  = ma !==''?( +ma >=75?'passing':'failing'):'';
     const pehCls = peh!==''?(+peh>=75?'passing':'failing'):'';
+    displayPos++;
     return`<tr>
-      <td style="color:var(--gray-400)">${i+1}</td>
+      <td style="color:var(--gray-400)">${displayPos}</td>
       <td style="font-family:monospace;font-size:11px">${s.lrn}</td>
       <td>${s.name}</td>
-      <td style="background:#fef9c3"><input type="number" class="grade-input ${maCls}" id="ma_${i}" min="60" max="100" value="${ma}"
-        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
-      <td style="background:#eff6ff"><input type="number" class="grade-input ${pehCls}" id="peh_${i}" min="60" max="100" value="${peh}"
-        oninput="mapehChanged(${i},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
-      <td style="background:#f0fdf4;text-align:center;font-weight:600" id="mapeh_avg_${i}">${mapeh!==''?mapeh:'—'}</td>
-      <td><span id="rmk_${i}" class="badge ${mapehCls}">${mapehTxt}</span></td>
+      <td style="background:#fef9c3"><input type="number" class="grade-input ${maCls}" id="ma_${origIdx}" data-row="${displayPos}" min="60" max="100" value="${ma}"
+        oninput="mapehChanged(${origIdx},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
+      <td style="background:#eff6ff"><input type="number" class="grade-input ${pehCls}" id="peh_${origIdx}" data-row="${displayPos}" min="60" max="100" value="${peh}"
+        oninput="mapehChanged(${origIdx},'${s.lrn}','${s.name.replace(/'/g,"\\'")}','${sect}')" placeholder="—" style="width:64px"></td>
+      <td style="background:#f0fdf4;text-align:center;font-weight:600" id="mapeh_avg_${origIdx}">${mapeh!==''?mapeh:'—'}</td>
+      <td><span id="rmk_${origIdx}" class="badge ${mapehCls}">${mapehTxt}</span></td>
     </tr>`;
-  }).join('');
+  }
+
+  document.getElementById('grade-tbody').innerHTML=rowsHTML.join('');
   updateEncStatus();
 }
 
@@ -3419,10 +3456,11 @@ function autoFill(){
       mapehChanged(+idx,'','','');
     });
   } else {
-    document.querySelectorAll('.grade-input').forEach((inp,i)=>{
+    document.querySelectorAll('.grade-input[id^="gr_"]').forEach(inp=>{
+      const idx=+inp.id.split('_')[1];
       const g=Math.floor(Math.random()*26)+75;
       inp.value=g;
-      gradeChanged(inp,i,'','','','');
+      gradeChanged(inp,idx,'','','','');
     });
   }
 }
@@ -3434,7 +3472,11 @@ function clearGrades(){
     document.querySelectorAll('[id^="mapeh_avg_"]').forEach(el=>{el.textContent='—';});
     document.querySelectorAll('[id^="rmk_"]').forEach(el=>{el.className='badge badge-gray';el.textContent='—';});
   } else {
-    document.querySelectorAll('.grade-input').forEach((inp,i)=>{inp.value='';inp.className='grade-input';const r=document.getElementById('rmk_'+i);if(r){r.className='badge badge-gray';r.textContent='—';}});
+    document.querySelectorAll('.grade-input[id^="gr_"]').forEach(inp=>{
+      const idx=inp.id.split('_')[1];
+      inp.value='';inp.className='grade-input';
+      const r=document.getElementById('rmk_'+idx);if(r){r.className='badge badge-gray';r.textContent='—';}
+    });
   }
   updateEncStatus();
 }
@@ -3591,14 +3633,14 @@ async function doSaveGrades(){
     const maId  = 'ma_'+grade;
     const pehId = 'peh_'+grade;
 
-    // Validate — both inputs must be 60–100 or empty
+    // Validate — both inputs must be 60–100 or empty (row numbers use display position)
     const invalidRows=[];
     document.querySelectorAll('[id^="ma_"],[id^="peh_"]').forEach(inp=>{
       if(inp.value==='') return;
       const v=+inp.value;
       if(isNaN(v)||v<60||v>100){
-        const idx=inp.id.split('_')[1];
-        if(!invalidRows.includes(+idx+1)) invalidRows.push(+idx+1);
+        const rowNum=+inp.dataset.row || (+inp.id.split('_')[1]+1);
+        if(!invalidRows.includes(rowNum)) invalidRows.push(rowNum);
       }
     });
     if(invalidRows.length){
@@ -3606,9 +3648,11 @@ async function doSaveGrades(){
       return;
     }
 
+    // Storage index is embedded in each input's id (canonical alphabetical index) —
+    // NOT the on-screen DOM order, which is grouped boys-then-girls for display.
     const maObj={}, pehObj={};
-    document.querySelectorAll('[id^="ma_"]').forEach((inp,i)=>{if(inp.value) maObj[i]=inp.value;});
-    document.querySelectorAll('[id^="peh_"]').forEach((inp,i)=>{if(inp.value) pehObj[i]=inp.value;});
+    document.querySelectorAll('[id^="ma_"]').forEach(inp=>{const idx=+inp.id.split('_')[1]; if(inp.value!=='') maObj[idx]=inp.value;});
+    document.querySelectorAll('[id^="peh_"]').forEach(inp=>{const idx=+inp.id.split('_')[1]; if(inp.value!=='') pehObj[idx]=inp.value;});
 
     const maKey  = maId +'_'+sect+'_T'+CQ;
     const pehKey = pehId+'_'+sect+'_T'+CQ;
@@ -3641,20 +3685,22 @@ async function doSaveGrades(){
   const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
   const key = subj+'_'+sect+'_T'+CQ;
 
-  // BUG-002 FIX: check for out-of-range grades before saving
+  // BUG-002 FIX: check for out-of-range grades before saving (row numbers use display position)
   const invalidInputs=[];
-  document.querySelectorAll('.grade-input').forEach((inp,i)=>{
+  document.querySelectorAll('.grade-input[id^="gr_"]').forEach(inp=>{
     if(inp.value==='') return;
     const v=parseFloat(inp.value);
-    if(isNaN(v)||v<60||v>100) invalidInputs.push(i+1);
+    if(isNaN(v)||v<60||v>100) invalidInputs.push(+inp.dataset.row || (+inp.id.split('_')[1]+1));
   });
   if(invalidInputs.length){
     toast('❌ Invalid grade(s) on row(s): '+invalidInputs.join(', ')+'. Grades must be 60–100.',true);
     return;
   }
 
+  // Storage index is embedded in each input's id (canonical alphabetical index) —
+  // NOT the on-screen DOM order, which is grouped boys-then-girls for display.
   const obj={};
-  document.querySelectorAll('.grade-input').forEach((inp,i)=>{if(inp.value)obj[i]=inp.value;});
+  document.querySelectorAll('.grade-input[id^="gr_"]').forEach(inp=>{const idx=+inp.id.split('_')[1]; if(inp.value!=='')obj[idx]=inp.value;});
   gradeCache[key]=obj;
   lsSet('gr_'+key,obj);
   logAudit('SAVE GRADES','Saved T'+CQ+' grades for '+sect+' — '+subj);
