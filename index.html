@@ -2299,6 +2299,21 @@ function honorsBadge(avg){
   return`<span class="badge ${cls}" style="${h.startsWith('With')?'font-style:italic':''}">${h}</span>`;
 }
 
+// SY 2026–2027 Grading Scale descriptors
+function getGradeDescriptor(avg){
+  const a=parseFloat(avg);
+  if(a>=90)return'Advancing';
+  if(a>=80)return'Benchmarking';
+  if(a>=75)return'Connecting';
+  if(a>=65)return'Developing';
+  return'Emerging';
+}
+function descriptorBadge(avg){
+  const d=getGradeDescriptor(avg);
+  const cls={Advancing:'badge-blue',Benchmarking:'badge-green',Connecting:'badge-green','Developing':'badge-gold',Emerging:'badge-red'}[d]||'badge-gray';
+  return`<span class="badge ${cls}">${d}</span>`;
+}
+
 // ── AUTH ────────────────────────────────────────────────────────────
 function fillDemo(u,p){document.getElementById('login-user').value=u;document.getElementById('login-pass').value=p}
 
@@ -4727,7 +4742,7 @@ async function buildReport(){
   // SHS with no subjects configured yet — show clear guidance
   if(isSHSReport && subjects.length===0){
     const thead = document.querySelector('#view-report thead tr');
-    if(thead) thead.innerHTML='<th>#</th><th>Student Name</th><th>GWA</th><th>Honors</th>';
+    if(thead) thead.innerHTML='<th>#</th><th>Student Name</th><th>GWA</th><th>Remarks</th>';
     document.getElementById('report-tbody').innerHTML=
       `<tr><td colspan="4" style="text-align:center;padding:2rem">
         <div style="font-size:14px;font-weight:600;color:var(--gray-600);margin-bottom:8px">📚 No SHS subjects configured for Grade ${grade}</div>
@@ -4738,16 +4753,27 @@ async function buildReport(){
 
   const thead = document.querySelector('#view-report thead tr');
 
+  // Helper: does this subject list contain MAPEH? Build header cells,
+  // splitting MAPEH into Music & Arts / PE & Health / MAPEH (avg) columns.
+  const buildSubjHeaderCells = () => subjects.map(s=>{
+    if(s.id==='mapeh'){
+      return `<th style="min-width:60px;background:#fef9c3">Music &amp; Arts</th>`+
+             `<th style="min-width:60px;background:#eff6ff">PE &amp; Health</th>`+
+             `<th style="min-width:60px;background:#f0fdf4;font-weight:700">MAPEH</th>`;
+    }
+    return `<th style="min-width:60px">${s.code||s.name.split(' ')[0]}</th>`;
+  }).join('');
+
   if(false){ // SHS unified with JHS
     // SHS: show Sem1 Final, Sem2 Final, GWA
     if(thead) thead.innerHTML = '<th>#</th><th>Student Name</th>' +
-      subjects.map(s=>`<th style="min-width:55px;font-size:11px">${s.code||s.name.split(' ')[0]}</th>`).join('') +
-      `<th style="background:#fef9c3">GWA</th><th>Honors</th>`;
+      buildSubjHeaderCells() +
+      `<th style="background:#fef9c3">GWA</th><th>Remarks</th>`;
   } else {
     const qtrLabel = qtr>0 ? `T${qtr}` : 'GWA';
     if(thead) thead.innerHTML = '<th>#</th><th>Student Name</th>' +
-      subjects.map(s=>`<th style="min-width:60px">${s.code||s.name.split(' ')[0]}</th>`).join('') +
-      `<th>${qtrLabel}</th><th>Honors</th>`;
+      buildSubjHeaderCells() +
+      `<th>${qtrLabel}</th><th>Remarks</th>`;
   }
 
   if(!list || !list.length){
@@ -4756,21 +4782,49 @@ async function buildReport(){
     return;
   }
 
-  const sortedList = [...list].sort((a,b)=>a.name.localeCompare(b.name));
+  // Total columns for divider rows: # + Name + (subject cols, MAPEH=3) + GWA + Remarks
+  const totalCols = 2 + subjects.reduce((n,s)=>n+(s.id==='mapeh'?3:1),0) + 2;
 
-  document.getElementById('report-tbody').innerHTML = sortedList.map((s,i)=>{
+  // ── Group students: boys first, girls second — each alphabetical ───
+  const boys  = list.filter(s=>s.sex!=='F').sort((a,b)=>a.name.localeCompare(b.name));
+  const girls = list.filter(s=>s.sex==='F').sort((a,b)=>a.name.localeCompare(b.name));
+
+  const qtrs = qtr>0 ? [qtr] : [1,2,3];
+
+  const rowsFor = (group) => group.map((s,i)=>{
     const sk = 'G'+(s.grade||grade)+'-'+s.section.toUpperCase();
     const sectionMates = studentsCache
       .filter(st=>st.section.toUpperCase()===s.section.toUpperCase()&&st.grade===s.grade)
       .sort((a,b)=>a.name.localeCompare(b.name));
     const studentIdx = sectionMates.findIndex(st=>st.lrn===s.lrn);
 
-    let vals, avg, passing;
+    const cellsHTML = [];
+    const gwaParts = []; // numeric values counted toward GWA (one per subject, MAPEH counted once)
 
-    if(false){ // SHS unified with JHS
-    } else {
-      vals = subjects.map(subj=>{
-        const qtrs = qtr>0 ? [qtr] : [1,2,3];
+    subjects.forEach(subj=>{
+      if(subj.id==='mapeh'){
+        const gradeLvl = s.grade||grade;
+        const maId='ma_'+gradeLvl, pehId='peh_'+gradeLvl;
+        const avgFor = (id)=>{
+          const grades=[];
+          for(const q of qtrs){
+            const key = id+'_'+sk+'_T'+q;
+            const rec = gradeCache[key]||lsGet('gr_'+key)||{};
+            const v = rec[studentIdx];
+            if(v!==undefined&&v!=='') grades.push(parseFloat(v));
+          }
+          return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
+        };
+        const maVal  = avgFor(maId);
+        const pehVal = avgFor(pehId);
+        const mapehVal = (maVal!==null&&pehVal!==null) ? Math.round((maVal+pehVal)/2)
+                        : maVal!==null ? maVal : pehVal!==null ? pehVal : null;
+        const fmt = (v)=> v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>';
+        cellsHTML.push(`<td style="text-align:center;background:#fef9c3">${fmt(maVal)}</td>`);
+        cellsHTML.push(`<td style="text-align:center;background:#eff6ff">${fmt(pehVal)}</td>`);
+        cellsHTML.push(`<td style="text-align:center;background:#f0fdf4;font-weight:600">${fmt(mapehVal)}</td>`);
+        if(mapehVal!==null) gwaParts.push(mapehVal);
+      } else {
         const grades = [];
         for(const q of qtrs){
           const key1 = subj.id+'_'+sk+'_T'+q;
@@ -4779,20 +4833,28 @@ async function buildReport(){
           const v = rec[studentIdx];
           if(v!==undefined&&v!=='') grades.push(parseFloat(v));
         }
-        return grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
-      });
-      const filled = vals.filter(v=>v!==null);
-      avg = filled.length>0 ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '—';
-      passing = avg!=='—' && +avg>=75;
-    }
+        const v = grades.length>0 ? Math.round(grades.reduce((a,b)=>a+b,0)/grades.length) : null;
+        cellsHTML.push(`<td style="text-align:center">${v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`);
+        if(v!==null) gwaParts.push(v);
+      }
+    });
+
+    const avg = gwaParts.length>0 ? (gwaParts.reduce((a,b)=>a+b,0)/gwaParts.length).toFixed(1) : '—';
+    const passing = avg!=='—' && +avg>=75;
 
     return`<tr>
       <td>${i+1}</td><td><strong>${s.name}</strong></td>
-      ${vals.map(v=>`<td style="text-align:center">${v!==null?`<strong style="color:${v>=75?'var(--green)':'var(--red)'}">${v}</strong>`:'<span style="color:#ccc">—</span>'}</td>`).join('')}
-      <td style="text-align:center;background:${isSHSReport?'#fefce8':''}"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
-      <td>${avg!=='—'?honorsBadge(avg):''}</td>
+      ${cellsHTML.join('')}
+      <td style="text-align:center"><strong style="color:${passing?'var(--green)':'var(--red)'}">${avg}</strong></td>
+      <td>${avg!=='—'?descriptorBadge(avg):''}</td>
     </tr>`;
   }).join('');
+
+  const dividerRow = (label) => `<tr><td colspan="${totalCols}" style="background:var(--gray-100);font-weight:700;color:var(--navy);padding:6px 10px;letter-spacing:0.03em;">${label}</td></tr>`;
+
+  document.getElementById('report-tbody').innerHTML =
+    (boys.length  ? dividerRow('BOYS')  + rowsFor(boys)  : '') +
+    (girls.length ? dividerRow('GIRLS') + rowsFor(girls) : '');
 }
 
 // ── MPS & PROFICIENCY LEVEL REPORT ────────────────────────────────
