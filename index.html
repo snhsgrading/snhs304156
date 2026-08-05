@@ -4756,7 +4756,7 @@ async function buildReport(){
   // Helper: does this subject list contain MAPEH? Build header cells,
   // splitting MAPEH into Music & Arts / PE & Health / MAPEH (avg) columns.
   const buildSubjHeaderCells = () => subjects.map(s=>{
-    if(s.id==='mapeh'){
+    if(s.id.replace(/_\d+$/,'')==='mapeh'){
       return `<th style="min-width:60px;background:#f0fdf4;font-weight:700">MAPEH</th>`+
              `<th style="min-width:60px;background:#fef9c3">Music &amp; Arts</th>`+
              `<th style="min-width:60px;background:#eff6ff">Physical Education &amp; Health</th>`;
@@ -4783,7 +4783,7 @@ async function buildReport(){
   }
 
   // Total columns for divider rows: # + Name + (subject cols, MAPEH=3) + GWA + Remarks
-  const totalCols = 2 + subjects.reduce((n,s)=>n+(s.id==='mapeh'?3:1),0) + 2;
+  const totalCols = 2 + subjects.reduce((n,s)=>n+(s.id.replace(/_\d+$/,'')==='mapeh'?3:1),0) + 2;
 
   // ── Group students: boys first, girls second — each alphabetical ───
   const boys  = list.filter(s=>s.sex!=='F').sort((a,b)=>a.name.localeCompare(b.name));
@@ -4802,7 +4802,7 @@ async function buildReport(){
     const gwaParts = []; // numeric values counted toward GWA (one per subject, MAPEH counted once)
 
     subjects.forEach(subj=>{
-      if(subj.id==='mapeh'){
+      if(subj.id.replace(/_\d+$/,'')==='mapeh'){
         const gradeLvl = s.grade||grade;
         const maId='ma_'+gradeLvl, pehId='peh_'+gradeLvl;
         const avgFor = (id)=>{
