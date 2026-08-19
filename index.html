@@ -3894,6 +3894,48 @@ function populateSF9StudentsBySection(){
   document.getElementById('sf9-placeholder')?.classList.remove('hidden');
 }
 
+// ── SHARED ATTENDANCE HELPERS (AM+PM aware, half-day accumulation) ───
+// Reads both AM and PM session records for a given student+date+section.
+// Returns: 'P' full day present, 'A' full day absent, 'H' half-day absent
+// (present one session, absent the other), or '' if not enough data recorded.
+function getDayStatus(lrn, dateStr, sectionKey){
+  const amKey = dateStr+'_'+sectionKey+'_AM';
+  const pmKey = dateStr+'_'+sectionKey+'_PM';
+  const amRec = attCache[amKey]||lsGet('att_'+amKey)||null;
+  const pmRec = attCache[pmKey]||lsGet('att_'+pmKey)||null;
+  const am = amRec ? (amRec[lrn]||'') : '';
+  const pm = pmRec ? (pmRec[lrn]||'') : '';
+  if(!am && !pm) return '';               // nothing recorded either session
+  // If only one session was recorded/saved for the day, fall back to that session alone
+  if(am && !pm) return am==='P'?'P':(am==='A'?'A':'');
+  if(pm && !am) return pm==='P'?'P':(pm==='A'?'A':'');
+  if(am==='P' && pm==='P') return 'P';
+  if(am==='A' && pm==='A') return 'A';
+  if((am==='A'&&pm==='P')||(am==='P'&&pm==='A')) return 'H'; // half-day absence
+  return '';
+}
+
+// Aggregates a student's attendance over a list of school days for ONE month,
+// applying the DepEd-style rule: every 2 half-day absences = 1 full day absent
+// (accumulated within the month, resets each month — matches SF9's per-month columns).
+// Returns { sd, dp, da, halfDays:[dateStr,...] } where sd=dp+da always holds.
+function computeMonthlyAttendance(lrn, schoolDaysArr, sectionKey){
+  let recorded=0, fullPresent=0, fullAbsent=0, halfCount=0;
+  const halfDays=[];
+  schoolDaysArr.forEach(dateStr=>{
+    const st = getDayStatus(lrn, dateStr, sectionKey);
+    if(!st) return; // day not recorded at all — excluded from sd, like before
+    recorded++;
+    if(st==='P') fullPresent++;
+    else if(st==='A') fullAbsent++;
+    else if(st==='H'){ halfCount++; halfDays.push(dateStr); }
+  });
+  const absentFromHalves = Math.floor(halfCount/2); // 2 half-days -> 1 full day absent
+  const da = fullAbsent + absentFromHalves;
+  const dp = recorded - da; // keeps sd = dp + da consistent for the official form
+  return { sd: recorded, dp, da, halfDays };
+}
+
 function genSF9(lrn){
   // FIX v11: adviser dropdown now uses LRN too — set directly for both roles
   document.getElementById('sf9-student').value=lrn;
@@ -3969,30 +4011,20 @@ async function renderSF9(){
     const daysInMonth=new Date(+yr,+mn,0).getDate();
     const suspDays=getSuspendedDays(monthStr).map(d=>d.date);
 
-    // Count school days (Mon-Fri, non-suspended)
-    // and collect att keys for this month+section
-    let sd=0;
-    const amKeysMonth=[];
+    // Build the list of candidate school days (Mon-Fri, non-suspended, within SY)
+    const schoolDateStrs=[];
     for(let d=1;d<=daysInMonth;d++){
       const dateStr=monthStr+'-'+String(d).padStart(2,'0');
       const dow=new Date(yr,mn-1,d).getDay();
       if(dow===0||dow===6) continue;
       if(!isWithinSY(dateStr)) continue; // exclude days outside official SY class period
       if(suspDays.includes(dateStr)) continue;
-      const amKey=dateStr+'_'+sectionKey+'_AM';
-      const rec=attCache[amKey]||lsGet('att_'+amKey)||null;
-      if(rec){ sd++; amKeysMonth.push(amKey); }
+      schoolDateStrs.push(dateStr);
     }
 
-    // Count present and absent for this student
-    const dp=amKeysMonth.reduce((a,k)=>{
-      const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];
-      return a+(v==='P'?1:0);
-    },0);
-    const da=amKeysMonth.reduce((a,k)=>{
-      const v=(attCache[k]||lsGet('att_'+k)||{})[s.lrn];
-      return a+(v==='A'?1:0);
-    },0);
+    // AM+PM aware monthly aggregation with half-day accumulation
+    // (2 half-day absences within this month = 1 full day absent; resets each month)
+    const {sd, dp, da} = computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey);
 
     // FIX: show 0 (not blank) when school was in session but student had no absences
     // Only leave blank for months where no attendance was recorded at all (sd=0)
@@ -4212,12 +4244,20 @@ async function renderSF2(){
     const key=dateStr+'_'+sectionKey+'_'+session;
     return(attCache[key]||lsGet('att_'+key)||{})[lrn]||'';
   };
+  // AM+PM aware per-date status: 'P' full present, 'A' full absent, 'H' half-day absent, '' unrecorded
+  const getDateStatus=(lrn,date)=>{
+    const dateStr=monthStr+'-'+String(date).padStart(2,'0');
+    return getDayStatus(lrn,dateStr,sectionKey);
+  };
+  // Per-student monthly totals with half-day accumulation (2 half-days = 1 day absent, resets monthly)
+  const schoolDateStrs = schoolDays.map(d=>d.dateStr);
+  const studentAtt = {};
+  students.forEach(s=>{ studentAtt[s.lrn] = computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey); });
 
   // SF2 calculations using actual school days only
   const registeredLearners = students.length;
   const daysOfClass = schoolDays.length;
-  const totalDaysPresent = schoolDays.reduce((sum,{date})=>
-    sum+students.filter(s=>getAtt(s.lrn,date,'AM')==='P').length, 0);
+  const totalDaysPresent = students.reduce((sum,s)=>sum+studentAtt[s.lrn].dp, 0);
   const pctAttendance = daysOfClass>0&&registeredLearners>0
     ? ((totalDaysPresent/(registeredLearners*daysOfClass))*100).toFixed(2) : '0.00';
   const avgDailyAtt = daysOfClass>0 ? (totalDaysPresent/daysOfClass).toFixed(2) : '0.00';
@@ -4251,15 +4291,13 @@ async function renderSF2(){
   </tr>`;
 
   const renderRow=(num,stu)=>{
-    let presentCount=0;
     const cells=allWeekdays.map(({date,susp})=>{
       if(susp) return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:8px;background:#f3f4f6;color:#9ca3af">—</td>`;
-      const v=getAtt(stu.lrn,date,'AM');
-      if(v==='P') presentCount++;
-      const bg=v==='A'?'background:#fee2e2;':'';
-      // FIX: show 'P' for present and 'A' for absent — SF2 requires both marks visible
-      const display = v==='P'?'P':v==='A'?'A':'';
-      const color   = v==='P'?'color:#166534;':'';
+      const v=getDateStatus(stu.lrn,date);
+      const bg=v==='A'?'background:#fee2e2;':v==='H'?'background:#fef3c7;':'';
+      // 'P' present, 'A' full-day absent, '½A' half-day absent (present one session only)
+      const display = v==='P'?'P':v==='A'?'A':v==='H'?'½A':'';
+      const color   = v==='P'?'color:#166534;':v==='H'?'color:#92400e;':'';
       return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;${bg}${color}">${display}</td>`;
     }).join('');
     const st = (stu.status||'Enrolled').toLowerCase();
@@ -4267,6 +4305,7 @@ async function renderSF2(){
     if(st==='dropped')      { remarkVal='NLS'; remarkBg='background:#fee2e2;color:#991b1b;font-weight:bold'; }
     else if(st==='transferred'){ remarkVal='Trans Out'; remarkBg='background:#fef3c7;color:#92400e;font-weight:bold'; }
     const remarkCell=`<td style="border:1px solid #999;padding:2px 3px;text-align:center;font-size:8px;${remarkBg}">${remarkVal}</td>`;
+    const presentCount = studentAtt[stu.lrn]?.dp||0;
     return`<tr>
       <td style="border:1px solid #999;padding:2px 4px;text-align:center;font-size:9px">${num}</td>
       <td style="border:1px solid #999;padding:2px 4px;font-size:9px">${stu.name}</td>
@@ -4283,10 +4322,10 @@ async function renderSF2(){
     const remarksSummary=[nls>0?nls+' NLS':'',transOut>0?transOut+' Trans Out':''].filter(Boolean).join(', ');
     const totals=allWeekdays.map(({date,susp})=>{
       if(susp)return`<td style="border:1px solid #999;background:#f3f4f6"></td>`;
-      const c=grp.filter(s=>getAtt(s.lrn,date,'AM')==='P').length;
+      const c=grp.filter(s=>getDateStatus(s.lrn,date)==='P').length;
       return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;font-weight:bold">${c||''}</td>`;
     }).join('');
-    const grandTotal=schoolDays.reduce((sum,{date})=>sum+grp.filter(s=>getAtt(s.lrn,date,'AM')==='P').length,0);
+    const grandTotal=grp.reduce((sum,s)=>sum+(studentAtt[s.lrn]?.dp||0),0);
     return`<tr style="background:#f0f0f0">
       <td style="border:1px solid #999"></td>
       <td style="border:1px solid #999;padding:2px 4px;font-size:9px;font-weight:bold">${label}</td>
@@ -4300,6 +4339,9 @@ async function renderSF2(){
     ? `<div style="margin:6px 0;padding:5px 8px;background:#fef9e7;border:1px solid #fcd34d;border-radius:4px;font-size:9px">
         🚫 <strong>No-class days excluded (${suspendedInMonth.length}):</strong> ${suspendedInMonth.map(s=>s.dateStr).join(', ')}
        </div>` : '';
+  const halfDayNote = `<div class="no-print" style="margin:6px 0;padding:5px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;font-size:9px;color:#92400e">
+        ½A = half-day absence (present one session, absent the other). Two ½A's within the same month count as 1 full Day Absent in the Total Days Present/Absent figures — this matches how it's shown per date, but each ½A stays visible on the grid even before it pairs up.
+       </div>`;
 
   // ── SUMMARY TABLE CALCULATIONS ─────────────────────────────────────
   // Per-sex breakdowns for summary table
@@ -4327,11 +4369,10 @@ async function renderSF2(){
   const pctEnrolF = enrol1stFriF>0 ? ((regF/enrol1stFriF)*100).toFixed(1) : '—';
   const pctEnrolT = enrol1stFriT>0 ? ((regT/enrol1stFriT)*100).toFixed(1) : '—';
 
-  // Total daily attendance per sex
-  const totalPresMale = schoolDays.reduce((sum,{date})=>
-    sum+maleStudents.filter(s=>getAtt(s.lrn,date,'AM')==='P').length,0);
-  const totalPresFemale = schoolDays.reduce((sum,{date})=>
-    sum+femaleStudents.filter(s=>getAtt(s.lrn,date,'AM')==='P').length,0);
+  // Total daily attendance per sex (uses monthly dp totals which already
+  // account for AM+PM and half-day accumulation)
+  const totalPresMale = maleStudents.reduce((sum,s)=>sum+(studentAtt[s.lrn]?.dp||0),0);
+  const totalPresFemale = femaleStudents.reduce((sum,s)=>sum+(studentAtt[s.lrn]?.dp||0),0);
   const totalPresTotal  = totalPresMale + totalPresFemale;
 
   // Average Daily Attendance = Total Days Present / Number of School Days
@@ -4345,13 +4386,16 @@ async function renderSF2(){
   const pctAttT = regT>0&&daysOfClass>0 ? ((totalPresTotal/(regT*daysOfClass))*100).toFixed(2) : '—';
 
   // Students absent for 5 or more CONSECUTIVE days
+  // (counts full-day absences toward the streak; a lone half-day absence
+  // doesn't break or extend it unless it has accumulated into a full day)
   const consecutive5 = (grp)=>{
     return grp.filter(stu=>{
       let streak=0; let maxStreak=0;
       schoolDays.forEach(({date})=>{
-        const v=getAtt(stu.lrn,date,'AM');
+        const v=getDateStatus(stu.lrn,date);
         if(v==='A'){streak++;maxStreak=Math.max(maxStreak,streak);}
-        else streak=0;
+        else if(v==='P') streak=0;
+        // 'H' (half-day) and '' (unrecorded) leave streak unchanged
       });
       return maxStreak>=5;
     }).length;
@@ -4430,6 +4474,7 @@ async function renderSF2(){
     </table>
 
     ${suspNote}
+    ${halfDayNote}
 
     <!-- ── MALE ATTENDANCE GRID ── -->
     <div style="font-weight:bold;font-size:10px;background:#b7ddb7;padding:2px 4px;margin:4px 0;border:1px solid #999">MALE</div>
