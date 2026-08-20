@@ -311,7 +311,7 @@
   .sf9off-parent-msg { font-size:8pt; line-height:1.3; margin:1.5mm 0 2mm; text-align:justify; }
   .sf9off-parent-msg p { margin:0 0 2px; text-indent:12px; }
 
-  .sf9off-sectitle { font-weight:bold; font-size:9.5pt; text-align:center; margin:3mm 0 1.5mm; text-transform:uppercase; }
+  .sf9off-sectitle { font-weight:bold; font-size:9pt; text-align:center; margin:1.5mm 0 1mm; text-transform:uppercase; }
 
   .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; background:transparent; }
   .sf9off-grades { width:100%; border-collapse:collapse; font-size:7.8pt; }
@@ -331,23 +331,23 @@
   .sf9off-att tr.tot td { font-weight:bold; }
 
   .sf9off-comment-box {
-    border:0.5pt solid #000; min-height:17mm; font-size:8pt; padding:3px 5px;
-    box-sizing:border-box; font-family:'Times New Roman',Times,serif; line-height:1.35;
+    border:0.5pt solid #000; min-height:8mm; font-size:7.8pt; padding:2px 4px;
+    box-sizing:border-box; font-family:'Times New Roman',Times,serif; line-height:1.25;
   }
   .sf9off-comment-box:focus { outline:1.5px solid var(--navy); }
-  .sf9off-comment-lbl { font-weight:bold; font-size:8pt; margin:3mm 0 1mm; }
+  .sf9off-comment-lbl { font-weight:bold; font-size:7.5pt; margin:1.5mm 0 0.5mm; }
 
-  .sf9off-sig-line { display:flex; align-items:baseline; gap:4px; margin-bottom:4mm; font-size:8.5pt; }
-  .sf9off-sig-line .fill { flex:1; border-bottom:0.5pt solid #000; min-height:12pt; }
+  .sf9off-sig-line { display:flex; align-items:baseline; gap:4px; margin-bottom:2mm; font-size:8pt; }
+  .sf9off-sig-line .fill { flex:1; border-bottom:0.5pt solid #000; min-height:9pt; }
 
-  .sf9off-cert-text { font-size:8pt; line-height:1.4; margin:2mm 0; }
-  .sf9off-cert-field { font-size:8pt; margin:3mm 0; }
+  .sf9off-cert-text { font-size:7.8pt; line-height:1.25; margin:1mm 0; }
+  .sf9off-cert-field { font-size:7.8pt; margin:1.5mm 0; }
   .sf9off-cert-field .fill { display:inline-block; border-bottom:0.5pt solid #000; min-width:60mm; padding-left:3px; }
-  .sf9off-sig-row { display:flex; gap:6mm; margin-top:6mm; }
-  .sf9off-sig-col { flex:1; text-align:center; font-size:8pt; }
-  .sf9off-sig-col .sigline { border-bottom:0.5pt solid #000; min-height:14mm; }
+  .sf9off-sig-row { display:flex; gap:6mm; margin-top:3mm; }
+  .sf9off-sig-col { flex:1; text-align:center; font-size:7.8pt; }
+  .sf9off-sig-col .sigline { border-bottom:0.5pt solid #000; min-height:8mm; }
   .sf9off-sig-col .signame { font-weight:bold; margin-top:1px; }
-  .sf9off-sig-col .sigrole { font-size:7.5pt; }
+  .sf9off-sig-col .sigrole { font-size:7.2pt; }
 
   /* Misc */
   .page-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; }
@@ -497,7 +497,7 @@
     @page { size: 8.5in 13in; margin: 10mm; }
 
     /* ── SF2: landscape legal paper, 12pt font ── */
-    @page sf2-landscape { size: 13in 8.5in landscape; margin: 8mm; }
+    @page sf2-landscape { size: 13in 8.5in; margin: 8mm; }
     #view-sf2 .sf2-month-page {
       page: sf2-landscape;
       font-size: 12pt !important;
@@ -520,10 +520,11 @@
     #sf10-page1           { page-break-after:always !important; }
     #sf10-page2           { page-break-before:always !important; }
 
-    /* ── SF9 / Learner's Performance Report: A4 landscape, one page ── */
-    @page sf9-a4-landscape { size: 297mm 210mm landscape; margin: 0; }
+    /* ── SF9 / Learner's Performance Report: A4 landscape, one page ──
+       NOTE: the authoritative @page override is injected dynamically by
+       printSF9() right before window.print() — that's the part browsers
+       actually honor. These rules are just a safety-net for element sizing. */
     #view-sf9 .sf9off-page {
-      page: sf9-a4-landscape;
       width: 297mm !important;
       height: 210mm !important;
       max-width: 297mm !important;
@@ -1280,7 +1281,7 @@
               <div style="flex:2;min-width:200px;"><label class="form-label">Student</label><select class="form-select" id="sf9-student" onchange="renderSF9()"><option value="">Select student...</option></select></div>
               <div style="flex:1;min-width:130px;"><label class="form-label">Up to Term</label><select class="form-select" id="sf9-qtr" onchange="renderSF9()"><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
               <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-                <button class="btn btn-gold no-print" onclick="window.print()">🖨️ Print SF9</button>
+                <button class="btn btn-gold no-print" onclick="printSF9()">🖨️ Print SF9</button>
                 <button class="btn btn-green no-print" id="sf9-save-comments-btn" onclick="saveSF9Comments()" style="font-size:12px;">💾 Save Comments</button>
               </div>
             </div>
@@ -1353,7 +1354,7 @@
                       </tfoot>
                     </table>
 
-                    <div class="sf9off-sectitle" style="margin-top:4mm;">Performance Descriptors</div>
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Performance Descriptors</div>
                     <table class="sf9off-desc">
                       <thead><tr><th>Grading Scale</th><th>Description</th><th>Remarks</th></tr></thead>
                       <tbody>
@@ -1384,7 +1385,7 @@
                       </tbody>
                     </table>
 
-                    <div class="sf9off-sectitle" style="margin-top:4mm;">Teacher's Comments/Remarks</div>
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
                     <div class="sf9off-comment-lbl">Term 1</div>
                     <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t1" data-term="1" onblur="autoSaveSF9Comment(1)"></div>
                     <div class="sf9off-comment-lbl">Term 2</div>
@@ -1392,12 +1393,12 @@
                     <div class="sf9off-comment-lbl">Term 3</div>
                     <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t3" data-term="3" onblur="autoSaveSF9Comment(3)"></div>
 
-                    <div class="sf9off-sectitle" style="margin-top:4mm;">Parent's/Guardian's Signature</div>
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Parent's/Guardian's Signature</div>
                     <div class="sf9off-sig-line"><span>Term 1:</span><span class="fill">&nbsp;</span></div>
                     <div class="sf9off-sig-line"><span>Term 2:</span><span class="fill">&nbsp;</span></div>
                     <div class="sf9off-sig-line"><span>Term 3:</span><span class="fill">&nbsp;</span></div>
 
-                    <div class="sf9off-sectitle" style="margin-top:4mm;">Certificate of Transfer</div>
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Certificate of Transfer</div>
                     <div class="sf9off-cert-text">This is to certify that the above-named learner has satisfactorily completed the requirements for the Grade Level indicated.</div>
                     <div class="sf9off-cert-field">Admitted to: <span class="fill">&nbsp;</span></div>
                     <div class="sf9off-cert-field">Eligible for Admission to Grade: <span class="fill">&nbsp;</span></div>
@@ -1407,7 +1408,7 @@
                       <div class="sf9off-sig-col"><div class="sigline"></div><div class="signame">LEONARDA L. ARAZO</div><div class="sigrole">School Head</div></div>
                     </div>
 
-                    <div class="sf9off-sectitle" style="margin-top:4mm;">Cancellation of Eligibility to Transfer</div>
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Cancellation of Eligibility to Transfer</div>
                     <div class="sf9off-cert-field">Admitted in: <span class="fill" style="min-width:38mm">&nbsp;</span>&nbsp;&nbsp;Date: <span class="fill" style="min-width:22mm">&nbsp;</span></div>
                     <div class="sf9off-sig-row">
                       <div class="sf9off-sig-col" style="flex:0 0 58mm;margin-left:auto;"><div class="sigline"></div><div class="signame">LEONARDA L. ARAZO</div><div class="sigrole">School Head</div></div>
@@ -3999,6 +4000,39 @@ function computeMonthlyAttendance(lrn, schoolDaysArr, sectionKey){
   return { sd: recorded, dp, da, halfDays };
 }
 
+function printSF9(){
+  // Inject a genuine, unnamed @page override right before printing.
+  // Browsers' native print dialogs reliably read the LAST unnamed @page
+  // rule present at print time — the CSS `page:` property + named @page
+  // approach is not consistently honored, which was causing SF9 to fall
+  // back to the portrait @page rule used for grade printing.
+  const styleId = 'sf9-print-override';
+  let style = document.getElementById(styleId);
+  if(!style){
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = `
+    @page { size: A4 landscape !important; margin: 0 !important; }
+    @media print {
+      html, body { width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }
+      #view-sf9 .sf9off-page {
+        width:297mm !important; height:210mm !important; max-width:297mm !important;
+        margin:0 !important; padding:7mm 23mm 9mm 23mm !important; box-sizing:border-box !important;
+        page-break-after:avoid !important; page-break-inside:avoid !important;
+      }
+    }
+  `;
+  // Print, then remove the override so other forms are unaffected
+  window.print();
+  const cleanup = () => {
+    style.textContent = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+}
+
 function genSF9(lrn){
   // FIX v11: adviser dropdown now uses LRN too — set directly for both roles
   document.getElementById('sf9-student').value=lrn;
@@ -4224,7 +4258,7 @@ function printSF2(){
   }
   style.textContent = `
     @media print {
-      @page { size: 13in 8.5in landscape !important; margin: 8mm !important; }
+      @page { size: 13in 8.5in !important; margin: 8mm !important; }
       #view-sf2 table, #view-sf2 td, #view-sf2 th,
       #view-sf2 div, #view-sf2 span, #view-sf2 p {
         font-size: 12pt !important;
