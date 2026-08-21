@@ -279,7 +279,7 @@
      ══════════════════════════════════════════════════════════════════ */
   .sf9off-page {
     width:297mm; min-height:210mm; margin:0 auto 1rem; background:#ffffff;
-    box-sizing:border-box; padding:7mm 23mm 9mm 23mm;
+    box-sizing:border-box; padding:8mm 22mm;
     font-family:'Times New Roman',Times,serif; color:#000;
     box-shadow:var(--shadow); border:1px solid var(--gray-200);
   }
@@ -303,31 +303,32 @@
   .sf9off-title { text-align:center; font-size:14pt; font-weight:bold; letter-spacing:0.02em; margin:1mm 0 0; }
   .sf9off-sy { text-align:center; font-size:9pt; margin-bottom:2mm; }
 
-  .sf9off-learner-tbl { width:100%; border-collapse:collapse; font-size:8.5pt; margin-bottom:1.5mm; }
-  .sf9off-learner-tbl td { padding:1px 3px 2px; vertical-align:bottom; }
-  .sf9off-learner-tbl .lbl { white-space:nowrap; width:1%; }
-  .sf9off-learner-tbl .val { border-bottom:0.75pt solid #000; padding-left:4px; font-weight:bold; }
+  .sf9off-learner-tbl { width:100%; border-collapse:collapse; font-size:8.5pt; margin-bottom:1.5mm; border:0.75pt solid #8faadc; }
+  .sf9off-learner-tbl td { padding:2.5px 6px; vertical-align:middle; border:0.75pt solid #8faadc; background:#dbe5f3; }
+  .sf9off-learner-tbl .lbl { white-space:nowrap; width:1%; font-weight:bold; }
+  .sf9off-learner-tbl .val { padding-left:6px; font-weight:bold; }
 
   .sf9off-parent-msg { font-size:8pt; line-height:1.3; margin:1.5mm 0 2mm; text-align:justify; }
   .sf9off-parent-msg p { margin:0 0 2px; text-indent:12px; }
 
   .sf9off-sectitle { font-weight:bold; font-size:9pt; text-align:center; margin:1.5mm 0 1mm; text-transform:uppercase; }
 
-  .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; background:transparent; }
-  .sf9off-grades { width:100%; border-collapse:collapse; font-size:7.8pt; }
-  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #000; padding:1.5px 3px 1.5px 3px !important; text-align:center; font-size:7.8pt !important; }
-  .sf9off-grades thead th { font-weight:bold; }
+  .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; }
+  .sf9off-grades { width:100%; border-collapse:collapse; font-size:7.8pt; border:0.75pt solid #8faadc; }
+  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:2px 3px !important; text-align:center; font-size:7.8pt !important; background:#fff; }
+  .sf9off-grades thead th { font-weight:bold; background:#dbe5f3; }
   .sf9off-grades td.subj { text-align:left; padding-left:4px !important; }
   .sf9off-grades td.subj.sub { font-style:italic; padding-left:12px !important; }
-  .sf9off-grades tr.gavg td { font-weight:bold; }
+  .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
 
-  .sf9off-desc { width:100%; border-collapse:collapse; font-size:7.8pt; margin-top:2mm; }
-  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #000; padding:1.5px 3px !important; text-align:center; font-size:7.8pt !important; }
-  .sf9off-desc thead th { font-weight:bold; }
+  .sf9off-desc { width:100%; border-collapse:collapse; font-size:7.8pt; margin-top:2mm; border:0.75pt solid #8faadc; }
+  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:2px 3px !important; text-align:center; font-size:7.8pt !important; background:#fff; }
+  .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; }
 
-  .sf9off-att { width:100%; border-collapse:collapse; font-size:7.2pt; }
-  .sf9off-att th, .sf9off-att td { border:0.5pt solid #000; padding:1.5px 1px !important; text-align:center; font-size:7.2pt !important; }
-  .sf9off-att td.lbl { text-align:left; padding-left:3px !important; white-space:nowrap; }
+  .sf9off-att { width:100%; border-collapse:collapse; font-size:7.2pt; border:0.75pt solid #8faadc; }
+  .sf9off-att th, .sf9off-att td { border:0.5pt solid #8faadc; padding:2px 1px !important; text-align:center; font-size:7.2pt !important; background:#fff; }
+  .sf9off-att thead th { font-weight:bold; background:#dbe5f3; }
+  .sf9off-att td.lbl { text-align:left; padding-left:3px !important; white-space:nowrap; background:#eef2fa; font-weight:bold; }
   .sf9off-att tr.tot td { font-weight:bold; }
 
   .sf9off-comment-box {
@@ -530,7 +531,7 @@
       max-width: 297mm !important;
       min-height: 0 !important;
       margin: 0 !important;
-      padding: 7mm 23mm 9mm 23mm !important;
+      padding: 8mm 22mm !important;
       box-sizing: border-box !important;
       box-shadow: none !important;
       border: none !important;
@@ -1337,12 +1338,13 @@
                     <table class="sf9off-grades">
                       <thead>
                         <tr>
-                          <th rowspan="2" style="text-align:left;padding-left:4px;">Learning Areas</th>
-                          <th colspan="3">Term</th>
-                          <th rowspan="2">Final<br>Grade</th>
-                          <th rowspan="2">Remarks</th>
+                          <th style="text-align:left;padding-left:4px;">Learning Areas</th>
+                          <th>TERM 1</th>
+                          <th>TERM 2</th>
+                          <th>TERM 3</th>
+                          <th>Final Grade</th>
+                          <th>Remarks</th>
                         </tr>
-                        <tr><th>1</th><th>2</th><th>3</th></tr>
                       </thead>
                       <tbody id="sf9-grade-rows"></tbody>
                       <tfoot>
@@ -4019,7 +4021,7 @@ function printSF9(){
       html, body { width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }
       #view-sf9 .sf9off-page {
         width:297mm !important; height:210mm !important; max-width:297mm !important;
-        margin:0 !important; padding:7mm 23mm 9mm 23mm !important; box-sizing:border-box !important;
+        margin:0 !important; padding:8mm 22mm !important; box-sizing:border-box !important;
         page-break-after:avoid !important; page-break-inside:avoid !important;
       }
     }
