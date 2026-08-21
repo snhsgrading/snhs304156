@@ -2737,59 +2737,7 @@ async function doLogin(isAutoLogin=false){
     toast('Offline mode — using local data');
   }
 
-  // ── SHS SF9 / GRADE ENCODING SUBJECT DEFINITIONS ─────────────────────
-const SHS_SF9_SUBJECT_DEFS = [
-  {id:'general_mathematics', name:'General Mathematics', code:'GEN MATH', order:1},
-  {id:'life_career_skill', name:'Life and Career Skill', code:'LCS', order:2},
-  {id:'general_science', name:'General Science', code:'GEN SCI', order:3},
-  {id:'pagaaral_kasaysayan', name:'Pag aaral ng Kasaysayan at Lipunang Filipino', code:'PKLF', order:4},
-  {id:'effective_communication', name:'Effective Communication', code:'E-COMM', order:5},
-  {id:'mabisang_komunikasyon', name:'Mabisang Komunikasyon', code:'MABKOM', order:6},
-  {id:'biology_1', name:'Biology 1', code:'BIO 1', order:7},
-];
 
-function ensureSHSSubjects(){
-  if(!subjectsCache) subjectsCache={};
-
-  const aliases={
-    'life and career skill':['life and career skills'],
-    'pag aaral ng kasaysayan at lipunang filipino':[
-      'pag-aaral ng kasaysayan at lipunang pilipino',
-      'pag-aaral ng kasaysayan at lipunang filipino',
-      'pag aaral ng kasaysayan at lipunang pilipino'
-    ]
-  };
-
-  ['11','12'].forEach(g=>{
-    if(!Array.isArray(subjectsCache[g])) subjectsCache[g]=[];
-
-    SHS_SF9_SUBJECT_DEFS.forEach(def=>{
-      const target=def.name.toLowerCase();
-      const aliasSet=new Set([target,...(aliases[target]||[])]);
-      let subj=subjectsCache[g].find(s=>
-        s.id===def.id+'_'+g ||
-        s.id===def.id ||
-        aliasSet.has(String(s.name||'').toLowerCase().trim())
-      );
-
-      if(subj){
-        subj.name=def.name;
-        subj.code=def.code;
-        subj.order=def.order;
-        subj.grade=g;
-      }else{
-        subjectsCache[g].push({...def,id:def.id+'_'+g,grade:g});
-      }
-    });
-
-    subjectsCache[g].sort((a,b)=>(a.order||99)-(b.order||99));
-  });
-
-  lsSet('jhs_subjects',subjectsCache);
-}
-
-
-loadSubjectsCache();
 
   hideLoading(); btn.disabled=false;
   document.getElementById('login-btn-text').textContent='Sign In';
@@ -3305,6 +3253,58 @@ function populateSectionDropdowns(){
     };
   }
 }
+
+// ── SHS SF9 / GRADE ENCODING SUBJECT DEFINITIONS ─────────────────────
+const SHS_SF9_SUBJECT_DEFS = [
+  {id:'general_mathematics', name:'General Mathematics', code:'GEN MATH', order:1},
+  {id:'life_career_skill', name:'Life and Career Skill', code:'LCS', order:2},
+  {id:'general_science', name:'General Science', code:'GEN SCI', order:3},
+  {id:'pagaaral_kasaysayan', name:'Pag aaral ng Kasaysayan at Lipunang Filipino', code:'PKLF', order:4},
+  {id:'effective_communication', name:'Effective Communication', code:'E-COMM', order:5},
+  {id:'mabisang_komunikasyon', name:'Mabisang Komunikasyon', code:'MABKOM', order:6},
+  {id:'biology_1', name:'Biology 1', code:'BIO 1', order:7},
+];
+
+function ensureSHSSubjects(){
+  if(!subjectsCache) subjectsCache={};
+
+  const aliases={
+    'life and career skill':['life and career skills'],
+    'pag aaral ng kasaysayan at lipunang filipino':[
+      'pag-aaral ng kasaysayan at lipunang pilipino',
+      'pag-aaral ng kasaysayan at lipunang filipino',
+      'pag aaral ng kasaysayan at lipunang pilipino'
+    ]
+  };
+
+  ['11','12'].forEach(g=>{
+    if(!Array.isArray(subjectsCache[g])) subjectsCache[g]=[];
+
+    SHS_SF9_SUBJECT_DEFS.forEach(def=>{
+      const target=def.name.toLowerCase();
+      const aliasSet=new Set([target,...(aliases[target]||[])]);
+      let subj=subjectsCache[g].find(s=>
+        s.id===def.id+'_'+g ||
+        s.id===def.id ||
+        aliasSet.has(String(s.name||'').toLowerCase().trim())
+      );
+
+      if(subj){
+        subj.name=def.name;
+        subj.code=def.code;
+        subj.order=def.order;
+        subj.grade=g;
+      }else{
+        subjectsCache[g].push({...def,id:def.id+'_'+g,grade:g});
+      }
+    });
+
+    subjectsCache[g].sort((a,b)=>(a.order||99)-(b.order||99));
+  });
+
+  lsSet('jhs_subjects',subjectsCache);
+}
+
 
 // ── SUBJECTS ──────────────────────────────────────────────────────
 function loadSubjectsCache(){
