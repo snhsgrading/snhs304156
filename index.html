@@ -4555,8 +4555,8 @@ function populateSF9SHSDropdowns(){
   } else if(isAdviser()){
     const advSect = getAdvisorySection();
     let list = advSect
-      ? studentsCache.filter(s=>sectionsMatch(s.section,advSect,s.grade) && (s.grade==='11'||s.grade==='12'))
-      : studentsCache.filter(s=>(CU?.sections||[]).some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
+      ? studentsCache.filter(s=>sectionsMatch(s.section,advSect,s.grade) && (String(s.grade)==='11'||String(s.grade)==='12'))
+      : studentsCache.filter(s=>(CU?.sections||[]).some(sect=>sectionsMatch(s.section,sect,s.grade)) && (String(s.grade)==='11'||String(s.grade)==='12'));
     document.getElementById('sf9shs-section-filter-wrap')?.classList.add('hidden');
     list = list.sort((a,b)=>a.name.localeCompare(b.name));
     const opts='<option value="">Select student...</option>'+
@@ -4564,7 +4564,7 @@ function populateSF9SHSDropdowns(){
     const el=document.getElementById('sf9shs-student'); if(el) el.innerHTML=opts;
   } else {
     const assignedSects = CU?.sections||[];
-    let list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
+    let list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) && (String(s.grade)==='11'||String(s.grade)==='12'));
     list = list.sort((a,b)=>a.name.localeCompare(b.name));
     const opts='<option value="">Select student...</option>'+
       list.map(s=>`<option value="${s.lrn}">${s.name}</option>`).join('');
@@ -4582,7 +4582,7 @@ function populateAdminSF9SHSSectionFilter(){
     <div style="display:flex;gap:6px;align-items:center">
       <select class="form-select" id="sf9shs-section-filter" onchange="populateSF9SHSStudentsBySection()" style="flex:1">
         <option value="">All Grade 11/12 sections</option>
-        ${sects.map(s=>`<option value="${s}" ${s===currentVal?'selected':''}>${s.replace(/G(\\d+)-/,'Grade $1 – ')}</option>`).join('')}
+        ${sects.map(s=>`<option value="${s}" ${s===currentVal?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
       </select>
     </div>`;
   wrap.classList.remove('hidden');
@@ -4594,11 +4594,9 @@ function populateSF9SHSStudentsBySection(){
   const sectFilter=sel?.value||'';
   let list;
   if(sectFilter){
-    const sn=sectFilter.replace(/^G\\d+-/,'').toUpperCase();
-    const grade=sectFilter.match(/G(\\d+)-/)?.[1]||'';
-    list=studentsCache.filter(s=>s.section.toUpperCase()===sn && (!grade||s.grade===grade));
+    list=studentsCache.filter(s=>(String(s.grade)==='11'||String(s.grade)==='12') && sectionsMatch(s.section, sectFilter, s.grade));
   } else {
-    list=studentsCache.filter(s=>s.grade==='11'||s.grade==='12');
+    list=studentsCache.filter(s=>String(s.grade)==='11'||String(s.grade)==='12');
   }
   list.sort((a,b)=>a.name.localeCompare(b.name));
   const el=document.getElementById('sf9shs-student');
@@ -4617,14 +4615,14 @@ async function renderSF9SHS(){
   }
   let s;
   if(isAdmin()){
-    s = studentsCache.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
+    s = studentsCache.find(st=>st.lrn===val && (String(st.grade)==='11'||String(st.grade)==='12'));
   } else {
     const assignedSects = CU?.sections||[];
     const advSect = getAdvisorySection();
     const list = advSect
       ? studentsCache.filter(st=>sectionsMatch(st.section,advSect,st.grade))
       : studentsCache.filter(st=>assignedSects.some(sect=>sectionsMatch(st.section,sect,st.grade)));
-    s = list.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
+    s = list.find(st=>st.lrn===val && (String(st.grade)==='11'||String(st.grade)==='12'));
   }
   if(!s) return;
   document.getElementById('sf9shs-output').classList.remove('hidden');
