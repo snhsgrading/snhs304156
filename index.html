@@ -553,7 +553,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
        NOTE: the authoritative @page override is injected dynamically by
        printSF9() right before window.print() — that's the part browsers
        actually honor. These rules are just a safety-net for element sizing. */
-    #view-sf9 .sf9off-page {
+    #view-sf9 .sf9off-page, #view-sf9shs .sf9off-page {
       width: 297mm !important;
       height: 210mm !important;
       max-width: 297mm !important;
@@ -566,7 +566,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       page-break-after: avoid !important;
       page-break-inside: avoid !important;
     }
-    #view-sf9 .sf9off-comment-box { border:none !important; }
+    #view-sf9 .sf9off-comment-box, #view-sf9shs .sf9off-comment-box { border:none !important; }
   }
 </style>
 </head>
@@ -994,6 +994,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="nav-item hidden" onclick="showView('attendance',this);initAttendance()" id="nav-attendance"><span class="nav-icon">📅</span> Attendance</div>
       <div class="nav-item hidden" onclick="showView('classlist',this);buildClassList()" id="nav-classlist"><span class="nav-icon">📋</span> My Class List</div>
       <div class="nav-item hidden" onclick="showView('sf9',this)" id="nav-sf9"><span class="nav-icon">📄</span> SF9</div>
+      <div class="nav-item hidden" onclick="showView('sf9shs',this)" id="nav-sf9shs"><span class="nav-icon">🎓</span> SF9 (SHS)</div>
       <div class="nav-item hidden" onclick="showView('sf2',this)" id="nav-sf2"><span class="nav-icon">📋</span> Generate SF2</div>
       <div class="nav-item hidden" onclick="showView('report',this);buildReport()" id="nav-report"><span class="nav-icon">📊</span> Grade Summary</div>
       <div class="nav-item hidden" onclick="showView('mps',this);buildMPSReport()" id="nav-mps"><span class="nav-icon">📈</span> MPS &amp; PL Report</div>
@@ -1435,6 +1436,163 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                     <div class="sf9off-cert-field">Approved:</div>
                     <div class="sf9off-sig-row">
                       <div class="sf9off-sig-col"><div class="sigline"></div><div class="signame" id="sf9f-teacher-sig">&mdash;</div><div class="sigrole">Class Adviser/Teacher</div></div>
+                      <div class="sf9off-sig-col"><div class="sigline"></div><div class="signame">LEONARDA L. ARAZO</div><div class="sigrole">School Head</div></div>
+                    </div>
+
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Cancellation of Eligibility to Transfer</div>
+                    <div class="sf9off-cert-field">Admitted in: <span class="fill" style="min-width:38mm">&nbsp;</span>&nbsp;&nbsp;Date: <span class="fill" style="min-width:22mm">&nbsp;</span></div>
+                    <div class="sf9off-sig-row">
+                      <div class="sf9off-sig-col" style="flex:0 0 58mm;margin-left:auto;"><div class="sigline"></div><div class="signame">LEONARDA L. ARAZO</div><div class="sigrole">School Head</div></div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SF9 (SHS) -->
+      <div class="view" id="view-sf9shs">
+        <div style="max-width:1180px;margin:0 auto;">
+          <div id="sf9shs-admin-note" class="hidden no-print" style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px 16px;margin-bottom:1rem;font-size:13px;color:#92400e;">
+            👁️ <strong>View &amp; Print Mode:</strong> Grades are encoded by Class Advisers. As Admin, you can view and print any student's SHS SF9.
+          </div>
+          <div class="card no-print" style="margin-bottom:1.25rem;">
+            <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+              <div id="sf9shs-section-filter-wrap" class="hidden" style="flex:1;min-width:180px;"><label class="form-label">Section</label></div>
+              <div style="flex:2;min-width:200px;"><label class="form-label">Student</label><select class="form-select" id="sf9shs-student" onchange="renderSF9SHS()"><option value="">Select student...</option></select></div>
+              <div style="flex:1;min-width:130px;"><label class="form-label">Up to Term</label><select class="form-select" id="sf9shs-qtr" onchange="renderSF9SHS()"><option value="1">Term 1</option><option value="2">Term 2</option><option value="3">Term 3</option></select></div>
+              <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                <button class="btn btn-gold no-print" onclick="printSF9SHS()">🖨️ Print SF9 (SHS)</button>
+                <button class="btn btn-green no-print" id="sf9shs-save-comments-btn" onclick="saveSF9SHSComments()" style="font-size:12px;">💾 Save Comments</button>
+              </div>
+            </div>
+            <div class="no-print" style="padding:0 1.25rem 0.85rem;font-size:11.5px;color:var(--gray-400);">
+              💡 Senior High School Learning Areas (Core, Applied &amp; Specialized subjects) are pulled automatically from the student's Track/Strand configured in SHS Strand Manager. Grades and attendance are pulled from encoded records.
+            </div>
+          </div>
+          <div id="sf9shs-placeholder" class="card"><div class="empty">📄 Select a Grade 11/12 student above to generate their Senior High School SF9 — Learner's Performance Report.</div></div>
+          <div id="sf9shs-output" class="hidden">
+            <div class="sf9off-page" id="sf9shsoff-page">
+              <div class="sf9off-border">
+
+                <!-- Header -->
+                <div class="sf9off-header">
+                  <img class="sf9off-logo" id="sf9shs-logo1" alt="Department of Education">
+                  <div class="sf9off-headtext">
+                    <div class="l1">Republic of the Philippines</div>
+                    <div class="l2">Department of Education</div>
+                    <div class="l3">Region X</div>
+                    <div class="l4">SCHOOLS DIVISION OFFICE OF ILIGAN CITY</div>
+                    <div class="l5">West I District</div>
+                  </div>
+                  <img class="sf9off-logo" id="sf9shs-logo2" alt="Suarez National High School">
+                </div>
+                <div class="sf9off-schoolrow">School: <b>Suarez National High School</b></div>
+
+                <div class="sf9off-columns">
+                  <!-- ── LEFT COLUMN ── -->
+                  <div class="sf9off-left">
+                    <div class="sf9off-title">SENIOR HIGH SCHOOL LEARNER'S PERFORMANCE REPORT</div>
+                    <div class="sf9off-sy">School Year: 2026&ndash;2027</div>
+
+                    <table class="sf9off-learner-tbl">
+                      <tr>
+                        <td class="lbl">Name:</td><td class="val" id="sf9shsf-name" style="min-width:130px"></td>
+                        <td class="lbl">Age:</td><td class="val" id="sf9shsf-age" style="min-width:18px"></td>
+                        <td class="lbl">Sex:</td><td class="val" id="sf9shsf-sex" style="min-width:35px"></td>
+                      </tr>
+                      <tr>
+                        <td class="lbl">LRN:</td><td class="val" id="sf9shsf-lrn" style="min-width:130px"></td>
+                        <td class="lbl">Grade:</td><td class="val" id="sf9shsf-grade2" style="min-width:18px"></td>
+                        <td class="lbl">Section:</td><td class="val" id="sf9shsf-section2" style="min-width:60px"></td>
+                      </tr>
+                      <tr>
+                        <td class="lbl">Track &amp; Strand:</td><td class="val" id="sf9shsf-strand" colspan="5" style="min-width:200px"></td>
+                      </tr>
+                    </table>
+
+                    <div class="sf9off-parent-msg">
+                      <p style="text-indent:0;"><strong>Dear Parents,</strong></p>
+                      <p>This Performance Report shows the ability and progress your child has made in the different learning areas of the Senior High School curriculum, as well as his/her progress in core values.</p>
+                      <p>The school welcomes you, should you desire to know more about your child's progress.</p>
+                    </div>
+
+                    <div class="sf9off-sectitle">Learning Progress and Achievement</div>
+                    <table class="sf9off-grades">
+                      <thead>
+                        <tr>
+                          <th style="text-align:left;padding-left:4px;">Learning Areas</th>
+                          <th>TERM 1</th>
+                          <th>TERM 2</th>
+                          <th>TERM 3</th>
+                          <th>Final Grade</th>
+                          <th>Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody id="sf9shs-grade-rows"></tbody>
+                      <tfoot>
+                        <tr class="gavg">
+                          <td colspan="4" style="text-align:right;padding-right:6px;">General Average</td>
+                          <td id="sf9shs-avg">&mdash;</td>
+                          <td id="sf9shs-promoted">&mdash;</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+
+                    <div class="sf9off-sectitle" style="margin-top:1mm;">Performance Descriptors</div>
+                    <table class="sf9off-desc">
+                      <thead><tr><th>Grading Scale</th><th>Description</th><th>Remarks</th></tr></thead>
+                      <tbody>
+                        <tr><td>90&ndash;100</td><td>Outstanding</td><td>Passed</td></tr>
+                        <tr><td>85&ndash;89</td><td>Very Satisfactory</td><td>Passed</td></tr>
+                        <tr><td>80&ndash;84</td><td>Satisfactory</td><td>Passed</td></tr>
+                        <tr><td>75&ndash;79</td><td>Fairly Satisfactory</td><td>Passed</td></tr>
+                        <tr><td>Below 75</td><td>Did Not Meet Expectations</td><td>Failed</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- ── RIGHT COLUMN ── -->
+                  <div class="sf9off-right">
+                    <div class="sf9off-sectitle">Attendance Record</div>
+                    <table class="sf9off-att">
+                      <thead>
+                        <tr>
+                          <th style="text-align:left;padding-left:3px;">Month</th>
+                          <th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Jan</th><th>Feb</th><th>Mar</th><th>Apr</th>
+                          <th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td class="lbl">No. of Class Days</td><td id="sf9shs-sd-jun"></td><td id="sf9shs-sd-jul"></td><td id="sf9shs-sd-aug"></td><td id="sf9shs-sd-sep"></td><td id="sf9shs-sd-oct"></td><td id="sf9shs-sd-nov"></td><td id="sf9shs-sd-dec"></td><td id="sf9shs-sd-jan"></td><td id="sf9shs-sd-feb"></td><td id="sf9shs-sd-mar"></td><td id="sf9shs-sd-apr"></td><td id="sf9shs-sd-tot"></td></tr>
+                        <tr><td class="lbl">No. of Days Present</td><td id="sf9shs-dp-jun"></td><td id="sf9shs-dp-jul"></td><td id="sf9shs-dp-aug"></td><td id="sf9shs-dp-sep"></td><td id="sf9shs-dp-oct"></td><td id="sf9shs-dp-nov"></td><td id="sf9shs-dp-dec"></td><td id="sf9shs-dp-jan"></td><td id="sf9shs-dp-feb"></td><td id="sf9shs-dp-mar"></td><td id="sf9shs-dp-apr"></td><td id="sf9shs-dp-tot"></td></tr>
+                        <tr class="tot"><td class="lbl">No. of Days Absent</td><td id="sf9shs-da-jun"></td><td id="sf9shs-da-jul"></td><td id="sf9shs-da-aug"></td><td id="sf9shs-da-sep"></td><td id="sf9shs-da-oct"></td><td id="sf9shs-da-nov"></td><td id="sf9shs-da-dec"></td><td id="sf9shs-da-jan"></td><td id="sf9shs-da-feb"></td><td id="sf9shs-da-mar"></td><td id="sf9shs-da-apr"></td><td id="sf9shs-da-tot"></td></tr>
+                      </tbody>
+                    </table>
+
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
+                    <div class="sf9off-comment-lbl">Term 1</div>
+                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t1" data-term="1" onblur="autoSaveSF9SHSComment(1)"></div>
+                    <div class="sf9off-comment-lbl">Term 2</div>
+                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t2" data-term="2" onblur="autoSaveSF9SHSComment(2)"></div>
+                    <div class="sf9off-comment-lbl">Term 3</div>
+                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t3" data-term="3" onblur="autoSaveSF9SHSComment(3)"></div>
+
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Parent's/Guardian's Signature</div>
+                    <div class="sf9off-sig-line"><span>Term 1:</span><span class="fill">&nbsp;</span></div>
+                    <div class="sf9off-sig-line"><span>Term 2:</span><span class="fill">&nbsp;</span></div>
+                    <div class="sf9off-sig-line"><span>Term 3:</span><span class="fill">&nbsp;</span></div>
+
+                    <div class="sf9off-sectitle" style="margin-top:2mm;">Certificate of Transfer</div>
+                    <div class="sf9off-cert-text">This is to certify that the above-named learner has satisfactorily completed the requirements for the Grade Level indicated.</div>
+                    <div class="sf9off-cert-field">Admitted to: <span class="fill">&nbsp;</span></div>
+                    <div class="sf9off-cert-field">Eligible for Admission to Grade: <span class="fill">&nbsp;</span></div>
+                    <div class="sf9off-cert-field">Approved:</div>
+                    <div class="sf9off-sig-row">
+                      <div class="sf9off-sig-col"><div class="sigline"></div><div class="signame" id="sf9shsf-teacher-sig">&mdash;</div><div class="sigrole">Class Adviser/Teacher</div></div>
                       <div class="sf9off-sig-col"><div class="sigline"></div><div class="signame">LEONARDA L. ARAZO</div><div class="sigrole">School Head</div></div>
                     </div>
 
@@ -2660,11 +2818,11 @@ function setupRole(){
   // adviser:  encode grades, attendance, class list, SF9, SF2, report history
   // admin:    everything EXCEPT grade encoding (views grade summary + all forms read-only)
   const map={
-    'adviser-teacher': ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps'],
+    'adviser-teacher': ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf9shs','nav-sf2','nav-report','nav-mps'],
     // Keep 'adviser' entry for backward compat with any existing accounts that still have role='adviser'
-    adviser: ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps'],
+    adviser: ['nav-encode','nav-attendance','nav-classlist','nav-sf9','nav-sf9shs','nav-sf2','nav-report','nav-mps'],
     teacher: ['nav-encode','nav-attendance','nav-mps'],
-    admin:   ['nav-classlist','nav-sf9','nav-sf2','nav-report','nav-mps','nav-students','nav-accounts','nav-subjects','nav-strands','nav-audit','nav-backup']
+    admin:   ['nav-classlist','nav-sf9','nav-sf9shs','nav-sf2','nav-report','nav-mps','nav-students','nav-accounts','nav-subjects','nav-strands','nav-audit','nav-backup']
   };
   document.querySelectorAll('.nav-item').forEach(el=>{if(el.id!=='nav-dashboard')el.classList.add('hidden')});
   (map[r]||[]).forEach(id=>document.getElementById(id)?.classList.remove('hidden'));
@@ -2673,10 +2831,13 @@ function setupRole(){
   if(r==='admin'){
     const sf9Note=document.getElementById('sf9-admin-note');
     if(sf9Note)sf9Note.classList.remove('hidden');
+    const sf9shsNote=document.getElementById('sf9shs-admin-note');
+    if(sf9shsNote)sf9shsNote.classList.remove('hidden');
     const sf2Note=document.getElementById('sf2-admin-note');
     if(sf2Note)sf2Note.classList.remove('hidden');
     // Show section filter wrappers for admin
     document.getElementById('sf9-section-filter-wrap')?.classList.remove('hidden');
+    document.getElementById('sf9shs-section-filter-wrap')?.classList.remove('hidden');
   }
   // Core values save button — hidden until adviser selects a student
   showCoreValuesSaveBtn(false);
@@ -2763,6 +2924,7 @@ function showView(name,el){
     attendance:  ['Attendance','Daily attendance records'],
     classlist:   ['Class List','S.Y. '+SY],
     sf9:         ['SF9','Learner\'s Performance Report — A4 Landscape'],
+    sf9shs:      ['SF9 (SHS)','Senior High School Learner\'s Performance Report — A4 Landscape'],
     sf2:         ['Generate SF2','Daily Attendance Report with Formulas'],
     report:      ['Grade Summary','Class performance overview'],
     mps:         ['MPS & Proficiency Level Report','Mean Percentage Score per subject — all sections'],
@@ -2790,6 +2952,7 @@ function showView(name,el){
     attendance:()=>initAttendance(),
     sf2:()=>{ initSF2View(); renderSF2(); },
     sf9:()=>populateDropdowns(),
+    sf9shs:()=>populateSF9SHSDropdowns(),
     backup:()=>initBackupView(),
   };
   if(lazyInits[name]) lazyInits[name]();
@@ -3884,7 +4047,7 @@ function buildClassList(){
   }
   list.sort((a,b)=>a.name.localeCompare(b.name));
   tb.innerHTML = list.map((s,i)=>`
-    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${s.name}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td><button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button></td></tr>`).join('');
+    <tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${s.lrn}</td><td><strong>${s.name}</strong></td><td>${s.sex==='F'?'Female':'Male'}</td><td>${fmtDate(s.bday)}</td><td><span class="badge badge-green">${s.status||'Enrolled'}</span></td><td>${(s.grade==='11'||s.grade==='12')?`<button class="btn btn-sm btn-outline" onclick="genSF9SHS('${s.lrn}')">SF9 (SHS)</button>`:`<button class="btn btn-sm btn-outline" onclick="genSF9('${s.lrn}')">SF9</button>`}</td></tr>`).join('');
 }
 
 function fmtDate(d){if(!d)return'—';try{return new Date(d+'T00:00:00').toLocaleDateString('en-PH',{year:'numeric',month:'short',day:'numeric'})}catch{return d}}
@@ -4269,6 +4432,334 @@ async function renderSF9(){
     document.getElementById('sf9-avg').textContent='—';
     document.getElementById('sf9-promoted').textContent='Grades not yet encoded';
     document.getElementById('sf9-promoted').style.color='#9ca3af';
+  }
+}
+
+// ── SF9 (SHS) — SENIOR HIGH SCHOOL LEARNER'S PERFORMANCE REPORT ──────
+// Mirrors the JHS SF9 above, but Learning Areas are pulled automatically
+// from the student's Track/Strand (Core + Applied + Specialized subjects
+// as configured in SHS Strand Manager), instead of the fixed JHS subject list.
+
+function printSF9SHS(){
+  const styleId = 'sf9shs-print-override';
+  let style = document.getElementById(styleId);
+  if(!style){
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = `
+    @page { size: A4 landscape !important; margin: 0 !important; }
+    @media print {
+      html, body { width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }
+      #view-sf9shs .sf9off-page {
+        width:297mm !important; height:210mm !important; max-width:297mm !important;
+        margin:0 !important; padding:8mm !important; box-sizing:border-box !important;
+        page-break-after:avoid !important; page-break-inside:avoid !important;
+      }
+    }
+  `;
+  window.print();
+  const cleanup = () => {
+    style.textContent = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+}
+
+function genSF9SHS(lrn){
+  document.getElementById('sf9shs-student').value=lrn;
+  renderSF9SHS();
+  showView('sf9shs',document.getElementById('nav-sf9shs'));
+}
+
+// ── SF9 (SHS) TEACHER'S COMMENTS/REMARKS — editable, saved per LRN (local device) ──
+let sf9shsCurrentLRN = null;
+
+function loadSF9SHSComments(lrn){
+  sf9shsCurrentLRN = lrn;
+  const saved = lsGet('sf9shscm_'+lrn) || {};
+  const isEditable = isAdviser ? isAdviser() : true;
+  for(let t=1;t<=3;t++){
+    const box = document.getElementById('sf9shs-comment-t'+t);
+    if(!box) continue;
+    box.textContent = saved['t'+t] || '';
+    box.setAttribute('contenteditable', isEditable ? 'true' : 'false');
+  }
+}
+
+function autoSaveSF9SHSComment(term){
+  if(!sf9shsCurrentLRN) return;
+  const saved = lsGet('sf9shscm_'+sf9shsCurrentLRN) || {};
+  const box = document.getElementById('sf9shs-comment-t'+term);
+  if(!box) return;
+  saved['t'+term] = box.textContent.trim();
+  lsSet('sf9shscm_'+sf9shsCurrentLRN, saved);
+}
+
+function saveSF9SHSComments(){
+  if(!sf9shsCurrentLRN){toast('Select a student first',true);return;}
+  const saved = {};
+  for(let t=1;t<=3;t++){
+    const box = document.getElementById('sf9shs-comment-t'+t);
+    saved['t'+t] = box ? box.textContent.trim() : '';
+  }
+  lsSet('sf9shscm_'+sf9shsCurrentLRN, saved);
+  logAudit('SF9 (SHS) COMMENTS','Saved teacher comments for LRN '+sf9shsCurrentLRN);
+  toast('✅ Comments saved!');
+}
+
+// Copies the already-embedded official header logos from the JHS SF9 page
+// so the SHS SF9 page stays sharp/print-ready without duplicating the images.
+function syncSF9SHSLogos(){
+  const srcLogos = document.querySelectorAll('#sf9off-page .sf9off-logo');
+  const l1 = document.getElementById('sf9shs-logo1');
+  const l2 = document.getElementById('sf9shs-logo2');
+  if(l1 && srcLogos[0] && !l1.src) l1.src = srcLogos[0].src;
+  if(l2 && srcLogos[1] && !l2.src) l2.src = srcLogos[1].src;
+}
+
+// Returns the ordered list of Learning Area names (Core + Applied + Specialized)
+// configured for a given Strand name in SHS Strand Manager, deduplicated
+// across both semesters — this is what auto-populates the Learning Areas table.
+function getStrandLearningAreas(strandName){
+  if(!strandName) return [];
+  const strand = (strandsCache||[]).find(st=>(st.name||'').toLowerCase()===String(strandName).toLowerCase());
+  if(!strand) return [];
+  const seen = new Set();
+  const areas = [];
+  [...(strand.subjects_sem1||[]), ...(strand.subjects_sem2||[])].forEach(name=>{
+    const n=(name||'').trim();
+    if(!n) return;
+    const key=n.toLowerCase();
+    if(seen.has(key)) return;
+    seen.add(key);
+    areas.push(n);
+  });
+  return areas;
+}
+
+// Generic grade lookup by subject id — same key format used by the
+// Encode Grades table (subjId + '_' + sectionKey + '_T' + quarter).
+function getEncodedGradeGeneric(subjId, studentIndex, sectionKey, quarter){
+  if(!subjId) return null;
+  const key = subjId + '_' + sectionKey + '_T' + quarter;
+  const rec = gradeCache[key] || lsGet('gr_' + key) || {};
+  const val = rec[studentIndex];
+  return (val!==undefined && val!=='') ? parseFloat(val) : null;
+}
+
+function populateSF9SHSDropdowns(){
+  if(isAdmin()){
+    populateAdminSF9SHSSectionFilter();
+  } else if(isAdviser()){
+    const advSect = getAdvisorySection();
+    let list = advSect
+      ? studentsCache.filter(s=>sectionsMatch(s.section,advSect,s.grade) && (s.grade==='11'||s.grade==='12'))
+      : studentsCache.filter(s=>(CU?.sections||[]).some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
+    document.getElementById('sf9shs-section-filter-wrap')?.classList.add('hidden');
+    list = list.sort((a,b)=>a.name.localeCompare(b.name));
+    const opts='<option value="">Select student...</option>'+
+      list.map(s=>`<option value="${s.lrn}">${s.name}</option>`).join('');
+    const el=document.getElementById('sf9shs-student'); if(el) el.innerHTML=opts;
+  } else {
+    const assignedSects = CU?.sections||[];
+    let list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
+    list = list.sort((a,b)=>a.name.localeCompare(b.name));
+    const opts='<option value="">Select student...</option>'+
+      list.map(s=>`<option value="${s.lrn}">${s.name}</option>`).join('');
+    const el=document.getElementById('sf9shs-student'); if(el) el.innerHTML=opts;
+  }
+  syncSF9SHSLogos();
+}
+
+function populateAdminSF9SHSSectionFilter(){
+  const wrap=document.getElementById('sf9shs-section-filter-wrap');
+  if(!wrap) return;
+  const sects=getSectionsFromStudents().filter(s=>/^G(11|12)-/.test(s));
+  const currentVal=document.getElementById('sf9shs-section-filter')?.value||'';
+  wrap.innerHTML=`<label class="form-label">Section</label>
+    <div style="display:flex;gap:6px;align-items:center">
+      <select class="form-select" id="sf9shs-section-filter" onchange="populateSF9SHSStudentsBySection()" style="flex:1">
+        <option value="">All Grade 11/12 sections</option>
+        ${sects.map(s=>`<option value="${s}" ${s===currentVal?'selected':''}>${s.replace(/G(\\d+)-/,'Grade $1 – ')}</option>`).join('')}
+      </select>
+    </div>`;
+  wrap.classList.remove('hidden');
+  populateSF9SHSStudentsBySection();
+}
+
+function populateSF9SHSStudentsBySection(){
+  const sel=document.getElementById('sf9shs-section-filter');
+  const sectFilter=sel?.value||'';
+  let list;
+  if(sectFilter){
+    const sn=sectFilter.replace(/^G\\d+-/,'').toUpperCase();
+    const grade=sectFilter.match(/G(\\d+)-/)?.[1]||'';
+    list=studentsCache.filter(s=>s.section.toUpperCase()===sn && (!grade||s.grade===grade));
+  } else {
+    list=studentsCache.filter(s=>s.grade==='11'||s.grade==='12');
+  }
+  list.sort((a,b)=>a.name.localeCompare(b.name));
+  const el=document.getElementById('sf9shs-student');
+  if(el) el.innerHTML='<option value="">Select student...</option>'+
+    list.map(s=>`<option value="${s.lrn}">${s.name} — Gr.${s.grade} ${s.section.toUpperCase()}${s.strand?' · '+s.strand:''}</option>`).join('');
+  document.getElementById('sf9shs-output')?.classList.add('hidden');
+  document.getElementById('sf9shs-placeholder')?.classList.remove('hidden');
+}
+
+async function renderSF9SHS(){
+  const val=document.getElementById('sf9shs-student').value;
+  if(!val){
+    document.getElementById('sf9shs-output').classList.add('hidden');
+    document.getElementById('sf9shs-placeholder').classList.remove('hidden');
+    return;
+  }
+  let s;
+  if(isAdmin()){
+    s = studentsCache.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
+  } else {
+    const assignedSects = CU?.sections||[];
+    const advSect = getAdvisorySection();
+    const list = advSect
+      ? studentsCache.filter(st=>sectionsMatch(st.section,advSect,st.grade))
+      : studentsCache.filter(st=>assignedSects.some(sect=>sectionsMatch(st.section,sect,st.grade)));
+    s = list.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
+  }
+  if(!s) return;
+  document.getElementById('sf9shs-output').classList.remove('hidden');
+  document.getElementById('sf9shs-placeholder').classList.add('hidden');
+  syncSF9SHSLogos();
+
+  // ── Student info ──
+  const np=s.name.split(','); const op=(np[1]||'').trim().split(' ');
+  const lastName=(np[0]||'').trim(), firstName=op[0]||'', middleName=op.slice(1).join(' ')||'';
+  document.getElementById('sf9shsf-name').textContent=[firstName,middleName,lastName].filter(Boolean).join(' ');
+  document.getElementById('sf9shsf-lrn').textContent=s.lrn;
+  document.getElementById('sf9shsf-grade2').textContent=s.grade||'';
+  document.getElementById('sf9shsf-section2').textContent=s.section||'';
+  if(s.bday){const age=Math.floor((new Date()-new Date(s.bday))/(365.25*24*60*60*1000));document.getElementById('sf9shsf-age').textContent=age;}
+  document.getElementById('sf9shsf-sex').textContent=s.sex==='F'?'Female':'Male';
+
+  // Track & Strand — pull the Track label from SHS Strand Manager when available
+  const strandObj = (strandsCache||[]).find(st=>(st.name||'').toLowerCase()===String(s.strand||'').toLowerCase());
+  const strandLabel = s.strand ? (strandObj ? (strandObj.track ? strandObj.track+' – '+s.strand : s.strand) : s.strand) : '—';
+  document.getElementById('sf9shsf-strand').textContent = strandLabel;
+
+  // ── Editable Teacher's Comments/Remarks ──
+  loadSF9SHSComments(s.lrn);
+
+  // ── Auto-fill adviser name from section adviser ──
+  const adviserAcc = accountsCache.find(a=>
+    (a.role==='adviser'||a.role==='adviser-teacher') &&
+    a.advisory_section &&
+    sectionsMatch(s.section, a.advisory_section, s.grade)
+  );
+  const sigEl = document.getElementById('sf9shsf-teacher-sig');
+  if(sigEl){
+    sigEl.textContent = adviserAcc ? adviserAcc.name.toUpperCase() : '—';
+  }
+
+  const qtr = +document.getElementById('sf9shs-qtr').value;
+  const sectionKey = 'G'+(s.grade||'11')+'-'+s.section.toUpperCase();
+
+  // ── Attendance — fetch from cloud then read records (same logic as JHS SF9) ──
+  if(isOnline) await fetchAttendanceForSection(sectionKey);
+
+  const months=['jun','jul','aug','sep','oct','nov','dec','jan','feb','mar','apr'];
+  const mNums=['06','07','08','09','10','11','12','01','02','03','04'];
+  const mYears=['2026','2026','2026','2026','2026','2026','2026','2027','2027','2027','2027'];
+  let sdTot=0,dpTot=0,daTot=0;
+  months.forEach((mo,i)=>{
+    const yr=mYears[i],mn=mNums[i];
+    const monthStr=yr+'-'+mn;
+    const daysInMonth=new Date(+yr,+mn,0).getDate();
+    const suspDays=getSuspendedDays(monthStr).map(d=>d.date);
+    const schoolDateStrs=[];
+    for(let d=1;d<=daysInMonth;d++){
+      const dateStr=monthStr+'-'+String(d).padStart(2,'0');
+      const dow=new Date(yr,mn-1,d).getDay();
+      if(dow===0||dow===6) continue;
+      if(!isWithinSY(dateStr)) continue;
+      if(suspDays.includes(dateStr)) continue;
+      schoolDateStrs.push(dateStr);
+    }
+    const {sd, dp, da} = computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey);
+    document.getElementById('sf9shs-sd-'+mo).textContent = sd>0 ? sd : '';
+    document.getElementById('sf9shs-dp-'+mo).textContent = sd>0 ? dp : '';
+    document.getElementById('sf9shs-da-'+mo).textContent = sd>0 ? da : '';
+    sdTot+=sd; dpTot+=dp; daTot+=da;
+  });
+  document.getElementById('sf9shs-sd-tot').textContent = sdTot>0 ? sdTot : '';
+  document.getElementById('sf9shs-dp-tot').textContent = sdTot>0 ? dpTot : '';
+  document.getElementById('sf9shs-da-tot').textContent = sdTot>0 ? daTot : '';
+
+  // ── Learning Areas — automatically pulled from the student's Strand ──
+  const learningAreas = getStrandLearningAreas(s.strand);
+  const configuredSubjects = getSubjectsForGrade(s.grade); // admin-managed subjects for this grade (for grade lookups)
+
+  const sectionStudents = studentsCache
+    .filter(st => sectionsMatch(st.section, sectionKey, st.grade))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  const studentIndex = sectionStudents.findIndex(st=>st.lrn===s.lrn);
+
+  const cellVal = (v,t) => {
+    if(t > qtr) return '';
+    if(v===null||v===undefined) return '<span class="grade-dash no-print-val">—</span>';
+    return v;
+  };
+  const passFail = (v) => v>=75 ? 'Passed' : 'Failed';
+
+  let sum=0, cnt=0;
+  const rowsSource = learningAreas.length
+    ? learningAreas
+    : configuredSubjects.map(sub=>sub.name); // fallback: no strand configured yet — show admin-managed subjects
+
+  if(!rowsSource.length){
+    document.getElementById('sf9shs-grade-rows').innerHTML =
+      `<tr><td class="subj" colspan="6" style="text-align:center;color:#94a3b8;font-style:italic;">No Learning Areas configured yet for this Strand — add them via SHS Strand Manager.</td></tr>`;
+  } else {
+    document.getElementById('sf9shs-grade-rows').innerHTML = rowsSource.map(subjName=>{
+      const matchedSubj = configuredSubjects.find(sub=>sub.name.toLowerCase()===subjName.toLowerCase());
+      const subjId = matchedSubj ? matchedSubj.id : null;
+
+      const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
+      const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
+      const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
+      const vals=[t1,t2,t3].filter(v=>v!==null);
+      const final = vals.length>0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+
+      const finalDisplay = final!==null
+        ? `<strong>${final}</strong>`
+        : '<span class="grade-dash no-print-val">—</span>';
+      const rem = final!==null
+        ? (final<75?`<span style="color:red">${passFail(final)}</span>`:passFail(final))
+        : '<span class="no-print-val">—</span>';
+
+      if(final!==null){ sum+=final; cnt++; }
+
+      return`<tr>
+        <td class="subj">${subjName}</td>
+        <td>${cellVal(t1,1)}</td>
+        <td>${cellVal(t2,2)}</td>
+        <td>${cellVal(t3,3)}</td>
+        <td>${finalDisplay}</td>
+        <td>${rem}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  if(cnt>0){
+    const avg=(sum/cnt).toFixed(2);
+    document.getElementById('sf9shs-avg').textContent=avg;
+    const h=getHonors(avg);
+    document.getElementById('sf9shs-promoted').textContent=h;
+    document.getElementById('sf9shs-promoted').style.color=+avg>=90?'#1e3a5f':+avg>=75?'#166534':'#b91c1c';
+    document.getElementById('sf9shs-promoted').style.fontStyle=h.startsWith('With')?'italic':'normal';
+  } else {
+    document.getElementById('sf9shs-avg').textContent='—';
+    document.getElementById('sf9shs-promoted').textContent='Grades not yet encoded';
+    document.getElementById('sf9shs-promoted').style.color='#9ca3af';
   }
 }
 
