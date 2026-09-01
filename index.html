@@ -353,20 +353,30 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; }
   .sf9off-grades { width:100%; border-collapse:collapse; font-size:10.5px; border:0.75pt solid #8faadc; }
-  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:3px 4px !important; text-align:center; font-size:10.5px !important; background:#fff; overflow:hidden; }
+  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:3px 4px !important; text-align:center; font-size:10.5px !important; background:#fff; overflow:hidden; vertical-align:middle; }
   .sf9off-grades thead th { font-weight:bold; background:#dbe5f3; font-size:9.5px !important; font-family:Arial,Helvetica,sans-serif !important; }
   .sf9off-grades thead th:first-child { text-align:left; padding-left:5px !important; width:38%; }
   .sf9off-grades td.subj { text-align:left; padding-left:5px !important; font-size:11.5px !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; white-space:normal; word-break:break-word; }
   .sf9off-grades td.subj.sub { font-style:italic; padding-left:14px !important; font-weight:400; }
+  /* Grade values (TERM1-3, Final Grade, Remarks) reuse the exact subject-name
+     font family/size/weight so they visually match the Learning Areas column. */
+  .sf9off-grades tbody td:not(.subj), .sf9off-grades tfoot td { font-size:11.5px !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; line-height:1.3; }
   .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
 
   .sf9off-desc { width:100%; border-collapse:collapse; font-size:9px; margin-top:1mm; border:0.75pt solid #8faadc; }
-  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:1px 3px !important; text-align:center; font-size:9px !important; background:#fff; line-height:1.15; }
+  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:2px 4px !important; text-align:center; font-size:9px !important; background:#fff; line-height:1.3; vertical-align:middle; }
   .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; font-family:Arial,Helvetica,sans-serif !important; }
+  /* Performance descriptor entries reuse the subject-name font family/size
+     for readability; wrapping + row height absorb any longer descriptor text. */
+  .sf9off-desc tbody td { font-size:11px !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:400; white-space:normal; word-wrap:break-word; overflow-wrap:break-word; }
 
   .sf9off-att { width:100%; border-collapse:collapse; font-size:7.2pt; border:0.75pt solid #8faadc; }
-  .sf9off-att th, .sf9off-att td { border:0.5pt solid #8faadc; padding:2px 1px !important; text-align:center; font-size:7.2pt !important; background:#fff; }
+  .sf9off-att th, .sf9off-att td { border:0.5pt solid #8faadc; padding:2px 1px !important; text-align:center; font-size:7.2pt !important; background:#fff; vertical-align:middle; }
   .sf9off-att thead th { font-weight:bold; background:#dbe5f3; }
+  /* Attendance values reuse the subject-name font family for a consistent
+     look; size is tuned to this table's narrow month columns so numbers
+     never touch a border or a neighboring column. */
+  .sf9off-att tbody td { font-size:9.5px !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:400; white-space:nowrap; }
   .sf9off-att td.lbl { text-align:left; padding-left:3px !important; white-space:nowrap; background:#eef2fa; font-weight:bold; }
   .sf9off-att tr.tot td { font-weight:bold; }
 
@@ -4555,8 +4565,8 @@ function populateSF9SHSDropdowns(){
   } else if(isAdviser()){
     const advSect = getAdvisorySection();
     let list = advSect
-      ? studentsCache.filter(s=>sectionsMatch(s.section,advSect,s.grade) && (String(s.grade)==='11'||String(s.grade)==='12'))
-      : studentsCache.filter(s=>(CU?.sections||[]).some(sect=>sectionsMatch(s.section,sect,s.grade)) && (String(s.grade)==='11'||String(s.grade)==='12'));
+      ? studentsCache.filter(s=>sectionsMatch(s.section,advSect,s.grade) && (s.grade==='11'||s.grade==='12'))
+      : studentsCache.filter(s=>(CU?.sections||[]).some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
     document.getElementById('sf9shs-section-filter-wrap')?.classList.add('hidden');
     list = list.sort((a,b)=>a.name.localeCompare(b.name));
     const opts='<option value="">Select student...</option>'+
@@ -4564,7 +4574,7 @@ function populateSF9SHSDropdowns(){
     const el=document.getElementById('sf9shs-student'); if(el) el.innerHTML=opts;
   } else {
     const assignedSects = CU?.sections||[];
-    let list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) && (String(s.grade)==='11'||String(s.grade)==='12'));
+    let list = studentsCache.filter(s=>assignedSects.some(sect=>sectionsMatch(s.section,sect,s.grade)) && (s.grade==='11'||s.grade==='12'));
     list = list.sort((a,b)=>a.name.localeCompare(b.name));
     const opts='<option value="">Select student...</option>'+
       list.map(s=>`<option value="${s.lrn}">${s.name}</option>`).join('');
@@ -4582,7 +4592,7 @@ function populateAdminSF9SHSSectionFilter(){
     <div style="display:flex;gap:6px;align-items:center">
       <select class="form-select" id="sf9shs-section-filter" onchange="populateSF9SHSStudentsBySection()" style="flex:1">
         <option value="">All Grade 11/12 sections</option>
-        ${sects.map(s=>`<option value="${s}" ${s===currentVal?'selected':''}>${s.replace(/G(\d+)-/,'Grade $1 – ')}</option>`).join('')}
+        ${sects.map(s=>`<option value="${s}" ${s===currentVal?'selected':''}>${s.replace(/G(\\d+)-/,'Grade $1 – ')}</option>`).join('')}
       </select>
     </div>`;
   wrap.classList.remove('hidden');
@@ -4594,9 +4604,11 @@ function populateSF9SHSStudentsBySection(){
   const sectFilter=sel?.value||'';
   let list;
   if(sectFilter){
-    list=studentsCache.filter(s=>(String(s.grade)==='11'||String(s.grade)==='12') && sectionsMatch(s.section, sectFilter, s.grade));
+    const sn=sectFilter.replace(/^G\\d+-/,'').toUpperCase();
+    const grade=sectFilter.match(/G(\\d+)-/)?.[1]||'';
+    list=studentsCache.filter(s=>s.section.toUpperCase()===sn && (!grade||s.grade===grade));
   } else {
-    list=studentsCache.filter(s=>String(s.grade)==='11'||String(s.grade)==='12');
+    list=studentsCache.filter(s=>s.grade==='11'||s.grade==='12');
   }
   list.sort((a,b)=>a.name.localeCompare(b.name));
   const el=document.getElementById('sf9shs-student');
@@ -4615,14 +4627,14 @@ async function renderSF9SHS(){
   }
   let s;
   if(isAdmin()){
-    s = studentsCache.find(st=>st.lrn===val && (String(st.grade)==='11'||String(st.grade)==='12'));
+    s = studentsCache.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
   } else {
     const assignedSects = CU?.sections||[];
     const advSect = getAdvisorySection();
     const list = advSect
       ? studentsCache.filter(st=>sectionsMatch(st.section,advSect,st.grade))
       : studentsCache.filter(st=>assignedSects.some(sect=>sectionsMatch(st.section,sect,st.grade)));
-    s = list.find(st=>st.lrn===val && (String(st.grade)==='11'||String(st.grade)==='12'));
+    s = list.find(st=>st.lrn===val && (st.grade==='11'||st.grade==='12'));
   }
   if(!s) return;
   document.getElementById('sf9shs-output').classList.remove('hidden');
