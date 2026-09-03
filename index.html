@@ -1387,13 +1387,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
                     <div class="sf9off-sectitle" style="margin-top:1mm;">Performance Descriptors</div>
                     <table class="sf9off-desc">
-                      <thead><tr><th>Grading Scale</th><th>Description</th><th>Remarks</th></tr></thead>
+                      <thead><tr><th>Grading Scale</th><th>Descriptors</th><th>Remarks</th></tr></thead>
                       <tbody>
-                        <tr><td>90&ndash;100</td><td>Outstanding</td><td>Passed</td></tr>
-                        <tr><td>85&ndash;89</td><td>Very Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>80&ndash;84</td><td>Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>75&ndash;79</td><td>Fairly Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>Below 75</td><td>Did Not Meet Expectations</td><td>Failed</td></tr>
+                        <tr><td>90&ndash;100</td><td>Advancing</td><td>Passed</td></tr>
+                        <tr><td>80&ndash;89</td><td>Benchmarking</td><td>Passed</td></tr>
+                        <tr><td>75&ndash;79</td><td>Connecting</td><td>Passed</td></tr>
+                        <tr><td>65&ndash;74</td><td>Developing</td><td>Failed</td></tr>
+                        <tr><td>0&ndash;64</td><td>Emerging</td><td>Failed</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -1544,13 +1544,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
                     <div class="sf9off-sectitle" style="margin-top:1mm;">Performance Descriptors</div>
                     <table class="sf9off-desc">
-                      <thead><tr><th>Grading Scale</th><th>Description</th><th>Remarks</th></tr></thead>
+                      <thead><tr><th>Grading Scale</th><th>Descriptors</th><th>Remarks</th></tr></thead>
                       <tbody>
-                        <tr><td>90&ndash;100</td><td>Outstanding</td><td>Passed</td></tr>
-                        <tr><td>85&ndash;89</td><td>Very Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>80&ndash;84</td><td>Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>75&ndash;79</td><td>Fairly Satisfactory</td><td>Passed</td></tr>
-                        <tr><td>Below 75</td><td>Did Not Meet Expectations</td><td>Failed</td></tr>
+                        <tr><td>90&ndash;100</td><td>Advancing</td><td>Passed</td></tr>
+                        <tr><td>80&ndash;89</td><td>Benchmarking</td><td>Passed</td></tr>
+                        <tr><td>75&ndash;79</td><td>Connecting</td><td>Passed</td></tr>
+                        <tr><td>65&ndash;74</td><td>Developing</td><td>Failed</td></tr>
+                        <tr><td>0&ndash;64</td><td>Emerging</td><td>Failed</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -4383,11 +4383,11 @@ async function renderSF9(){
 
   // Official Suarez NHS SF9 Performance Descriptors / grading scale
   const gradeDescriptor = (v) => {
-    if(v>=90) return 'Outstanding';
-    if(v>=85) return 'Very Satisfactory';
-    if(v>=80) return 'Satisfactory';
-    if(v>=75) return 'Fairly Satisfactory';
-    return 'Did Not Meet Expectations';
+    if(v>=90) return 'Advancing';
+    if(v>=80) return 'Benchmarking';
+    if(v>=75) return 'Connecting';
+    if(v>=65) return 'Developing';
+    return 'Emerging';
   };
   const passFail = (v) => v>=75 ? 'Passed' : 'Failed';
 
