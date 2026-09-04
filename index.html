@@ -4454,6 +4454,38 @@ async function renderSF9(){
       <td>${finalDisplay}</td>
       <td>${rem}</td>
     </tr>`;
+  })() + (function extraRowForG7DecisiveSPJ(){
+    // Grade 7 - Decisive-SPJ has one additional Learning Area, "Journalism",
+    // shown right after MAPEH — same pattern as Research 7 for Diligent above.
+    if(String(s.grade)!=='7') return '';
+    if((s.section||'').trim().toLowerCase()!=='decisive-spj') return '';
+    const g7Subjects = getSubjectsForGrade('7');
+    const journalism = g7Subjects.find(sub=>sub.name.trim().toLowerCase()==='journalism');
+    const subjId = journalism ? journalism.id : null;
+
+    const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
+    const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
+    const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
+    const vals=[t1,t2,t3].filter(v=>v!==null);
+    const final = vals.length>0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+
+    const finalDisplay = final!==null
+      ? `<strong>${final}</strong>`
+      : '<span class="grade-dash no-print-val">—</span>';
+    const rem = final!==null
+      ? (final<75?`<span style="color:red">${passFail(final)}</span>`:passFail(final))
+      : '<span class="no-print-val">—</span>';
+
+    if(final!==null){ sum+=final; cnt++; }
+
+    return`<tr>
+      <td class="subj">Journalism</td>
+      <td>${cellVal(t1,1)}</td>
+      <td>${cellVal(t2,2)}</td>
+      <td>${cellVal(t3,3)}</td>
+      <td>${finalDisplay}</td>
+      <td>${rem}</td>
+    </tr>`;
   })();
 
   if(cnt>0){
