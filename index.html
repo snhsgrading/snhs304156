@@ -4233,12 +4233,22 @@ function genSF9(lrn){
   showView('sf9',document.getElementById('nav-sf9'));
 }
 
-// ── SF9 TEACHER'S COMMENTS/REMARKS — editable, saved per LRN (local device) ──
+// ── SF9 TEACHER'S COMMENTS/REMARKS — editable, synced to Supabase + cached locally ──
 let sf9CurrentLRN = null;
 
-function loadSF9Comments(lrn){
+async function loadSF9Comments(lrn){
   sf9CurrentLRN = lrn;
-  const saved = lsGet('sf9cm_'+lrn) || {};
+  let saved = lsGet('sf9cm_'+lrn) || {};
+  // Pull the cloud copy too, in case comments were saved from a different device/browser
+  if(isOnline){
+    try{
+      const {data} = await sb.from('grade_records').select('data').eq('grade_key','sf9cm_'+lrn).maybeSingle();
+      if(data && data.data){
+        saved = data.data;
+        lsSet('sf9cm_'+lrn, saved); // refresh local cache so it still works offline next time
+      }
+    }catch(e){ /* offline or table hiccup — fall back to whatever's cached locally */ }
+  }
   const isEditable = isAdviser ? isAdviser() : true;
   for(let t=1;t<=3;t++){
     const box = document.getElementById('sf9-comment-t'+t);
@@ -4255,6 +4265,7 @@ function autoSaveSF9Comment(term){
   if(!box) return;
   saved['t'+term] = box.textContent.trim();
   lsSet('sf9cm_'+sf9CurrentLRN, saved);
+  syncSF9CommentsToCloud(sf9CurrentLRN, saved);
 }
 
 function saveSF9Comments(){
@@ -4265,8 +4276,19 @@ function saveSF9Comments(){
     saved['t'+t] = box ? box.textContent.trim() : '';
   }
   lsSet('sf9cm_'+sf9CurrentLRN, saved);
+  syncSF9CommentsToCloud(sf9CurrentLRN, saved);
   logAudit('SF9 COMMENTS','Saved teacher comments for LRN '+sf9CurrentLRN);
   toast('✅ Comments saved!');
+}
+
+async function syncSF9CommentsToCloud(lrn, saved){
+  if(!isOnline) return;
+  try{
+    await sb.from('grade_records').upsert(
+      {grade_key:'sf9cm_'+lrn, data:saved, updated_at:new Date().toISOString()},
+      {onConflict:'grade_key'}
+    );
+  }catch(e){ console.warn('SF9 comments cloud sync failed (saved locally):', safeErr(e)); }
 }
 
 // ── SF9 — LEARNER'S PERFORMANCE REPORT (official, A4 landscape) ──────
@@ -4305,7 +4327,7 @@ async function renderSF9(){
   document.getElementById('sf9f-sex').textContent=s.sex==='F'?'Female':'Male';
 
   // ── Editable Teacher's Comments/Remarks — load saved text for this learner ──
-  loadSF9Comments(s.lrn);
+  await loadSF9Comments(s.lrn);
 
   // ── Auto-fill adviser name from section adviser ──────────────────
   const adviserAcc = accountsCache.find(a=>
@@ -4540,12 +4562,21 @@ function genSF9SHS(lrn){
   showView('sf9shs',document.getElementById('nav-sf9shs'));
 }
 
-// ── SF9 (SHS) TEACHER'S COMMENTS/REMARKS — editable, saved per LRN (local device) ──
+// ── SF9 (SHS) TEACHER'S COMMENTS/REMARKS — editable, synced to Supabase + cached locally ──
 let sf9shsCurrentLRN = null;
 
-function loadSF9SHSComments(lrn){
+async function loadSF9SHSComments(lrn){
   sf9shsCurrentLRN = lrn;
-  const saved = lsGet('sf9shscm_'+lrn) || {};
+  let saved = lsGet('sf9shscm_'+lrn) || {};
+  if(isOnline){
+    try{
+      const {data} = await sb.from('grade_records').select('data').eq('grade_key','sf9shscm_'+lrn).maybeSingle();
+      if(data && data.data){
+        saved = data.data;
+        lsSet('sf9shscm_'+lrn, saved);
+      }
+    }catch(e){ /* offline or table hiccup — fall back to whatever's cached locally */ }
+  }
   const isEditable = isAdviser ? isAdviser() : true;
   for(let t=1;t<=3;t++){
     const box = document.getElementById('sf9shs-comment-t'+t);
@@ -4562,6 +4593,7 @@ function autoSaveSF9SHSComment(term){
   if(!box) return;
   saved['t'+term] = box.textContent.trim();
   lsSet('sf9shscm_'+sf9shsCurrentLRN, saved);
+  syncSF9SHSCommentsToCloud(sf9shsCurrentLRN, saved);
 }
 
 function saveSF9SHSComments(){
@@ -4572,8 +4604,19 @@ function saveSF9SHSComments(){
     saved['t'+t] = box ? box.textContent.trim() : '';
   }
   lsSet('sf9shscm_'+sf9shsCurrentLRN, saved);
+  syncSF9SHSCommentsToCloud(sf9shsCurrentLRN, saved);
   logAudit('SF9 (SHS) COMMENTS','Saved teacher comments for LRN '+sf9shsCurrentLRN);
   toast('✅ Comments saved!');
+}
+
+async function syncSF9SHSCommentsToCloud(lrn, saved){
+  if(!isOnline) return;
+  try{
+    await sb.from('grade_records').upsert(
+      {grade_key:'sf9shscm_'+lrn, data:saved, updated_at:new Date().toISOString()},
+      {onConflict:'grade_key'}
+    );
+  }catch(e){ console.warn('SF9 (SHS) comments cloud sync failed (saved locally):', safeErr(e)); }
 }
 
 // Copies the already-embedded official header logos from the JHS SF9 page
@@ -4712,7 +4755,7 @@ async function renderSF9SHS(){
   document.getElementById('sf9shsf-strand').textContent = strandLabel;
 
   // ── Editable Teacher's Comments/Remarks ──
-  loadSF9SHSComments(s.lrn);
+  await loadSF9SHSComments(s.lrn);
 
   // ── Auto-fill adviser name from section adviser ──
   const adviserAcc = accountsCache.find(a=>
