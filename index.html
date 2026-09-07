@@ -353,16 +353,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; }
   .sf9off-grades { width:100%; border-collapse:collapse; font-size:8.5pt; border:0.75pt solid #8faadc; }
-  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:3px 4px !important; text-align:center; font-size:8.5pt !important; background:#fff; overflow:hidden; }
+  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:2px 4px !important; text-align:center; font-size:8.5pt !important; background:#fff; overflow:hidden; }
   .sf9off-grades thead th { font-weight:bold; background:#dbe5f3; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; }
   .sf9off-grades thead th:first-child { text-align:left; padding-left:5px !important; width:38%; }
   .sf9off-grades td.subj { text-align:left; padding-left:5px !important; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; white-space:normal; word-break:break-word; }
   .sf9off-grades td.subj.sub { font-style:italic; padding-left:14px !important; font-weight:400; }
   .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
 
-  .sf9off-desc { width:100%; border-collapse:collapse; font-size:11px; margin-top:1mm; border:0.75pt solid #8faadc; table-layout:fixed; }
-  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:4px 5px !important; text-align:center; font-size:11px !important; background:#fff; line-height:1.35; height:auto; overflow:visible; word-break:break-word; }
-  .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; font-family:Arial,Helvetica,sans-serif !important; padding:5px 5px !important; }
+  .sf9off-desc { width:100%; border-collapse:collapse; font-size:10px; margin-top:1mm; border:0.75pt solid #8faadc; table-layout:fixed; }
+  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:2px 4px !important; text-align:center; font-size:10px !important; background:#fff; line-height:1.2; height:auto; overflow:visible; word-break:break-word; }
+  .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; font-family:Arial,Helvetica,sans-serif !important; padding:2px 4px !important; }
 
   .sf9off-att { width:100%; border-collapse:collapse; font-size:7.2pt; border:0.75pt solid #8faadc; }
   .sf9off-att th, .sf9off-att td { border:0.5pt solid #8faadc; padding:2px 1px !important; text-align:center; font-size:7.2pt !important; background:#fff; }
@@ -371,7 +371,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-att tr.tot td { font-weight:bold; }
 
   .sf9off-comments-box {
-    border:0.75pt solid #000; box-sizing:border-box; padding:2mm 3mm 2.5mm; margin:2mm 0 3mm;
+    border:0.75pt solid #8faadc; box-sizing:border-box; padding:1.5mm 2.5mm; margin:1.5mm 0;
   }
   .sf9off-comments-box .sf9off-sectitle { margin-top:0 !important; }
   .sf9off-comments-box .sf9off-comment-lbl:first-of-type { margin-top:0.5mm; }
@@ -4536,7 +4536,7 @@ async function renderSF9(){
   })();
 
   if(cnt>0){
-    const avg=(sum/cnt).toFixed(2);
+    const avg=Math.round(sum/cnt);
     document.getElementById('sf9-avg').textContent=avg;
     const h=getHonors(avg);
     document.getElementById('sf9-promoted').textContent=h;
@@ -4899,7 +4899,7 @@ async function renderSF9SHS(){
   }
 
   if(cnt>0){
-    const avg=(sum/cnt).toFixed(2);
+    const avg=Math.round(sum/cnt);
     document.getElementById('sf9shs-avg').textContent=avg;
     const h=getHonors(avg);
     document.getElementById('sf9shs-promoted').textContent=h;
@@ -5751,7 +5751,7 @@ async function buildReport(){
       }
     });
 
-    const avg = gwaParts.length>0 ? (gwaParts.reduce((a,b)=>a+b,0)/gwaParts.length).toFixed(1) : '—';
+    const avg = gwaParts.length>0 ? Math.round(gwaParts.reduce((a,b)=>a+b,0)/gwaParts.length) : '—';
     const passing = avg!=='—' && +avg>=75;
 
     return`<tr>
@@ -8335,7 +8335,7 @@ async function loadHistoricalRecords(){
   if(maxGrade>=12)grades.push('12-SEM1','12-SEM2');
   document.getElementById('hist-output').innerHTML=grades.map(gl=>{
     const rec=records.find(r=>r.grade_level===gl)||{};
-    const avg=rec.general_average?parseFloat(rec.general_average).toFixed(2):'—';
+    const avg=rec.general_average?Math.round(parseFloat(rec.general_average)):'—';
     const glLabel='Grade '+gl.replace('-SEM1',' – 1st Sem').replace('-SEM2',' – 2nd Sem');
     const isCurr = gl===student.grade;
     if(isCurr) return`<div class="card" style="margin-bottom:1rem;border-color:var(--green)"><div class="card-header"><div><div class="card-title" style="color:var(--green)">★ ${glLabel} — Current Enrolled Grade</div><div class="card-sub">Grades come from the Grade Encoding module automatically</div></div></div></div>`;
@@ -8560,10 +8560,10 @@ function buildSF10GradeTable(data){
   if(enc){
     let sum=0,cnt=0;
     [0,1,2,3,4,5,6,7].forEach(idx=>{const f=enc[idx]?.final;if(f!=null){sum+=f;cnt++;}});
-    if(cnt>0){gwa=(sum/cnt).toFixed(2);remarks=getHonors(parseFloat(gwa));}
+    if(cnt>0){gwa=Math.round(sum/cnt);remarks=getHonors(gwa);}
   } else if(data.histGWA){
-    gwa=parseFloat(data.histGWA).toFixed(2);
-    remarks=getHonors(parseFloat(gwa));
+    gwa=Math.round(parseFloat(data.histGWA));
+    remarks=getHonors(gwa);
   }
 
   // Subject name matching for historical records
@@ -8689,13 +8689,13 @@ function downloadSF10Excel(){
     if(isCurr){
       section=student.section.toUpperCase(); sy=SY; adviser=adviserAcc?.name||'';
       let sum=0,cnt=0; [0,1,2,3,4,5,6,7].forEach(idx=>{const f=currentEnc[idx]?.final;if(f!=null){sum+=f;cnt++;}});
-      if(cnt>0) gwa=(sum/cnt).toFixed(2);
+      if(cnt>0) gwa=Math.round(sum/cnt);
     } else if(histRec){
       school=histRec.school_name||SCHOOL_NAME; schoolId=histRec.school_id||SCHOOL_ID;
       district=histRec.district||''; division=histRec.division||DIVISION;
       region=histRec.region||'Region X'; section=(histRec.section||'').toUpperCase();
       sy=histRec.school_year||''; adviser=histRec.adviser||'';
-      if(histRec.general_average) gwa=parseFloat(histRec.general_average).toFixed(2);
+      if(histRec.general_average) gwa=Math.round(parseFloat(histRec.general_average));
     }
 
     allRows.push(['GRADE '+g+' SCHOLASTIC RECORD']);
@@ -8811,7 +8811,7 @@ function updateHistAvg(){
   const vals=mainSubjs.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
   const el=document.getElementById('hist-avg-display'); if(!el)return;
   if(!vals.length){el.innerHTML='';return;}
-  const avg=(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2);
+  const avg=Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
   const col=+avg>=90?'var(--navy)':+avg>=75?'var(--green)':'var(--red)';
   el.innerHTML='GWA: <span style="color:var(--navy);font-size:16px">'+avg+'</span> &nbsp;·&nbsp; <span style="color:'+col+'">'+getHonors(avg)+'</span>';
 }
@@ -8830,8 +8830,8 @@ async function saveHistoricalRecord(){
   const subjects=histSubjectRows.filter(s=>s.name);
   const mainSubjs=subjects.filter(s=>!MAPEH_SUB_SUBJS.has(s.name)&&!s.isSub);
   const vals=mainSubjs.map(s=>parseFloat(s.grade||0)).filter(v=>v>0);
-  const avg=vals.length>0?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(2):null;
-  const obj={lrn:editingHistLRN,grade_level:editingHistGrade,school_year:sy,school_name:school,school_id:schoolId,district,division,region,section,adviser,strand,subjects,general_average:avg?parseFloat(avg):null,remarks:avg?getHonors(parseFloat(avg)):''};
+  const avg=vals.length>0?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+  const obj={lrn:editingHistLRN,grade_level:editingHistGrade,school_year:sy,school_name:school,school_id:schoolId,district,division,region,section,adviser,strand,subjects,general_average:avg,remarks:avg?getHonors(avg):''};
   if(!historicalCache[editingHistLRN])historicalCache[editingHistLRN]=[];
   const idx=historicalCache[editingHistLRN].findIndex(r=>r.grade_level===editingHistGrade);
   if(idx>=0)historicalCache[editingHistLRN][idx]=obj; else historicalCache[editingHistLRN].push(obj);
@@ -9708,7 +9708,7 @@ function getGradeRows(){
         });
         const filled = grades.filter(v=>v!=='').map(Number);
         const gwa    = filled.length>0
-          ? (filled.reduce((a,b)=>a+b,0)/filled.length).toFixed(1) : '';
+          ? Math.round(filled.reduce((a,b)=>a+b,0)/filled.length) : '';
         if(grades.some(g=>g!=='')){
           rows.push([stu.lrn, stu.name, 'Grade '+grade, sn, subj.name, ...grades, gwa]);
         }
