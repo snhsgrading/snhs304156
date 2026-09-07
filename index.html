@@ -335,8 +335,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-schoolrow b { text-transform:uppercase; }
 
   .sf9off-columns { display:flex; gap:6mm; align-items:flex-start; margin-top:2mm; }
-  .sf9off-left { flex:0 0 123mm; width:123mm; }
-  .sf9off-right { flex:0 0 138mm; width:138mm; }
+  .sf9off-left { flex:0 0 calc(50% - 3mm); width:calc(50% - 3mm); box-sizing:border-box; }
+  .sf9off-right { flex:0 0 calc(50% - 3mm); width:calc(50% - 3mm); box-sizing:border-box; }
 
   .sf9off-title { text-align:center; font-size:15.5pt; font-weight:bold; letter-spacing:0.02em; margin:1mm 0 0; text-transform:uppercase; }
   .sf9off-sy { text-align:center; font-size:9pt; margin-bottom:2mm; }
@@ -352,17 +352,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-sectitle { font-weight:bold; font-size:10.5pt; text-align:center; margin:1.5mm 0 1mm; text-transform:uppercase; }
 
   .sf9off-page th, .sf9off-page td { color:#000; font-family:'Times New Roman',Times,serif; letter-spacing:normal; text-transform:none; }
-  .sf9off-grades { width:100%; border-collapse:collapse; font-size:10.5px; border:0.75pt solid #8faadc; }
-  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:3px 4px !important; text-align:center; font-size:10.5px !important; background:#fff; overflow:hidden; }
-  .sf9off-grades thead th { font-weight:bold; background:#dbe5f3; font-size:9.5px !important; font-family:Arial,Helvetica,sans-serif !important; }
+  .sf9off-grades { width:100%; border-collapse:collapse; font-size:8.5pt; border:0.75pt solid #8faadc; }
+  .sf9off-grades th, .sf9off-grades td { border:0.5pt solid #8faadc; padding:3px 4px !important; text-align:center; font-size:8.5pt !important; background:#fff; overflow:hidden; }
+  .sf9off-grades thead th { font-weight:bold; background:#dbe5f3; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; }
   .sf9off-grades thead th:first-child { text-align:left; padding-left:5px !important; width:38%; }
-  .sf9off-grades td.subj { text-align:left; padding-left:5px !important; font-size:11.5px !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; white-space:normal; word-break:break-word; }
+  .sf9off-grades td.subj { text-align:left; padding-left:5px !important; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; white-space:normal; word-break:break-word; }
   .sf9off-grades td.subj.sub { font-style:italic; padding-left:14px !important; font-weight:400; }
   .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
 
-  .sf9off-desc { width:100%; border-collapse:collapse; font-size:9px; margin-top:1mm; border:0.75pt solid #8faadc; }
-  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:1px 3px !important; text-align:center; font-size:9px !important; background:#fff; line-height:1.15; }
-  .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; font-family:Arial,Helvetica,sans-serif !important; }
+  .sf9off-desc { width:100%; border-collapse:collapse; font-size:11px; margin-top:1mm; border:0.75pt solid #8faadc; table-layout:fixed; }
+  .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:4px 5px !important; text-align:center; font-size:11px !important; background:#fff; line-height:1.35; height:auto; overflow:visible; word-break:break-word; }
+  .sf9off-desc thead th { font-weight:bold; background:#dbe5f3; font-family:Arial,Helvetica,sans-serif !important; padding:5px 5px !important; }
 
   .sf9off-att { width:100%; border-collapse:collapse; font-size:7.2pt; border:0.75pt solid #8faadc; }
   .sf9off-att th, .sf9off-att td { border:0.5pt solid #8faadc; padding:2px 1px !important; text-align:center; font-size:7.2pt !important; background:#fff; }
@@ -370,6 +370,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-att td.lbl { text-align:left; padding-left:3px !important; white-space:nowrap; background:#eef2fa; font-weight:bold; }
   .sf9off-att tr.tot td { font-weight:bold; }
 
+  .sf9off-comments-box {
+    border:0.75pt solid #000; box-sizing:border-box; padding:2mm 3mm 2.5mm; margin:2mm 0 3mm;
+  }
+  .sf9off-comments-box .sf9off-sectitle { margin-top:0 !important; }
+  .sf9off-comments-box .sf9off-comment-lbl:first-of-type { margin-top:0.5mm; }
   .sf9off-comment-box {
     border:none; min-height:8mm; font-size:12px; padding:2px 4px;
     box-sizing:border-box; font-family:Arial,Helvetica,sans-serif; line-height:1.3;
@@ -1416,13 +1421,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                       </tbody>
                     </table>
 
-                    <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
-                    <div class="sf9off-comment-lbl">Term 1</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t1" data-term="1" onblur="autoSaveSF9Comment(1)"></div>
-                    <div class="sf9off-comment-lbl">Term 2</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t2" data-term="2" onblur="autoSaveSF9Comment(2)"></div>
-                    <div class="sf9off-comment-lbl">Term 3</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t3" data-term="3" onblur="autoSaveSF9Comment(3)"></div>
+                    <div class="sf9off-comments-box">
+                      <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
+                      <div class="sf9off-comment-lbl">Term 1</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t1" data-term="1" onblur="autoSaveSF9Comment(1)"></div>
+                      <div class="sf9off-comment-lbl">Term 2</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t2" data-term="2" onblur="autoSaveSF9Comment(2)"></div>
+                      <div class="sf9off-comment-lbl">Term 3</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9-comment-t3" data-term="3" onblur="autoSaveSF9Comment(3)"></div>
+                    </div>
 
                     <div class="sf9off-sectitle" style="margin-top:2mm;">Parent's/Guardian's Signature</div>
                     <div class="sf9off-sig-line"><span>Term 1:</span><span class="fill">&nbsp;</span></div>
@@ -1573,13 +1580,15 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                       </tbody>
                     </table>
 
-                    <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
-                    <div class="sf9off-comment-lbl">Term 1</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t1" data-term="1" onblur="autoSaveSF9SHSComment(1)"></div>
-                    <div class="sf9off-comment-lbl">Term 2</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t2" data-term="2" onblur="autoSaveSF9SHSComment(2)"></div>
-                    <div class="sf9off-comment-lbl">Term 3</div>
-                    <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t3" data-term="3" onblur="autoSaveSF9SHSComment(3)"></div>
+                    <div class="sf9off-comments-box">
+                      <div class="sf9off-sectitle" style="margin-top:2mm;">Teacher's Comments/Remarks</div>
+                      <div class="sf9off-comment-lbl">Term 1</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t1" data-term="1" onblur="autoSaveSF9SHSComment(1)"></div>
+                      <div class="sf9off-comment-lbl">Term 2</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t2" data-term="2" onblur="autoSaveSF9SHSComment(2)"></div>
+                      <div class="sf9off-comment-lbl">Term 3</div>
+                      <div class="sf9off-comment-box" contenteditable="true" id="sf9shs-comment-t3" data-term="3" onblur="autoSaveSF9SHSComment(3)"></div>
+                    </div>
 
                     <div class="sf9off-sectitle" style="margin-top:2mm;">Parent's/Guardian's Signature</div>
                     <div class="sf9off-sig-line"><span>Term 1:</span><span class="fill">&nbsp;</span></div>
