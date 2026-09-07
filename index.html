@@ -554,11 +554,35 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     #sf10-page1           { page-break-after:always !important; }
     #sf10-page2           { page-break-before:always !important; }
 
-    /* ── SF9 / Learner's Performance Report: A4 landscape, one page ──
-       NOTE: the authoritative @page override is injected dynamically by
-       printSF9() right before window.print() — that's the part browsers
-       actually honor. These rules are just a safety-net for element sizing. */
-    #view-sf9 .sf9off-page, #view-sf9shs .sf9off-page {
+    /* ── SF9 / Learner's Performance Report: A4 landscape, one page,
+       12.7mm (0.5in) margin on all four sides, form scaled to fit and
+       centered. NOTE: the authoritative @page override + scale/centering
+       is injected dynamically by printSF9() right before window.print()
+       — that's the part browsers actually honor. This is just a
+       safety-net so element sizing/centering degrades gracefully even
+       if the dynamic style were ever unavailable. */
+    #view-sf9 .sf9off-page {
+      position: fixed !important;
+      top: 50% !important;
+      left: 50% !important;
+      width: 297mm !important;
+      height: 210mm !important;
+      max-width: none !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 6mm 8mm !important;
+      box-sizing: border-box !important;
+      box-shadow: none !important;
+      border: none !important;
+      transform: translate(-50%, -50%) scale(0.85) !important;
+      transform-origin: center center !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    #view-sf9 .sf9off-comment-box { border:none !important; }
+
+    /* ── SF9 (SHS) safety-net — unchanged, kept separate from the above ── */
+    #view-sf9shs .sf9off-page {
       width: 297mm !important;
       height: 210mm !important;
       max-width: 297mm !important;
@@ -571,7 +595,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       page-break-after: avoid !important;
       page-break-inside: avoid !important;
     }
-    #view-sf9 .sf9off-comment-box, #view-sf9shs .sf9off-comment-box { border:none !important; }
+    #view-sf9shs .sf9off-comment-box { border:none !important; }
   }
 </style>
 </head>
@@ -4208,6 +4232,18 @@ function printSF9(){
   // rule present at print time — the CSS `page:` property + named @page
   // approach is not consistently honored, which was causing SF9 to fall
   // back to the portrait @page rule used for grade printing.
+  //
+  // Paper setup: real A4 landscape (297mm x 210mm) with a true, equal
+  // 12.7mm (0.5in) margin on all four sides via the @page rule itself —
+  // the browser reserves that margin and the printable area becomes
+  // 271.6mm x 184.6mm. The form's own markup/CSS (.sf9off-page and
+  // everything inside it) is left completely untouched at its original
+  // authored size (297mm x 210mm) — nothing is re-laid-out, re-sized,
+  // or re-arranged. It is only visually scaled down as a whole via a
+  // single CSS transform (uniform scale, no distortion) so the complete,
+  // uncropped form fits inside the printable area, then centered with
+  // position:fixed so left/right spacing is equal and top/bottom
+  // spacing is equal regardless of surrounding page markup/padding.
   const styleId = 'sf9-print-override';
   let style = document.getElementById(styleId);
   if(!style){
@@ -4216,12 +4252,17 @@ function printSF9(){
     document.head.appendChild(style);
   }
   style.textContent = `
-    @page { size: A4 landscape !important; margin: 0 !important; }
+    @page { size: A4 landscape !important; margin: 12.7mm !important; }
     @media print {
-      html, body { width:297mm !important; height:210mm !important; margin:0 !important; padding:0 !important; }
+      html, body { margin:0 !important; padding:0 !important; }
       #view-sf9 .sf9off-page {
-        width:297mm !important; height:210mm !important; max-width:297mm !important;
+        position:fixed !important; top:50% !important; left:50% !important;
+        width:297mm !important; height:210mm !important;
+        max-width:none !important; min-height:0 !important;
         margin:0 !important; padding:6mm 8mm !important; box-sizing:border-box !important;
+        box-shadow:none !important; border:none !important;
+        transform:translate(-50%,-50%) scale(0.85) !important;
+        transform-origin:center center !important;
         page-break-after:avoid !important; page-break-inside:avoid !important;
       }
     }
