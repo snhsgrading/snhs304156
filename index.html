@@ -3462,11 +3462,25 @@ function updateSubjectDropdown(){
   // JHS: filter by grade then by pairs for this section
   let subjects=getSubjectsForGrade(grade);
   if(pairsForSection.length){
-    const allowed=pairsForSection.map(p=>p.subj.toLowerCase());
-    const filtered=subjects.filter(s=>
-      allowed.some(a=>s.name.toLowerCase().includes(a)||(s.code||'').toLowerCase()===a||s.name.toLowerCase()===a)
+    const allowed=pairsForSection.map(p=>p.subj.trim().toLowerCase());
+    // v13 FIX: try an EXACT name/code match first (trimmed, case-insensitive).
+    // This matters most for one-off Grade 7 subjects like "Research 7" (Diligent)
+    // and "Journalism" (Decisive-SPJ): they must never be confused with the
+    // regular subject list via loose substring matching.
+    let filtered=subjects.filter(s=>
+      allowed.includes(s.name.trim().toLowerCase()) || allowed.includes((s.code||'').trim().toLowerCase())
     );
-    if(filtered.length) subjects=filtered;
+    // Only fall back to substring matching if the exact match found nothing at all
+    if(!filtered.length){
+      filtered=subjects.filter(s=>allowed.some(a=>s.name.toLowerCase().includes(a)));
+    }
+    // v13 FIX: previously, if NOTHING matched, this silently fell back to showing
+    // every Grade-level subject (Filipino, English, Math, ... PLUS Journalism/
+    // Research 7). Because Filipino is order:1 (first in the list), it kept
+    // appearing — and even getting auto-selected — for teachers assigned only
+    // to Journalism/Research 7. Now we only ever show subjects that actually
+    // match this teacher's assigned pair(s) for this section.
+    subjects=filtered;
   } else if(!isAdmin()){
     // Fall back to legacy subject filter if no pairs
     const assignedSubjFilter = getAssignedSubjectFilter();
@@ -3477,7 +3491,9 @@ function updateSubjectDropdown(){
       if(filtered.length) subjects=filtered;
     }
   }
-  subjEl.innerHTML='<option value="">Select subject...</option>'+subjects.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  subjEl.innerHTML = subjects.length
+    ? '<option value="">Select subject...</option>'+subjects.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')
+    : '<option value="">No matching subject — check spelling in JHS Subject Manager / Teacher Accounts</option>';
 }
 
 function quickEncode(subjName,sect){
@@ -3487,8 +3503,21 @@ function quickEncode(subjName,sect){
     const subjEl=document.getElementById('enc-subject');
     const grade=sect.match(/^G(\d+)-/)?.[1]||'10';
     const subjects=getSubjectsForGrade(grade);
-    const found=subjects.find(s=>s.name.toLowerCase().includes(subjName.toLowerCase())||(s.code||'').toLowerCase()===subjName.toLowerCase());
-    if(found)subjEl.value=found.id; else if(subjEl.options.length>1)subjEl.selectedIndex=1;
+    const target=(subjName||'').trim().toLowerCase();
+    // v13 FIX: match EXACTLY (trimmed, case-insensitive) first. Only fall back to a
+    // loose substring search if nothing matches exactly.
+    let found=subjects.find(s=>s.name.trim().toLowerCase()===target || (s.code||'').trim().toLowerCase()===target);
+    if(!found) found=subjects.find(s=>s.name.toLowerCase().includes(target));
+    if(found){
+      subjEl.value=found.id;
+    } else {
+      // v13 FIX: previously fell back to subjEl.selectedIndex=1, which silently
+      // selected the FIRST subject in the dropdown — Filipino (order:1) — instead
+      // of the intended subject (e.g. Journalism/Research 7). Guessing the wrong
+      // subject is worse than leaving it unselected, so we now stop and tell the
+      // teacher/admin to fix the subject name instead.
+      toast('Subject "'+subjName+'" not found for Grade '+grade+' — check spelling in JHS Subject Manager.', true);
+    }
     loadGradeTable();
     showView('encode',document.getElementById('nav-encode'));
   },100);
