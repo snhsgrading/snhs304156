@@ -2383,10 +2383,12 @@ window.addEventListener('online',()=>{
   isOnline=true; updateSyncBadge(); toast('Back online! Syncing data...');
   setTimeout(async()=>{
     try{
-      const [sArr, {data:a}, {data:st}] = await Promise.all([
+      const [sArr, {data:a}, {data:st}, {data:subjRow}] = await Promise.all([
         fetchAllStudentsPaginated(),
         sb.from('accounts').select('*').order('name'),
-        sb.from('strands').select('*').order('name')
+        sb.from('strands').select('*').order('name'),
+        // v13 FIX: refresh subjects on reconnect too, same reason as at login
+        sb.from('grade_records').select('data').eq('grade_key','jhs_subjects_global').maybeSingle()
       ]);
       const s = sArr||[];
       if(s&&s.length>0){studentsCache=s;lsSet('students',s);}
@@ -2399,6 +2401,15 @@ window.addEventListener('online',()=>{
         accountsCache.forEach(acc=>queueForSync('account',acc.username,acc));
       }
       if(st&&st.length>0){strandsCache=st;lsSet('strands',st);}
+      // v13 FIX: pull latest subjects too, unless this device still has an
+      // unsynced local edit queued (which processSyncQueue will push up shortly)
+      if(subjRow && subjRow.data && Object.keys(subjRow.data).length){
+        const hasPendingSubjectEdit = getPendingQueue().some(x=>x.type==='subjects');
+        if(!hasPendingSubjectEdit){
+          subjectsCache = subjRow.data;
+          lsSet('jhs_subjects', subjectsCache);
+        }
+      }
       buildStudentsList(); buildAccountsList(); updateStats();
       // FIX: reload attendance for the adviser's section so Summary/SF2
       // immediately reflects any records saved on another device while offline
@@ -2736,10 +2747,14 @@ async function doLogin(isAutoLogin=false){
     showLoading('Loading students (this may take a moment for large schools)...');
     try{
       // Fetch students with pagination (1,700+ students need this)
-      const [cloudStudentsRaw, {data:a}, {data:st}] = await Promise.all([
+      const [cloudStudentsRaw, {data:a}, {data:st}, {data:subjRow}] = await Promise.all([
         fetchAllStudentsPaginated(),
         sb.from('accounts').select('*').order('name'),
-        sb.from('strands').select('*').order('name')
+        sb.from('strands').select('*').order('name'),
+        // v13 FIX: fetch the school-wide JHS Subject Manager list (incl. custom
+        // subjects like "Research 7"/"Journalism") so it's no longer stuck on
+        // whichever single browser the admin used to create it.
+        sb.from('grade_records').select('data').eq('grade_key','jhs_subjects_global').maybeSingle()
       ]);
       // Merge cloud data with any local pending students not yet synced
       const localStudents = lsGet('students')||[];
@@ -2770,6 +2785,14 @@ async function doLogin(isAutoLogin=false){
       }
       lsSet('accounts', accountsCache);
       if(st){strandsCache=st;lsSet('strands',st);}
+      // v13 FIX: if the cloud has a subjects blob, it's authoritative — this is
+      // what makes custom subjects like "Research 7"/"Journalism" finally show
+      // up for teachers logging in on a different device than the admin's.
+      // Skip the overwrite if this device still has an unsynced local edit queued.
+      if(subjRow && subjRow.data && Object.keys(subjRow.data).length){
+        const hasPendingSubjectEdit = getPendingQueue().some(x=>x.type==='subjects');
+        if(!hasPendingSubjectEdit) lsSet('jhs_subjects', subjRow.data);
+      }
     }catch{
       studentsCache=lsGet('students')||[];
       accountsCache=(lsGet('accounts')||[]).map(normalizeAccount);
@@ -3346,7 +3369,14 @@ function getSubjectsForGrade(grade){
   return(subjectsCache[g]||DEFAULT_JHS_SUBJECTS.map(s=>({...s,grade:g}))).sort((a,b)=>a.order-b.order);
 }
 
-function saveSubjectsCache(){lsSet('jhs_subjects',subjectsCache);}
+function saveSubjectsCache(){
+  lsSet('jhs_subjects',subjectsCache);
+  // v13 FIX: also push to the cloud so every teacher's device sees the same
+  // Subject Manager list — this used to be localStorage-only, which is why
+  // custom subjects like "Research 7"/"Journalism" never reached teachers on
+  // other devices even though they looked correct in the admin's own browser.
+  queueForSync('subjects','jhs_subjects_global',subjectsCache);
+}
 
 function buildSubjectList(){
   const tb=document.getElementById('subjects-tbody'); if(!tb)return;
@@ -9060,6 +9090,9 @@ async function processSyncQueue() {
   const corevalues  = q.filter(x => x.type === 'corevalues');
   // FIX v11: suspended days cross-device sync
   const suspdays    = q.filter(x => x.type === 'suspdays');
+  // v13 FIX: JHS Subject Manager (custom subjects like "Research 7"/"Journalism")
+  // was never synced to the cloud — only saved to the admin's own browser.
+  const subjectsQ   = q.filter(x => x.type === 'subjects');
 
   // Remove audit items from queue immediately — they are non-critical
   // and should never block student/grade/attendance sync
@@ -9162,6 +9195,23 @@ async function processSyncQueue() {
       const { error } = await sb.from('suspended_days').upsert(
         chunk.map(x => ({ month_key: x.key, days: x.data, updated_at: new Date().toISOString() })),
         { onConflict: 'month_key' }
+      );
+      if (error) chunk.forEach(x => failed.push(x));
+    } catch { chunk.forEach(x => failed.push(x)); }
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  // v13 FIX: sync JHS Subject Manager (incl. custom subjects like "Research 7"
+  // and "Journalism") to Supabase so every teacher's device sees the same
+  // subject list the admin configured — not just the admin's own browser.
+  // Whole list is stored as one JSON blob under a fixed key (queueForSync
+  // already dedupes to the latest snapshot per key, so this is at most 1 item).
+  for (const chunk of chunkArray(subjectsQ, 20)) {
+    try {
+      const latest = chunk[chunk.length - 1];
+      const { error } = await sb.from('grade_records').upsert(
+        { grade_key: latest.key, data: latest.data, updated_at: new Date().toISOString() },
+        { onConflict: 'grade_key' }
       );
       if (error) chunk.forEach(x => failed.push(x));
     } catch { chunk.forEach(x => failed.push(x)); }
