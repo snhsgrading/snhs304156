@@ -6749,8 +6749,20 @@ function openEnrollModal(lrn){
   if(editingStudentLRN){
     const s=studentsCache.find(x=>x.lrn===editingStudentLRN); if(!s)return;
     title.textContent='✏️ Edit Student';
-    lrnInput.value=s.lrn; lrnInput.disabled=true;
-    hint.textContent='LRN cannot be changed'; hint.style.color='var(--gray-400)';
+    lrnInput.value=s.lrn;
+    // v13 FIX: LRN editing is now allowed (admin-only — enrollment modal is
+    // admin-only already) so typos can actually be corrected. Non-admin
+    // accounts should never reach this modal, but keep it locked for them too
+    // as a safety net.
+    if(isAdmin()){
+      lrnInput.disabled=false;
+      hint.textContent='⚠️ Changing this will re-link the student\'s SF9 remarks to the new LRN. Grades and attendance are unaffected.';
+      hint.style.color='var(--gold)';
+    } else {
+      lrnInput.disabled=true;
+      hint.textContent='LRN cannot be changed';
+      hint.style.color='var(--gray-400)';
+    }
     document.getElementById('enroll-name').value=s.name;
     document.getElementById('enroll-sex').value=s.sex;
     document.getElementById('enroll-bday').value=s.bday||'';
@@ -6799,18 +6811,32 @@ function saveEnrollment(){
   const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]};
   if(editingStudentLRN){
     const idx=studentsCache.findIndex(x=>x.lrn===editingStudentLRN);
-    if(idx>=0){obj.grades=studentsCache[idx].grades||obj.grades; studentsCache[idx]={...studentsCache[idx],...obj};}
-    logAudit('STUDENT EDIT','Updated student: '+name+' ('+lrn+')');
+    if(idx<0)return;
+    const oldLRN=editingStudentLRN;
+    const lrnChanged = oldLRN!==lrn;
+    if(lrnChanged){
+      // v13 FIX: LRN is now editable. Block duplicates (excluding self) and
+      // migrate the LRN-keyed records (SF9 remarks) so they follow the
+      // student instead of silently orphaning under the old LRN. Grades and
+      // attendance are keyed by roster position, not LRN, so they're untouched.
+      if(studentsCache.some(s=>s.lrn===lrn&&s.lrn!==oldLRN)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return}
+      migrateStudentLRN(oldLRN, lrn);
+    }
+    obj.grades=studentsCache[idx].grades||obj.grades; studentsCache[idx]={...studentsCache[idx],...obj};
+    logAudit('STUDENT EDIT','Updated student: '+name+' ('+lrn+')'+(lrnChanged?' — LRN corrected from '+oldLRN:''));
     toast('✅ Student updated!'+(isOnline?'':' (will sync when online)'));
+    lsSet('students',studentsCache);
+    if(lrnChanged) queueForSync('student_delete',oldLRN,null);
+    queueForSync('student',lrn,obj);
   }else{
     if(studentsCache.some(s=>s.lrn===lrn)){beep();toast('❌ LRN '+lrn+' already exists in the system',true);return}
     studentsCache.push(obj);
     studentsCache.sort((a,b)=>a.name.localeCompare(b.name));
     logAudit('STUDENT ENROLL','Enrolled new student: '+name+' ('+lrn+') — Grade '+grade+' '+section+(strand?' · '+strand:''));
     toast('✅ Student enrolled!'+(isOnline?'':' (will sync when online)'));
+    lsSet('students',studentsCache);
+    queueForSync('student',lrn,obj);
   }
-  lsSet('students',studentsCache);
-  queueForSync('student',lrn,obj);
   closeModal('enroll-modal');
   _searchIndex=null;
   buildStudentsList(); buildClassList(); buildReport();
@@ -6821,6 +6847,31 @@ function saveEnrollment(){
 }
 
 function editStudent(lrn){openEnrollModal(lrn)}
+
+// v13 FIX: moves LRN-keyed records (SF9 JHS/SHS remarks) from the old LRN to
+// the new one when an admin corrects a typo'd LRN. Grades and attendance are
+// keyed by roster position within a section, not LRN, so nothing to do there.
+function migrateStudentLRN(oldLRN, newLRN){
+  ['sf9cm_','sf9shscm_'].forEach(prefix=>{
+    const data = lsGet(prefix+oldLRN);
+    if(data){
+      lsSet(prefix+newLRN, data);
+      localStorage.removeItem(LS+prefix+oldLRN);
+      if(isOnline){
+        (async()=>{
+          try{
+            await sb.from('grade_records').upsert(
+              {grade_key:prefix+newLRN, data, updated_at:new Date().toISOString()},
+              {onConflict:'grade_key'}
+            );
+            await sb.from('grade_records').delete().eq('grade_key',prefix+oldLRN);
+          }catch(e){ console.warn('LRN migration cloud sync failed for '+prefix+':', safeErr?safeErr(e):e); }
+        })();
+      }
+    }
+  });
+}
+
 async function deleteStudent(lrn,name){
   _searchIndex=null;
   if(!confirm('⚠️ Remove '+name+' from the masterlist?\n\nThis will delete them from the cloud database and all accounts.'))return;
