@@ -380,6 +380,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
   .sf9off-grades tr.sechdr td { text-align:left; padding-left:5px !important; font-weight:bold; font-style:italic; background:#f1f4fa; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; }
   .sf9off-grades td.shadecell { background:#bfbfbf !important; }
+  /* Auto-compact mode: applied via JS when a Track has enough Core+Elective
+     subjects that the table would otherwise risk overflowing the fixed A4
+     page and getting clipped by .sf9off-scale-wrap's overflow:hidden. */
+  .sf9off-grades.compact, .sf9off-grades.compact th, .sf9off-grades.compact td { font-size:7.3pt !important; }
+  .sf9off-grades.compact th, .sf9off-grades.compact td { padding:1px 3px !important; line-height:1.1; }
+  .sf9off-grades.compact td.subj.sub { padding-left:11px !important; }
 
   .sf9off-desc { width:100%; border-collapse:collapse; font-size:10px; margin-top:1mm; border:0.75pt solid #8faadc; table-layout:fixed; }
   .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:2px 4px !important; text-align:center; font-size:10px !important; background:#fff; line-height:1.2; height:auto; overflow:visible; word-break:break-word; }
@@ -1563,7 +1569,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                 <div class="sf9off-columns">
                   <!-- ── LEFT COLUMN ── -->
                   <div class="sf9off-left">
-                    <div class="sf9off-title">SENIOR HIGH SCHOOL LEARNER'S PERFORMANCE REPORT</div>
+                    <div class="sf9off-title">LEARNER'S PERFORMANCE REPORT</div>
                     <div class="sf9off-sy">School Year: 2026&ndash;2027</div>
 
                     <table class="sf9off-learner-tbl">
@@ -5130,6 +5136,17 @@ async function renderSF9SHS(){
     }
   }
   document.getElementById('sf9shs-grade-rows').innerHTML = rowsHTML;
+
+  // ── Print-safety: auto-compact the grades table when a Track has many
+  // subjects, so the extra Core/Elective section-header rows (and any combo
+  // Learning Area sub-rows) never push the Performance Descriptors block off
+  // the fixed A4 page. Threshold is deliberately conservative — the original
+  // design was comfortable with ~9-10 total rows (incl. thead), so we shrink
+  // once the rendered table grows meaningfully beyond that. Counting the
+  // actual rendered <tr> elements (rather than estimating) also correctly
+  // accounts for MAPEH-style combo sub-rows.
+  const totalGradeRows = document.getElementById('sf9shs-grade-rows').querySelectorAll('tr').length;
+  document.querySelector('#view-sf9shs .sf9off-grades')?.classList.toggle('compact', totalGradeRows > 10);
 
   if(cnt>0){
     const avg=Math.round(sum/cnt);
