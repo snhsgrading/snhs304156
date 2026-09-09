@@ -669,10 +669,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <div style="font-size:11px;color:var(--gray-400);margin-top:3px" id="enroll-section-hint"></div>
         </div>
         <div class="form-group form-col-2 hidden" id="enroll-strand-wrap">
-          <label class="form-label">Track / Strand (SHS) *</label>
+          <label class="form-label" id="enroll-track-label">Track (SHS only) *</label>
           <select class="form-select" id="enroll-strand">
             <option value="">Select track...</option>
           </select>
+          <div style="font-size:11px;margin-top:3px" id="enroll-track-hint"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Status</label>
@@ -742,7 +743,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="modal-body">
       <div style="background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:1rem;color:var(--blue)">
         📌 Upload <strong>CSV</strong> or <strong>Excel (.xlsx)</strong>. Required columns: <strong>LRN, Name, Sex, Birthday, Grade, Section</strong><br>
-        Optional: Parent, Contact, Address, Status &nbsp;·&nbsp; <a href="#" onclick="downloadTemplate();return false" style="color:var(--blue);font-weight:600">📄 Download Template</a>
+        Optional: Parent, Contact, Address, Status, <strong>Track</strong> (Grade 11/12 only — "Academic" or "TechPro") &nbsp;·&nbsp; <a href="#" onclick="downloadTemplate();return false" style="color:var(--blue);font-weight:600">📄 Download Template</a>
       </div>
       <div class="drop-zone" id="drop-zone" onclick="document.getElementById('import-file').click()">
         <div style="font-size:2.5rem;margin-bottom:.5rem">📂</div>
@@ -7060,7 +7061,7 @@ async function deleteStudent(lrn,name){
 
 // ── BULK IMPORT ─────────────────────────────────────────────────────
 function downloadTemplate(){
-  const csv='LRN,Name,Sex,Birthday,Grade,Section,Parent,Contact,Address,Status\n304156190001,"DELA CRUZ, Juan Santos",M,2012-03-14,7,Section Name,Maria Cruz,09171234567,"Suarez, Iligan City",Enrolled\n';
+  const csv='LRN,Name,Sex,Birthday,Grade,Section,Track,Parent,Contact,Address,Status\n304156190001,"DELA CRUZ, Juan Santos",M,2012-03-14,7,Section Name,,Maria Cruz,09171234567,"Suarez, Iligan City",Enrolled\n304156190002,"REYES, Ana Marie",F,2009-06-02,11,Section A,Academic,Jose Reyes,09181234567,"Suarez, Iligan City",Enrolled\n';
   const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='snhs_import_template.csv'; a.click();
 }
 
@@ -7116,6 +7117,7 @@ function parseImportCSV(csvText){
     birthday:  ['birthday','birthdate','birth date','date of birth','bday'],
     grade:     ['grade','grade level','grade_level'],
     section:   ['section','class','section name'],
+    track:     ['track','strand','track/strand','shs track','track (shs only)'],
     parent:    ['parent','guardian','parent/guardian','parent name'],
     contact:   ['contact','contact number','contact no','phone'],
     address:   ['address','home address'],
@@ -7153,17 +7155,27 @@ function parseImportCSV(csvText){
     const address=get('address');
     const status=get('status')||'Enrolled';
 
+    // Track (SHS only, Grade 11/12) — normalize free-text into 'Academic' or
+    // 'TechPro' so it matches SSHS_TRACKS exactly and shows correctly on SF9.
+    let track='';
+    if(grade==='11'||grade==='12'){
+      const rawTrack=get('track').toLowerCase();
+      if(rawTrack.includes('tech')||rawTrack.includes('tvl')||rawTrack.includes('vocational')||rawTrack.includes('professional')) track='TechPro';
+      else if(rawTrack.includes('acad')) track='Academic';
+      else if(rawTrack) errors.push(`Row ${i+2}: Track "${get('track')}" not recognized — use "Academic" or "TechPro". Leave blank to set later via Edit Student.`);
+    }
+
     if(!lrn&&!name){return;} // skip truly empty rows
     if(!lrn||!name||!grade||!section){
       errors.push(`Row ${i+2}: Missing — `+[!lrn?'LRN':'',!name?'Name':'',!grade?'Grade':'',!section?'Section':''].filter(Boolean).join(', '));
       return;
     }
     if(lrn.length!==12){errors.push(`Row ${i+2}: LRN "${lrn}" must be 12 digits (currently ${lrn.length})`);return;}
-    rows.push({lrn,name,sex:sex==='F'?'F':'M',bday,grade,section,parent,contact,address,status,grades:[]});
+    rows.push({lrn,name,sex:sex==='F'?'F':'M',bday,grade,section,strand:track,parent,contact,address,status,grades:[]});
   });
   importData=rows;
   document.getElementById('import-count').textContent=rows.length+' students ready to import';
-  document.getElementById('import-tbody').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${r.lrn}</td><td>${r.name}</td><td>${r.sex}</td><td>${r.grade}</td><td>${r.section}</td><td><span class="badge badge-green">${r.status}</span></td></tr>`).join('');
+  document.getElementById('import-tbody').innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td style="font-family:monospace;font-size:11px">${r.lrn}</td><td>${r.name}</td><td>${r.sex}</td><td>${r.grade}${r.strand?' · '+r.strand:''}</td><td>${r.section}</td><td><span class="badge badge-green">${r.status}</span></td></tr>`).join('');
   document.getElementById('import-preview').classList.remove('hidden');
   const eb=document.getElementById('import-errors');
   if(errors.length){eb.classList.remove('hidden');eb.innerHTML='⚠️ '+errors.slice(0,10).join('<br>');}
