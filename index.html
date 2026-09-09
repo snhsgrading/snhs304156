@@ -378,6 +378,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf9off-grades td.subj { text-align:left; padding-left:5px !important; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; font-weight:600; white-space:normal; word-break:break-word; }
   .sf9off-grades td.subj.sub { font-style:italic; padding-left:14px !important; font-weight:400; }
   .sf9off-grades tr.gavg td { font-weight:bold; background:#eef2fa; }
+  .sf9off-grades tr.sechdr td { text-align:left; padding-left:5px !important; font-weight:bold; font-style:italic; background:#f1f4fa; font-size:8.5pt !important; font-family:Arial,Helvetica,sans-serif !important; }
+  .sf9off-grades td.shadecell { background:#bfbfbf !important; }
 
   .sf9off-desc { width:100%; border-collapse:collapse; font-size:10px; margin-top:1mm; border:0.75pt solid #8faadc; table-layout:fixed; }
   .sf9off-desc th, .sf9off-desc td { border:0.5pt solid #8faadc; padding:2px 4px !important; text-align:center; font-size:10px !important; background:#fff; line-height:1.2; height:auto; overflow:visible; word-break:break-word; }
@@ -860,7 +862,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         </div>
         <div class="form-group">
           <label class="form-label">Grade Level *</label>
-          <select class="form-select" id="subj-grade">
+          <select class="form-select" id="subj-grade" onchange="toggleSubjSHSFields()">
             <option value="7">Grade 7 (JHS)</option>
             <option value="8">Grade 8 (JHS)</option>
             <option value="9">Grade 9 (JHS)</option>
@@ -876,6 +878,36 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <div class="form-group">
           <label class="form-label">Display Order</label>
           <input type="number" class="form-input" id="subj-order" value="1" min="1"/>
+        </div>
+        <div class="form-group form-col-2 hidden" id="subj-shs-wrap">
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:2px">
+            <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:8px">🎓 Senior High School settings</div>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:.75rem">
+              <div class="form-group">
+                <label class="form-label">Learning Area Type *</label>
+                <select class="form-select" id="subj-category">
+                  <option value="core">Core Subject</option>
+                  <option value="elective">Elective / Applied-Specialized Subject</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Track</label>
+                <select class="form-select" id="subj-track">
+                  <option value="both">Both Tracks (Academic &amp; TechPro)</option>
+                  <option value="Academic">Academic Track only</option>
+                  <option value="TechPro">TechPro Track only</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:.6rem">
+              <label class="form-label">Term(s) Offered <span style="font-size:11px;color:var(--gray-400)">(unchecked terms show shaded/blank on the SF9 — no grade expected)</span></label>
+              <div style="display:flex;gap:16px;margin-top:4px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="subj-term-1" checked style="width:15px;height:15px"/> Term 1</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="subj-term-2" checked style="width:15px;height:15px"/> Term 2</label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="subj-term-3" checked style="width:15px;height:15px"/> Term 3</label>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="form-group form-col-2">
           <label class="form-label">Apply to all grades (7–12)?</label>
@@ -1546,7 +1578,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
                         <td class="lbl">Section:</td><td class="val" id="sf9shsf-section2" style="min-width:60px"></td>
                       </tr>
                       <tr>
-                        <td class="lbl">Track &amp; Strand:</td><td class="val" id="sf9shsf-strand" colspan="5" style="min-width:200px"></td>
+                        <td class="lbl">Track (SHS only):</td><td class="val" id="sf9shsf-strand" colspan="5" style="min-width:200px"></td>
                       </tr>
                     </table>
 
@@ -3378,6 +3410,33 @@ function saveSubjectsCache(){
   queueForSync('subjects','jhs_subjects_global',subjectsCache);
 }
 
+// ── SHS Learning Area helpers (Core vs Elective, Track scope, Terms Offered) ──
+// Back-compat defaults: subjects saved before these fields existed are treated
+// as Core, applicable to Both Tracks, offered in all 3 terms.
+function shsSubjCategory(subj){ return (subj && subj.category) || 'core'; }
+function shsSubjTrackScope(subj){ return (subj && subj.track) || 'both'; }
+function shsSubjTerms(subj){
+  const t = subj && Array.isArray(subj.terms) ? subj.terms.map(Number).filter(n=>n>=1&&n<=3) : null;
+  return (t && t.length) ? t : [1,2,3];
+}
+
+// Returns { core:[...subjects], elective:[...subjects] } for a Grade 11/12
+// student's Track (Academic / TechPro), sorted by display order — this is
+// what auto-populates the SF9 (SHS) Learning Areas table, split into the
+// Core Subjects and Elective Subjects sections shown on the printed form.
+function getSHSGroupedSubjects(grade, track){
+  const all = getSubjectsForGrade(grade);
+  const trk = track==='TechPro' ? 'TechPro' : 'Academic';
+  const inScope = all.filter(s=>{
+    const scope = shsSubjTrackScope(s);
+    return scope==='both' || scope===trk;
+  });
+  return {
+    core: inScope.filter(s=>shsSubjCategory(s)==='core'),
+    elective: inScope.filter(s=>shsSubjCategory(s)==='elective'),
+  };
+}
+
 function buildSubjectList(){
   const tb=document.getElementById('subjects-tbody'); if(!tb)return;
   let all=[];
@@ -3385,21 +3444,36 @@ function buildSubjectList(){
   all.sort((a,b)=>+a.grade-+b.grade||a.order-b.order);
   const filtered=subjectGradeFilter==='all'?all:all.filter(s=>s.grade===subjectGradeFilter);
   if(!filtered.length){tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:2rem">No subjects found.</td></tr>';return}
-  tb.innerHTML=filtered.map(s=>`<tr>
-    <td><strong>${s.name}</strong></td>
+  tb.innerHTML=filtered.map(s=>{
+    const isSHS = s.grade==='11'||s.grade==='12';
+    const shsBadges = isSHS ? `
+      <span class="badge ${shsSubjCategory(s)==='core'?'badge-green':'badge-gold'}" style="margin-left:4px">${shsSubjCategory(s)==='core'?'Core':'Elective'}</span>
+      <span class="badge badge-purple" style="margin-left:4px">${shsSubjTrackScope(s)==='both'?'Both Tracks':shsSubjTrackScope(s)}</span>
+      <span class="badge" style="margin-left:4px;background:#f1f5f9;color:#475569">Terms ${shsSubjTerms(s).join(',')}</span>` : '';
+    return `<tr>
+    <td><strong>${s.name}</strong>${shsBadges}</td>
     <td><span class="badge badge-blue">Grade ${s.grade}</span></td>
     <td style="font-family:monospace;font-size:12px">${s.code||'—'}</td>
     <td style="text-align:center">${s.order}</td>
     <td style="display:flex;gap:5px">
       <button class="btn btn-xs btn-outline" onclick="openSubjectModal('${s.id}','${s.grade}')">✏️ Edit</button>
       <button class="btn btn-xs btn-red" onclick="deleteSubject('${s.id}','${s.grade}','${s.name.replace(/'/g,"\\'")}')">🗑</button>
-    </td></tr>`).join('');
+    </td></tr>`;
+  }).join('');
 }
 
 function filterSubjectGrade(grade,el){
   subjectGradeFilter=grade;
   document.querySelectorAll('#view-subjects .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active'); buildSubjectList();
+}
+
+// Shows/hides the "Senior High School settings" (Category/Track/Terms) block
+// depending on whether Grade 11 or 12 is selected in the Subject Modal.
+function toggleSubjSHSFields(){
+  const grade = document.getElementById('subj-grade')?.value;
+  const wrap = document.getElementById('subj-shs-wrap');
+  if(wrap) wrap.classList.toggle('hidden', !(grade==='11'||grade==='12'));
 }
 
 function openSubjectModal(id,grade){
@@ -3413,6 +3487,12 @@ function openSubjectModal(id,grade){
     document.getElementById('subj-code').value=subj.code||'';
     document.getElementById('subj-order').value=subj.order||1;
     document.getElementById('subj-all-grades').checked=false;
+    document.getElementById('subj-category').value=shsSubjCategory(subj);
+    document.getElementById('subj-track').value=shsSubjTrackScope(subj);
+    const terms=shsSubjTerms(subj);
+    document.getElementById('subj-term-1').checked=terms.includes(1);
+    document.getElementById('subj-term-2').checked=terms.includes(2);
+    document.getElementById('subj-term-3').checked=terms.includes(3);
   }else{
     title.textContent='Add Subject';
     document.getElementById('subj-name').value='';
@@ -3420,7 +3500,13 @@ function openSubjectModal(id,grade){
     document.getElementById('subj-code').value='';
     document.getElementById('subj-order').value='99';
     document.getElementById('subj-all-grades').checked=false;
+    document.getElementById('subj-category').value='core';
+    document.getElementById('subj-track').value='both';
+    document.getElementById('subj-term-1').checked=true;
+    document.getElementById('subj-term-2').checked=true;
+    document.getElementById('subj-term-3').checked=true;
   }
+  toggleSubjSHSFields();
   openModal('subject-modal');
 }
 
@@ -3430,16 +3516,21 @@ function saveSubject(){
   const code=document.getElementById('subj-code').value.trim().toUpperCase();
   const order=parseInt(document.getElementById('subj-order').value)||99;
   const allGrades=document.getElementById('subj-all-grades').checked;
+  const category=document.getElementById('subj-category')?.value||'core';
+  const track=document.getElementById('subj-track')?.value||'both';
+  const terms=[1,2,3].filter(t=>document.getElementById('subj-term-'+t)?.checked);
   if(!name){toast('Subject name is required',true);return}
   const gradesToApply=allGrades?['7','8','9','10','11','12']:[grade];
   gradesToApply.forEach(g=>{
     if(!subjectsCache[g])subjectsCache[g]=[];
+    const isSHSGrade = g==='11'||g==='12';
+    const shsFields = isSHSGrade ? {category, track, terms: terms.length?terms:[1,2,3]} : {};
     if(editingSubjectId&&editingSubjectId.grade===g){
       const idx=subjectsCache[g].findIndex(s=>s.id===editingSubjectId.id);
-      if(idx>=0)subjectsCache[g][idx]={...subjectsCache[g][idx],name,code,order,grade:g};
+      if(idx>=0)subjectsCache[g][idx]={...subjectsCache[g][idx],name,code,order,grade:g,...shsFields};
     }else if(!editingSubjectId){
       const newId=name.toLowerCase().replace(/\s+/g,'_')+'_'+g+'_'+Date.now();
-      subjectsCache[g].push({id:newId,name,code,order,grade:g});
+      subjectsCache[g].push({id:newId,name,code,order,grade:g,...shsFields});
     }
   });
   saveSubjectsCache(); closeModal('subject-modal'); buildSubjectList(); updateSubjectDropdown();
@@ -4887,10 +4978,11 @@ async function renderSF9SHS(){
   if(s.bday){const age=Math.floor((new Date()-new Date(s.bday))/(365.25*24*60*60*1000));document.getElementById('sf9shsf-age').textContent=age;}
   document.getElementById('sf9shsf-sex').textContent=s.sex==='F'?'Female':'Male';
 
-  // Track & Strand — pull the Track label from SHS Strand Manager when available
-  const strandObj = (strandsCache||[]).find(st=>(st.name||'').toLowerCase()===String(s.strand||'').toLowerCase());
-  const strandLabel = s.strand ? (strandObj ? (strandObj.track ? strandObj.track+' – '+s.strand : s.strand) : s.strand) : '—';
-  document.getElementById('sf9shsf-strand').textContent = strandLabel;
+  // Track (SHS only) — Strengthened SHS Curriculum has exactly 2 tracks: Academic / TechPro.
+  // The student's track is stored in s.strand (set at enrollment); look up its display label.
+  const trackObj = SSHS_TRACKS.find(t=>t.value.toLowerCase()===String(s.strand||'').toLowerCase());
+  const trackLabel = trackObj ? trackObj.label : (s.strand || '—');
+  document.getElementById('sf9shsf-strand').textContent = trackLabel;
 
   // ── Editable Teacher's Comments/Remarks ──
   await loadSF9SHSComments(s.lrn);
@@ -4940,60 +5032,104 @@ async function renderSF9SHS(){
   document.getElementById('sf9shs-dp-tot').textContent = sdTot>0 ? dpTot : '';
   document.getElementById('sf9shs-da-tot').textContent = sdTot>0 ? daTot : '';
 
-  // ── Learning Areas — automatically pulled from the student's Strand ──
-  const learningAreas = getStrandLearningAreas(s.strand);
+  // ── Learning Areas — automatically pulled from the student's Track (Core vs
+  // Elective subjects configured per-Track in Subject Manager), split into
+  // separate Core Subjects / Elective Subjects sections on the printed form.
   const configuredSubjects = getSubjectsForGrade(s.grade); // admin-managed subjects for this grade (for grade lookups)
+  const grouped = getSHSGroupedSubjects(s.grade, s.strand);
 
   const sectionStudents = studentsCache
     .filter(st => sectionsMatch(st.section, sectionKey, st.grade))
     .sort((a,b)=>a.name.localeCompare(b.name));
   const studentIndex = sectionStudents.findIndex(st=>st.lrn===s.lrn);
 
-  const cellVal = (v,t) => {
-    if(t > qtr) return '';
-    if(v===null||v===undefined) return '<span class="grade-dash no-print-val">—</span>';
-    return v;
+  const cellVal = (v,t,offered) => {
+    if(!offered) return '<td class="shadecell"></td>';
+    if(t > qtr) return '<td></td>';
+    if(v===null||v===undefined) return '<td><span class="grade-dash no-print-val">—</span></td>';
+    return `<td>${v}</td>`;
   };
   const passFail = (v) => v>=75 ? 'Passed' : 'Failed';
 
   let sum=0, cnt=0;
-  const rowsSource = learningAreas.length
-    ? learningAreas
-    : configuredSubjects.map(sub=>sub.name); // fallback: no strand configured yet — show admin-managed subjects
 
-  if(!rowsSource.length){
-    document.getElementById('sf9shs-grade-rows').innerHTML =
-      `<tr><td class="subj" colspan="6" style="text-align:center;color:#94a3b8;font-style:italic;">No Learning Areas configured yet for this Strand — add them via SHS Strand Manager.</td></tr>`;
-  } else {
-    document.getElementById('sf9shs-grade-rows').innerHTML = rowsSource.map(subjName=>{
-      const matchedSubj = configuredSubjects.find(sub=>sub.name.toLowerCase()===subjName.toLowerCase());
-      const subjId = matchedSubj ? matchedSubj.id : null;
+  // Renders one Learning Area row for a configured subject, honoring its
+  // Term(s) Offered (shaded gray = not offered that term, no grade expected).
+  // If the subject's name is a combined bilingual Learning Area written as
+  // "A / B" (e.g. "Effective Communication /Mabisang Komunikasyon"), and two
+  // matching component subjects exist in Subject Manager, this also renders
+  // the two italicized sub-rows beneath it — mirroring the JHS MAPEH pattern
+  // — with the parent row computed as the average of the two components.
+  function renderLearningAreaRow(subj){
+    const terms = shsSubjTerms(subj);
+    const subjId = subj.id;
+    const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
+    const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
+    const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
 
-      const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
-      const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
-      const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
-      const vals=[t1,t2,t3].filter(v=>v!==null);
-      const final = vals.length>0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    // Bilingual combo Learning Area ("A /B") — look for two component subjects
+    const parts = subj.name.split('/').map(p=>p.trim()).filter(Boolean);
+    let comboRows = '';
+    let ct1=t1, ct2=t2, ct3=t3;
+    if(parts.length===2){
+      const comp = parts.map(pn=>configuredSubjects.find(cs=>cs.name.toLowerCase()===pn.toLowerCase() && cs.id!==subjId));
+      if(comp[0] && comp[1]){
+        const compTermVal = (compSubj,term) => getEncodedGradeGeneric(compSubj.id, studentIndex, sectionKey, term);
+        const avgOf = (a,b) => (a===null&&b===null) ? null : Math.round(((a??b)+(b??a))/2);
+        ct1 = avgOf(compTermVal(comp[0],1), compTermVal(comp[1],1));
+        ct2 = avgOf(compTermVal(comp[0],2), compTermVal(comp[1],2));
+        ct3 = avgOf(compTermVal(comp[0],3), compTermVal(comp[1],3));
+        comboRows = comp.map(compSubj=>{
+          const cTerms = shsSubjTerms(compSubj);
+          const cv1=compTermVal(compSubj,1), cv2=compTermVal(compSubj,2), cv3=compTermVal(compSubj,3);
+          const cvals=[cv1,cv2,cv3].filter(v=>v!==null);
+          const cfinal = cvals.length>0 ? Math.round(cvals.reduce((a,b)=>a+b,0)/cvals.length) : null;
+          const cFinalDisplay = cTerms.length ? (cfinal!==null?`<strong>${cfinal}</strong>`:'<span class="grade-dash no-print-val">—</span>') : '';
+          const cRem = cfinal!==null ? (cfinal<75?`<span style="color:red">${passFail(cfinal)}</span>`:passFail(cfinal)) : '<span class="no-print-val">—</span>';
+          return `<tr>
+            <td class="subj sub">${compSubj.name}</td>
+            ${cellVal(cv1,1,cTerms.includes(1))}${cellVal(cv2,2,cTerms.includes(2))}${cellVal(cv3,3,cTerms.includes(3))}
+            <td>${cFinalDisplay}</td>
+            <td>${cRem}</td>
+          </tr>`;
+        }).join('');
+      }
+    }
 
-      const finalDisplay = final!==null
-        ? `<strong>${final}</strong>`
-        : '<span class="grade-dash no-print-val">—</span>';
-      const rem = final!==null
-        ? (final<75?`<span style="color:red">${passFail(final)}</span>`:passFail(final))
-        : '<span class="no-print-val">—</span>';
+    const vals=[ct1,ct2,ct3].filter(v=>v!==null);
+    const final = vals.length>0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
+    const finalDisplay = final!==null ? `<strong>${final}</strong>` : '<span class="grade-dash no-print-val">—</span>';
+    const rem = final!==null
+      ? (final<75?`<span style="color:red">${passFail(final)}</span>`:passFail(final))
+      : '<span class="no-print-val">—</span>';
 
-      if(final!==null){ sum+=final; cnt++; }
+    if(final!==null){ sum+=final; cnt++; }
 
-      return`<tr>
-        <td class="subj">${subjName}</td>
-        <td>${cellVal(t1,1)}</td>
-        <td>${cellVal(t2,2)}</td>
-        <td>${cellVal(t3,3)}</td>
-        <td>${finalDisplay}</td>
-        <td>${rem}</td>
-      </tr>`;
-    }).join('');
+    const parentRow = `<tr>
+      <td class="subj">${subj.name}</td>
+      ${cellVal(ct1,1,terms.includes(1))}${cellVal(ct2,2,terms.includes(2))}${cellVal(ct3,3,terms.includes(3))}
+      <td>${finalDisplay}</td>
+      <td>${rem}</td>
+    </tr>`;
+    return parentRow + comboRows;
   }
+
+  const noneMsg = `<tr><td class="subj" colspan="6" style="text-align:center;color:#94a3b8;font-style:italic;">No subjects configured yet for this Track — add them via Subject Manager (Grade ${s.grade}).</td></tr>`;
+
+  let rowsHTML = '';
+  if(!grouped.core.length && !grouped.elective.length){
+    rowsHTML = noneMsg;
+  } else {
+    if(grouped.core.length){
+      rowsHTML += `<tr class="sechdr"><td colspan="6">Core Subjects</td></tr>`;
+      rowsHTML += grouped.core.map(renderLearningAreaRow).join('');
+    }
+    if(grouped.elective.length){
+      rowsHTML += `<tr class="sechdr"><td colspan="6">Elective Subjects</td></tr>`;
+      rowsHTML += grouped.elective.map(renderLearningAreaRow).join('');
+    }
+  }
+  document.getElementById('sf9shs-grade-rows').innerHTML = rowsHTML;
 
   if(cnt>0){
     const avg=Math.round(sum/cnt);
