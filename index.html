@@ -544,6 +544,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   .sf10-bxr   { border-right:1.3pt solid #000; }
   .sf10-u     { border-bottom:.7pt solid #000; }
   .sf10-t     { border-top:.7pt solid #000; }
+  .sf10-bb    { border-bottom:.6pt solid #000 !important; }   /* full-width thin rule */
   .sf10-c     { text-align:center; }
   .sf10-r     { text-align:right; }
   .sf10-b     { font-weight:bold; }
@@ -2264,6 +2265,25 @@ const SUBJS_SF9 = [
   {name:'Music and Arts',idx:8,sub:true},
   {name:'P.E. and Health',idx:9,sub:true},
 ];
+
+// ── SECTION-SPECIFIC ADDITIONAL LEARNING AREAS ───────────────────────
+// Shown right after P.E. and Health on BOTH the SF9 and the SF10, and counted
+// in the General Average. Grades come from the Subject Manager entry with the
+// same name for that grade level. To add another one (e.g. a new special-
+// program subject), add a line here — SF9 and SF10 both pick it up.
+const SECTION_EXTRA_SUBJECTS = [
+  {grade:'7', section:'Diligent',     name:'Research 7'},
+  {grade:'7', section:'Decisive-SPJ', name:'Journalism'},
+];
+function getSectionExtraSubjects(grade, section){
+  const g = String(grade), sec = String(section||'').trim().toLowerCase();
+  return SECTION_EXTRA_SUBJECTS
+    .filter(x => x.grade===g && x.section.toLowerCase()===sec)
+    .map(x => {
+      const subj = getSubjectsForGrade(g).find(sb => sb.name.trim().toLowerCase()===x.name.toLowerCase());
+      return { name:x.name, subjId: subj ? subj.id : null };
+    });
+}
 
 // ── ADD CUSTOM SECTION TO FILTER DROPDOWN ────────────────────────────
 function addCustomSectionToFilter(selectId, form){
@@ -4744,18 +4764,12 @@ async function renderSF9(){
       <td>${finalDisplay}</td>
       <td>${rem}</td>
     </tr>`;
-  }).join('') + (function extraRowForG7Diligent(){
-    // Grade 7 - Diligent has one additional Learning Area, "Research 7",
-    // shown right after MAPEH. It isn't part of the fixed JHS subject set,
-    // so its grade is looked up the same way SHS subjects are: by matching
-    // a Subject Manager entry named "Research 7" for Grade 7, then reading
-    // the generic subjId_sectionKey_T{quarter} grade key.
-    if(String(s.grade)!=='7') return '';
-    if((s.section||'').trim().toLowerCase()!=='diligent') return '';
-    const g7Subjects = getSubjectsForGrade('7');
-    const research7 = g7Subjects.find(sub=>sub.name.trim().toLowerCase()==='research 7');
-    const subjId = research7 ? research7.id : null;
-
+  }).join('') + getSectionExtraSubjects(s.grade, s.section).map(function(extra){
+    // Section-specific additional Learning Area (e.g. "Research 7" for
+    // Grade 7 - Diligent, "Journalism" for Grade 7 - Decisive-SPJ) — see
+    // SECTION_EXTRA_SUBJECTS. Its grade is read from the generic
+    // subjId_sectionKey_T{quarter} key of the matching Subject Manager entry.
+    const subjId = extra.subjId;
     const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
     const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
     const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
@@ -4772,46 +4786,14 @@ async function renderSF9(){
     if(final!==null){ sum+=final; cnt++; }
 
     return`<tr>
-      <td class="subj">Research 7</td>
+      <td class="subj">${extra.name}</td>
       <td>${cellVal(t1,1)}</td>
       <td>${cellVal(t2,2)}</td>
       <td>${cellVal(t3,3)}</td>
       <td>${finalDisplay}</td>
       <td>${rem}</td>
     </tr>`;
-  })() + (function extraRowForG7DecisiveSPJ(){
-    // Grade 7 - Decisive-SPJ has one additional Learning Area, "Journalism",
-    // shown right after MAPEH — same pattern as Research 7 for Diligent above.
-    if(String(s.grade)!=='7') return '';
-    if((s.section||'').trim().toLowerCase()!=='decisive-spj') return '';
-    const g7Subjects = getSubjectsForGrade('7');
-    const journalism = g7Subjects.find(sub=>sub.name.trim().toLowerCase()==='journalism');
-    const subjId = journalism ? journalism.id : null;
-
-    const t1 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 1);
-    const t2 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 2);
-    const t3 = getEncodedGradeGeneric(subjId, studentIndex, sectionKey, 3);
-    const vals=[t1,t2,t3].filter(v=>v!==null);
-    const final = vals.length>0 ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null;
-
-    const finalDisplay = final!==null
-      ? `<strong>${final}</strong>`
-      : '<span class="grade-dash no-print-val">—</span>';
-    const rem = final!==null
-      ? (final<75?`<span style="color:red">${passFail(final)}</span>`:passFail(final))
-      : '<span class="no-print-val">—</span>';
-
-    if(final!==null){ sum+=final; cnt++; }
-
-    return`<tr>
-      <td class="subj">Journalism</td>
-      <td>${cellVal(t1,1)}</td>
-      <td>${cellVal(t2,2)}</td>
-      <td>${cellVal(t3,3)}</td>
-      <td>${finalDisplay}</td>
-      <td>${rem}</td>
-    </tr>`;
-  })();
+  }).join('');
 
   if(cnt>0){
     const avg=Math.round(sum/cnt);
@@ -8846,6 +8828,16 @@ const SF10_HIST_PARTS = {
   'P.E. and Health': [['physical education','p e','pe'],['health']],
 };
 function sf10NormSubj(n){ return String(n||'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').trim(); }
+// Subjects in a historical record that are NOT one of the standard rows
+// (e.g. "Research 7", "Journalism") — shown as additional learning areas.
+function sf10HistExtras(hist){
+  const all = [].concat(...Object.values(SF10_HIST_MATCH), ...Object.values(SF10_HIST_PARTS).map(p=>[].concat(...p)));
+  return (hist||[]).filter(x=>{
+    if(!x || !String(x.name||'').trim()) return false;
+    const n = ' '+sf10NormSubj(x.name)+' ';
+    return !all.some(v=>n.includes(' '+v+' '));
+  }).map(x=>({name:String(x.name).trim(), q1:x.q1||'', q2:x.q2||'', q3:x.q3||'', q4:x.q4||'', grade:x.grade||''}));
+}
 function sf10HistFind(hist, name){
   const hit = vs => (hist||[]).find(x=>{ const n=' '+sf10NormSubj(x.name)+' '; return vs.some(v=>n.includes(' '+v+' ')); });
   const f = hit(SF10_HIST_MATCH[name] || [sf10NormSubj(name)]);
@@ -8869,9 +8861,11 @@ function buildSF10GradeBlock(d){
 
   // General average — main learning areas only
   let gwa='', rem='';
+  const extras = d.empty ? [] : (d.extras || []);
   if(enc){
     let sum=0,cnt=0;
     [0,1,2,3,4,5,6,7].forEach(i=>{ const f=enc[i]&&enc[i].final; if(f!=null){sum+=f;cnt++;} });
+    extras.forEach(x=>{ if(x.final!=null){ sum+=x.final; cnt++; } });   // same rule as SF9
     if(cnt){ gwa=Math.round(sum/cnt); rem=getHonors(gwa); }
   } else if(d.histGWA){
     gwa=Math.round(parseFloat(d.histGWA)); rem=getHonors(gwa);
@@ -8925,7 +8919,17 @@ function buildSF10GradeBlock(d){
       + _g(4,q1,'sf10-c') + _g(4,q2,'sf10-c') + _g(4,q3,'sf10-c') + _g(3,q4,'sf10-c')
       + _g(6,fin,'sf10-c sf10-b') + _g(14,rmk,'sf10-c') + '</tr>';
   });
-  for(let i=0;i<SF10_SPARE_ROWS;i++){
+  // --- section-specific additional learning areas (Research 7, Journalism, ...) ---
+  extras.forEach(x=>{
+    const v = k => (x[k]===null||x[k]===undefined) ? '' : x[k];
+    const fin = v('final')!=='' ? v('final') : v('grade');
+    const rmk = fin!=='' && !isNaN(parseFloat(fin)) ? (parseFloat(fin)>=75?'Passed':'Failed') : '';
+    r += '<tr style="height:4.6mm">' + _t(19,'sf10-bx sf10-b',x.name)
+      + _g(4,v('t1')!==''?v('t1'):v('q1'),'sf10-c') + _g(4,v('t2')!==''?v('t2'):v('q2'),'sf10-c')
+      + _g(4,v('t3')!==''?v('t3'):v('q3'),'sf10-c') + _g(3,v('t4')!==''?v('t4'):v('q4'),'sf10-c')
+      + _g(6,fin,'sf10-c sf10-b') + _g(14,rmk,'sf10-c') + '</tr>';
+  });
+  for(let i=0;i<Math.max(0, SF10_SPARE_ROWS - extras.length);i++){
     r += '<tr style="height:4.6mm">' + _g(19,'') + _g(4,'','sf10-c') + _g(4,'','sf10-c')
        + _g(4,'','sf10-c') + _g(3,'','sf10-c') + _g(6,'','sf10-c') + _g(14,'','sf10-c') + '</tr>';
   }
@@ -9011,13 +9015,19 @@ async function renderSF10(lrn){
     if(isCurr){
       blocks.push({grade:g, school:SCHOOL_NAME, schoolId:SCHOOL_ID, district:'Suarez',
         division:DIVISION, region:sf10ShortRegion(REGION), section:student.section.toUpperCase(),
-        sy:SY, adviser:(adviserAcc&&adviserAcc.name)||'', enc:currentEnc, hist:null});
+        sy:SY, adviser:(adviserAcc&&adviserAcc.name)||'', enc:currentEnc, hist:null,
+        extras:getSectionExtraSubjects(student.grade, student.section).map(x=>{
+          const t = [1,2,3].map(q=>getEncodedGradeGeneric(x.subjId, studentIdx, sectionKey, q));
+          const vals = t.filter(v=>v!==null);
+          return {name:x.name, t1:t[0], t2:t[1], t3:t[2], t4:null,
+                  final: vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : null};
+        })});
     } else if(h){
       blocks.push({grade:g, school:h.school_name||SCHOOL_NAME, schoolId:h.school_id||SCHOOL_ID,
         district:h.district||'Suarez', division:h.division||DIVISION,
         region:sf10ShortRegion(h.region||REGION),
         section:(h.section||'').toUpperCase(), sy:h.school_year||'', adviser:h.adviser||'',
-        enc:null, hist:h.subjects||[], histGWA:h.general_average});
+        enc:null, hist:h.subjects||[], histGWA:h.general_average, extras:sf10HistExtras(h.subjects)});
     } else {
       blocks.push({grade:g, empty:true});
     }
@@ -9067,9 +9077,9 @@ async function renderSF10(lrn){
     + _t(4,'','') + _t(6,'sf10-lbl','Citation (if Any):') + _f(14,'')
     + '</tr>';
   el += '<tr style="height:5.4mm">'
-    + _t(2,'','') + _t(9,'sf10-lbl','Name of Elementary School:') + _f(16,'')
-    + _t(5,'sf10-lbl','School ID:')        + _f(3,'')
-    + _t(7,'sf10-lbl','Address of School:')+ _f(12,'')
+    + _t(2,'sf10-bb','') + _t(9,'sf10-lbl sf10-bb','Name of Elementary School:') + _f(16,'','sf10-bb')
+    + _t(5,'sf10-lbl sf10-bb','School ID:')        + _f(3,'','sf10-bb')
+    + _t(7,'sf10-lbl sf10-bb','Address of School:')+ _f(12,'','sf10-bb')
     + '</tr>';
   el += '<tr style="height:4.8mm">' + _t(54,'sf10-lbl','Other Credential Presented') + '</tr>';
   el += '<tr style="height:5.4mm">'
@@ -9246,6 +9256,7 @@ const SF10X = (()=>{
     if(cl.contains('sf10-bxr')) B.r='medium';
     if(cl.contains('sf10-u'))   B.b=maxB(B.b,'thin');
     if(cl.contains('sf10-t'))   B.t=maxB(B.t,'thin');
+    if(cl.contains('sf10-bb'))  B.b=maxB(B.b,'thin');
     // any other dark border set on the cell (e.g. an inline style) → thin
     [['l','Left'],['r','Right'],['t','Top'],['b','Bottom']].forEach(([k,S])=>{
       if(!B[k] && cs['border'+S+'Style']!=='none' && parseFloat(cs['border'+S+'Width'])>0 && isDark(cs['border'+S+'Color'])) B[k]='thin';
