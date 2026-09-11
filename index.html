@@ -9073,6 +9073,7 @@ async function renderSF10(lrn){
   document.getElementById('sf10-output').innerHTML =
       '<div class="sf10-sheet" id="sf10-sheet1"><div class="sf10-page">'+p1+'</div></div>'
     + '<div class="sf10-sheet" id="sf10-sheet2"><div class="sf10-page">'+p2+'</div></div>';
+  document.getElementById('sf10-output').dataset.lrn = lrn;
   document.getElementById('sf10-output').classList.remove('hidden');
   document.getElementById('sf10-placeholder').classList.add('hidden');
   const printBtn = document.getElementById('sf10-print-btn');
@@ -9127,87 +9128,466 @@ function printSF10(){
   window.addEventListener('afterprint',cleanup);
 }
 
-// ── SF10 EXCEL DOWNLOAD ─────────────────────────────────────────────── ───────────────────────────────────────────────
-function downloadSF10Excel(){
+// ── SF10 EXCEL DOWNLOAD — complete visual form ────────────────────────
+// The bundled SheetJS Community build drops borders, fills, fonts and images
+// when writing, so it cannot produce a form. This exporter writes the .xlsx
+// (Office Open XML) directly instead:
+//   • it walks the RENDERED preview (#sf10-sheet1 / #sf10-sheet2), so the
+//     workbook always carries exactly what is on screen — including anything
+//     typed into the editable fields — for the currently selected learner;
+//   • every <td> becomes a cell / merged range on the same 54-column grid
+//     (SF10_COLPC) with its font, alignment, fill and borders;
+//   • row heights come from the laid-out preview, logos are embedded as images;
+//   • each page is its own sheet ("Front", "Back") set to Folio 8.5 x 13 in,
+//     portrait, fit to 1 page, horizontally centred, print area = whole form.
+const SF10X = (()=>{
+  const COLS   = 54;
+  const FONT   = 'Arial Narrow';
+  const EMU_PX = 9525;             // EMUs per CSS/screen pixel (96 dpi)
+  const RANK   = {thin:1, medium:2};
+
+  // ---------- small helpers ----------
+  const colName = i => { let s='', n=i+1; while(n>0){ const m=(n-1)%26; s=String.fromCharCode(65+m)+s; n=Math.floor((n-1)/26); } return s; };
+  const ref = (r,c) => colName(c)+(r+1);
+  const esc = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const absTop  = e => { let y=0; while(e){ y+=e.offsetTop;  e=e.offsetParent; } return y; };
+  const absLeft = e => { let x=0; while(e){ x+=e.offsetLeft; e=e.offsetParent; } return x; };
+  const maxB = (a,b) => ((RANK[a]||0) >= (RANK[b]||0) ? a : b) || null;
+
+  // Visible text of a cell: <br> → newline, checkbox span → ☐, placeholders
+  // (CSS ::before) are not part of the DOM so they are naturally excluded.
+  function cellText(node){
+    let out='';
+    node.childNodes.forEach(n=>{
+      if(n.nodeType===3){ out+=n.nodeValue; return; }
+      if(n.nodeType!==1) return;
+      if(n.tagName==='BR'){ out+='\n'; return; }
+      if(n.classList.contains('sf10-cb')){
+        out += (n.classList.contains('on') || n.textContent.trim()) ? '\u2611' : '\u2610'; return;
+      }
+      if(/^(DIV|P)$/.test(n.tagName) && out && !out.endsWith('\n')) out+='\n';
+      out += cellText(n);
+    });
+    return out;
+  }
+  const cleanText = s => s.replace(/\u00a0/g,' ').split('\n').map(l=>l.replace(/[ \t]+/g,' ').trim())
+      .join('\n').replace(/^\n+|\n+$/g,'');
+
+  function rgbHex(css){
+    const m = String(css).match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/);
+    if(!m) return null;
+    if(m[4]!==undefined && parseFloat(m[4])===0) return null;
+    // near-white tints (hover / focus highlights of the app UI) are not part of the form
+    if(+m[1]>=235 && +m[2]>=235 && +m[3]>=235) return null;
+    return [m[1],m[2],m[3]].map(v=>(+v).toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  // true for a dark (form) line colour; the app's global light-grey td rules are ignored
+  const isDark = css => { const m=String(css).match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/); return !!m && (+m[1]+ +m[2]+ +m[3]) < 3*110; };
+
+  // Style object for an element, from its classes (borders — exact) and its
+  // computed style (font size / weight / italics / alignment — what is shown).
+  function styleOf(el, extra){
+    const cs = getComputedStyle(el), cl = el.classList;
+    const sz = Math.round(parseFloat(cs.fontSize)*0.75*10)/10 || 8;
+    const st = {
+      font:{ sz, b: (parseInt(cs.fontWeight,10)||400) >= 600, i: cs.fontStyle==='italic' },
+      fill:null, border:{l:null,r:null,t:null,b:null},
+      align:{ h: ({center:'center',right:'right',end:'right'})[cs.textAlign] || 'left',
+              v: ({top:'top',bottom:'bottom'})[cs.verticalAlign] || 'center',
+              wrap:false, shrink:false, indent:0 },
+      numFmt:0
+    };
+    if(!cl.contains('sf10-in')) st.fill = rgbHex(cs.backgroundColor);   // ignore :focus tint
+    const B = st.border;
+    if(cl.contains('sf10-band')) B.l=B.r=B.t=B.b='medium';
+    if(cl.contains('sf10-bx'))  { B.l=maxB(B.l,'thin'); B.r=maxB(B.r,'thin'); B.t=maxB(B.t,'thin'); B.b=maxB(B.b,'thin'); }
+    if(cl.contains('sf10-bxl')) B.l='medium';
+    if(cl.contains('sf10-bxr')) B.r='medium';
+    if(cl.contains('sf10-u'))   B.b=maxB(B.b,'thin');
+    if(cl.contains('sf10-t'))   B.t=maxB(B.t,'thin');
+    // any other dark border set on the cell (e.g. an inline style) → thin
+    [['l','Left'],['r','Right'],['t','Top'],['b','Bottom']].forEach(([k,S])=>{
+      if(!B[k] && cs['border'+S+'Style']!=='none' && parseFloat(cs['border'+S+'Width'])>0 && isDark(cs['border'+S+'Color'])) B[k]='thin';
+    });
+    if(cl.contains('sf10-sub')) st.align.indent = 1;
+    if(cl.contains('sf10-in') && cl.contains('sf10-u')) st.numFmt = 49;       // fill-in blanks = Text (keeps LRN / IDs intact)
+    return Object.assign(st, extra||{});
+  }
+
+  // ---------- one page of the preview → one worksheet model ----------
+  function buildSheet(fit, name){
+    const W = fit.offsetWidth;
+    const colPc = (typeof SF10_COLPC!=='undefined' && SF10_COLPC.length===COLS) ? SF10_COLPC : Array(COLS).fill(100/COLS);
+    const tot = colPc.reduce((a,b)=>a+b,0);
+    const colEdge=[0]; let acc=0;
+    colPc.forEach(p=>{ acc+=p; colEdge.push(Math.round(acc/tot*W)); });
+    const colPx = colPc.map((_,i)=>Math.max(1,colEdge[i+1]-colEdge[i]));
+
+    const S = { name, colPx, colEdge, rows:[], cells:new Map(), merges:[], images:[], name1:{} };
+    const fitTop = absTop(fit), fitLeft = absLeft(fit);
+    let cursor = 0;
+    const addRow = h => { S.rows.push(Math.max(h,1)); return S.rows.length-1; };
+    const gapTo  = y => { if(y-cursor > 0.6) addRow(y-cursor); cursor = Math.max(cursor,y); };
+    const colFrom = x => { for(let i=0;i<COLS;i++) if(colEdge[i] >= x-1) return i; return COLS-1; };
+    const colTo   = x => { for(let i=COLS-1;i>=0;i--) if(colEdge[i+1] <= x+1) return i; return 0; };
+
+    function put(r0,c0,r1,c1,text,st,isNum){
+      // Fill-in blanks: words → shrink-to-fit (never clipped); empty / numeric-looking
+      // (LRN, School ID, dates) → Text format so Excel keeps them as typed.
+      // The two are never combined (LibreOffice drops the underline on that combination).
+      if(st.numFmt===49 && /[A-Za-z\u00C0-\u024F]/.test(text)) st = Object.assign({}, st, {numFmt:0});
+      for(let r=r0;r<=r1;r++) for(let c=c0;c<=c1;c++){
+        const b = st.border, cellB = {
+          l: c===c0 ? b.l : null, r: c===c1 ? b.r : null,
+          t: r===r0 ? b.t : null, b: r===r1 ? b.b : null };
+        S.cells.set(r+','+c, { st:Object.assign({}, st, {border:cellB}), v:null });
+      }
+      const top = S.cells.get(r0+','+c0);
+      if(text!==''){
+        if(isNum && /^-?\d+(\.\d+)?$/.test(text)){ top.v = parseFloat(text); top.t='n'; }
+        else { top.v = text; top.t='s';
+          if(text.includes('\n')) top.st.align = Object.assign({}, top.st.align, {wrap:true});
+        }
+      }
+      if(!top.st.align.wrap && top.st.numFmt!==49) top.st.align = Object.assign({}, top.st.align, {shrink:true});
+      if(r1>r0 || c1>c0) S.merges.push(ref(r0,c0)+':'+ref(r1,c1));
+      return top;
+    }
+
+    function doTable(tb){
+      const trs = [...tb.rows]; if(!trs.length) return;
+      const top = absTop(tb)-fitTop, bottom = top + tb.offsetHeight;
+      gapTo(top);
+      const ys = trs.map(tr=>absTop(tr)-fitTop), rIdx=[];
+      trs.forEach((tr,i)=>{
+        const y0 = i===0 ? cursor : ys[i], y1 = i===trs.length-1 ? bottom : ys[i+1];
+        rIdx.push(addRow(y1-y0));
+      });
+      cursor = Math.max(cursor, bottom);
+      const occ = trs.map(()=>new Array(COLS).fill(false));
+      trs.forEach((tr,ri)=>{
+        let c=0; const cells=[...tr.cells];
+        const spans = cells.map(td=>td.colSpan||1).join(',');
+        const subjRow = spans==='19,4,4,4,3,6,14';        // learning-area row of a grade block
+        cells.forEach((td,k)=>{
+          while(c<COLS && occ[ri][c]) c++;
+          if(c>=COLS) return;
+          const c1 = Math.min(COLS-1, c+(td.colSpan||1)-1), rr1 = Math.min(trs.length-1, ri+(td.rowSpan||1)-1);
+          for(let r=ri;r<=rr1;r++) for(let cc=c;cc<=c1;cc++) occ[r][cc]=true;
+          const text = cleanText(cellText(td));
+          const isGrade = td.classList.contains('sf10-bx') && td.classList.contains('sf10-in');
+          const cell = put(rIdx[ri], c, rIdx[rr1], c1, text, styleOf(td), isGrade);
+          // Remarks auto-computed from the Final Rating (same rule as the app: ≥75 Passed)
+          if(subjRow && k===6){
+            const fin = S.cells.get(rIdx[ri]+','+34);
+            const fv = fin && fin.v;
+            const want = (fv===null||fv===undefined||fv==='') ? '' : (typeof fv==='number' ? (fv>=75?'Passed':'Failed') : null);
+            if(want!==null && want===text){
+              const a = colName(34)+(rIdx[ri]+1);
+              cell.f = 'IF('+a+'="","",IF('+a+'>=75,"Passed","Failed"))';
+              cell.v = text; cell.t = 'str';
+            }
+          }
+          // remember the learner's name as displayed (for the file name)
+          const prev = td.previousElementSibling && cleanText(cellText(td.previousElementSibling));
+          if(prev==='LAST NAME:')  S.name1.last  = text;
+          if(prev==='FIRST NAME:') S.name1.first = text;
+          c = c1+1;
+        });
+      });
+      // table outline (e.g. 1.3pt box around a block)
+      const tcs = getComputedStyle(tb);
+      const side = s => (tcs['border'+s+'Style']!=='none' && parseFloat(tcs['border'+s+'Width'])>0 && isDark(tcs['border'+s+'Color'])) ? 'medium' : null;
+      const oT=side('Top'), oB=side('Bottom'), oL=side('Left'), oR=side('Right');
+      const r0=rIdx[0], r1=rIdx[rIdx.length-1];
+      const edge = (r,c,k,v)=>{ if(!v) return; const key=r+','+c;
+        let cell=S.cells.get(key); if(!cell){ cell={st:styleOf(tb),v:null}; cell.st.border={l:null,r:null,t:null,b:null}; S.cells.set(key,cell); }
+        cell.st = Object.assign({}, cell.st, {border:Object.assign({}, cell.st.border, {[k]:maxB(cell.st.border[k],v)})}); };
+      for(let r=r0;r<=r1;r++){ edge(r,0,'l',oL); edge(r,COLS-1,'r',oR); }
+      for(let c=0;c<COLS;c++){ edge(r0,c,'t',oT); edge(r1,c,'b',oB); }
+    }
+
+    function doHeader(hd){
+      const top = absTop(hd)-fitTop;
+      gapTo(top);
+      const txt = hd.querySelector('.sf10-hdtxt');
+      if(txt){
+        const xl = absLeft(txt)-fitLeft, xr = xl + txt.offsetWidth;
+        const c0 = colFrom(xl), c1 = Math.max(c0, colTo(xr));
+        [...txt.children].forEach(d=>{
+          const y = absTop(d)-fitTop; gapTo(y);
+          const h = d.offsetHeight - Math.max(0, cursor-y);
+          const r = addRow(h);
+          const st = styleOf(d); st.align = Object.assign(st.align, {h:'center', v:'center', wrap:true});
+          put(r,c0,r,c1,cleanText(cellText(d)),st,false);
+          cursor = y + d.offsetHeight;
+        });
+      }
+      hd.querySelectorAll('img').forEach(img=>{
+        if(!img.src) return;
+        S.images.push({ img, x:absLeft(img)-fitLeft, y:absTop(img)-fitTop, w:img.offsetWidth, h:img.offsetHeight });
+      });
+      gapTo(top + hd.offsetHeight);
+    }
+
+    [...fit.children].forEach(el=>{
+      if(el.tagName==='TABLE'){ doTable(el); return; }
+      if(el.classList.contains('sf10-hd')){ doHeader(el); return; }
+      const text = cleanText(cellText(el));
+      if(!text || !el.offsetHeight) return;          // empty spacer divs → gap rows
+      const y = absTop(el)-fitTop; gapTo(y);
+      const r = addRow(el.offsetHeight - Math.max(0,cursor-y));
+      put(r,0,r,COLS-1,text,styleOf(el),false);
+      cursor = y + el.offsetHeight;
+    });
+
+    // integer-pixel row edges (no cumulative drift), then points
+    const rowEdge=[0]; let ry=0;
+    S.rows.forEach(h=>{ ry+=h; rowEdge.push(Math.round(ry)); });
+    S.rowPx = S.rows.map((_,i)=>Math.max(1,rowEdge[i+1]-rowEdge[i]));
+    S.rowEdge = rowEdge;
+    return S;
+  }
+
+  // ---------- styles registry ----------
+  function Styles(){
+    const fonts=[], fills=[], borders=[], xfs=[], idx={font:{},fill:{},border:{},xf:{}};
+    const reg = (list,map,key,xml)=>{ if(map[key]===undefined){ map[key]=list.length; list.push(xml); } return map[key]; };
+    reg(fonts,idx.font,'default','<font><sz val="10"/><name val="Arial"/><family val="2"/></font>');
+    reg(fills,idx.fill,'none','<fill><patternFill patternType="none"/></fill>');
+    reg(fills,idx.fill,'g125','<fill><patternFill patternType="gray125"/></fill>');
+    reg(borders,idx.border,'none','<border><left/><right/><top/><bottom/><diagonal/></border>');
+    reg(xfs,idx.xf,'default','<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>');
+    return {
+      id(st, text){
+        const sym = text && /^[\u2610\u2611\u2612]$/.test(text);
+        const fName = sym ? 'Segoe UI Symbol' : FONT;
+        const f = st.font;
+        const fk = [f.sz,f.b,f.i,fName].join('|');
+        const fontId = reg(fonts,idx.font,fk,'<font>'+(f.b?'<b/>':'')+(f.i?'<i/>':'')+'<sz val="'+f.sz+'"/><color rgb="FF000000"/><name val="'+esc(fName)+'"/><family val="2"/></font>');
+        const fillId = st.fill ? reg(fills,idx.fill,st.fill,'<fill><patternFill patternType="solid"><fgColor rgb="FF'+st.fill+'"/><bgColor indexed="64"/></patternFill></fill>') : 0;
+        const B = st.border, side = (tag,v)=> v ? '<'+tag+' style="'+v+'"><color rgb="FF000000"/></'+tag+'>' : '<'+tag+'/>';
+        const bk = [B.l,B.r,B.t,B.b].join('|');
+        const borderId = bk==='|||' ? 0 : reg(borders,idx.border,bk,'<border>'+side('left',B.l)+side('right',B.r)+side('top',B.t)+side('bottom',B.b)+'<diagonal/></border>');
+        const a = st.align;
+        const al = '<alignment horizontal="'+a.h+'" vertical="'+a.v+'"'+(a.wrap?' wrapText="1"':'')+(a.shrink&&!a.wrap?' shrinkToFit="1"':'')+(a.indent?' indent="'+a.indent+'"':'')+'/>';
+        const xk = [st.numFmt,fontId,fillId,borderId,al].join('|');
+        return reg(xfs,idx.xf,xk,'<xf numFmtId="'+st.numFmt+'" fontId="'+fontId+'" fillId="'+fillId+'" borderId="'+borderId+'" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'+al+'</xf>');
+      },
+      xml(){
+        return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+          +'<fonts count="'+fonts.length+'">'+fonts.join('')+'</fonts>'
+          +'<fills count="'+fills.length+'">'+fills.join('')+'</fills>'
+          +'<borders count="'+borders.length+'">'+borders.join('')+'</borders>'
+          +'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+          +'<cellXfs count="'+xfs.length+'">'+xfs.join('')+'</cellXfs>'
+          +'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+          +'</styleSheet>';
+      }
+    };
+  }
+
+  // ---------- worksheet XML ----------
+  function sheetXml(S, styles, sheetIdx, hasDrawing){
+    const nR = S.rows.length;
+    let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+      + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
+      + '<dimension ref="A1:'+ref(nR-1,COLS-1)+'"/>'
+      + '<sheetViews><sheetView showGridLines="0"'+(sheetIdx===0?' tabSelected="1"':'')+' zoomScale="100" workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>'
+      + '<sheetFormatPr defaultRowHeight="12" customHeight="1"/>'
+      + '<cols>' + S.colPx.map((px,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+(px/7).toFixed(4)+'" customWidth="1"/>').join('') + '</cols>'
+      + '<sheetData>';
+    for(let r=0;r<nR;r++){
+      x += '<row r="'+(r+1)+'" ht="'+(S.rowPx[r]*0.75).toFixed(2)+'" customHeight="1">';
+      for(let c=0;c<COLS;c++){
+        const cell = S.cells.get(r+','+c); if(!cell) continue;
+        const s = styles.id(cell.st, typeof cell.v==='string' ? cell.v : '');
+        const a = ref(r,c);
+        if(cell.f)              x += '<c r="'+a+'" s="'+s+'" t="str"><f>'+esc(cell.f)+'</f><v>'+esc(cell.v||'')+'</v></c>';
+        else if(cell.t==='n')   x += '<c r="'+a+'" s="'+s+'"><v>'+cell.v+'</v></c>';
+        else if(cell.t==='s')   x += '<c r="'+a+'" s="'+s+'" t="inlineStr"><is><t xml:space="preserve">'+esc(cell.v)+'</t></is></c>';
+        else                    x += '<c r="'+a+'" s="'+s+'"/>';
+      }
+      x += '</row>';
+    }
+    x += '</sheetData>';
+    if(S.merges.length) x += '<mergeCells count="'+S.merges.length+'">'+S.merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>';
+    x += '<printOptions horizontalCentered="1"/>'
+      +  '<pageMargins left="0.25" right="0.25" top="0.25" bottom="0.25" header="0" footer="0"/>'
+      +  '<pageSetup paperSize="14" orientation="portrait" fitToWidth="1" fitToHeight="1" pageOrder="downThenOver"/>';
+    if(hasDrawing) x += '<drawing r:id="rId1"/>';
+    return x + '</worksheet>';
+  }
+
+  // pixel position → (cell, offset) anchor
+  function anchorAt(edges, px){
+    let i=0; while(i < edges.length-2 && edges[i+1] <= px) i++;
+    return [i, Math.max(0, Math.round((px-edges[i])*EMU_PX))];
+  }
+  function drawingXml(S, rels){
+    let x = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">';
+    S.images.forEach((im,k)=>{
+      const [c,co] = anchorAt(S.colEdge, im.x), [r,ro] = anchorAt(S.rowEdge, im.y);
+      const cx = Math.round(im.dw*EMU_PX), cy = Math.round(im.dh*EMU_PX);
+      x += '<xdr:oneCellAnchor><xdr:from><xdr:col>'+c+'</xdr:col><xdr:colOff>'+co+'</xdr:colOff><xdr:row>'+r+'</xdr:row><xdr:rowOff>'+ro+'</xdr:rowOff></xdr:from>'
+        + '<xdr:ext cx="'+cx+'" cy="'+cy+'"/>'
+        + '<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="'+(k+2)+'" name="Logo '+(k+1)+'" descr="'+esc(im.img.alt||'Logo')+'"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>'
+        + '<xdr:blipFill><a:blip r:embed="'+rels[k]+'"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+        + '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>'
+        + '<xdr:clientData/></xdr:oneCellAnchor>';
+    });
+    return x + '</xdr:wsDr>';
+  }
+
+  // logo → PNG/JPEG bytes (data URIs used as-is; anything else via canvas)
+  async function imageBytes(img){
+    const m = String(img.src).match(/^data:image\/(png|jpe?g);base64,(.*)$/i);
+    if(m){
+      const bin = atob(m[2].replace(/\s/g,'')), u = new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+      return { ext: m[1].toLowerCase()==='png' ? 'png' : 'jpeg', data:u, nw:img.naturalWidth, nh:img.naturalHeight };
+    }
+    if(!img.complete) await new Promise(res=>{ img.onload=img.onerror=res; });
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth || 256; cv.height = img.naturalHeight || 256;
+    cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    const blob = await new Promise(res=>cv.toBlob(res,'image/png'));
+    return { ext:'png', data:new Uint8Array(await blob.arrayBuffer()), nw:cv.width, nh:cv.height };
+  }
+
+  // ---------- minimal ZIP writer (deflate via CompressionStream when available) ----------
+  const CRC = (()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; t[n]=c>>>0; } return t; })();
+  const crc32 = u => { let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c = CRC[(c^u[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  async function deflateRaw(u){
+    try{
+      if(typeof CompressionStream==='undefined') return null;
+      const s = new Blob([u]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return new Uint8Array(await new Response(s).arrayBuffer());
+    }catch(e){ return null; }
+  }
+  async function zip(files){
+    const enc = new TextEncoder(), chunks=[], central=[]; let off=0;
+    for(const f of files){
+      const raw = typeof f.data==='string' ? enc.encode(f.data) : f.data;
+      const nm = enc.encode(f.name), crc = crc32(raw);
+      let body = raw, method = 0;
+      if(f.name.slice(-4)!=='.png' && f.name.slice(-5)!=='.jpeg'){ const d = await deflateRaw(raw); if(d && d.length < raw.length){ body=d; method=8; } }
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0,true); lh.setUint16(8,method,true);
+      lh.setUint16(10,0,true); lh.setUint16(12,0x21,true); lh.setUint32(14,crc,true);
+      lh.setUint32(18,body.length,true); lh.setUint32(22,raw.length,true); lh.setUint16(26,nm.length,true); lh.setUint16(28,0,true);
+      chunks.push(new Uint8Array(lh.buffer), nm, body);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true); ch.setUint16(8,0,true); ch.setUint16(10,method,true);
+      ch.setUint16(12,0,true); ch.setUint16(14,0x21,true); ch.setUint32(16,crc,true); ch.setUint32(20,body.length,true); ch.setUint32(24,raw.length,true);
+      ch.setUint16(28,nm.length,true); ch.setUint32(42,off,true);
+      central.push(new Uint8Array(ch.buffer), nm);
+      off += 30 + nm.length + body.length;
+    }
+    const cdSize = central.reduce((a,b)=>a+b.length,0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true);
+    end.setUint32(12,cdSize,true); end.setUint32(16,off,true);
+    return new Blob([...chunks, ...central, new Uint8Array(end.buffer)],
+      {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+
+  // ---------- workbook ----------
+  async function build(pages, meta){
+    const sheets = pages.map(p=>buildSheet(p.fit, p.name));
+    const styles = Styles();
+    const files = [], ct = [], wbRels = [];
+    let media = 0;
+    for(let i=0;i<sheets.length;i++){
+      const S = sheets[i];
+      const imgRels = [];
+      if(S.images.length){
+        const dRels = [];
+        for(const im of S.images){
+          const b = await imageBytes(im.img);
+          // object-fit:contain inside the <img> box
+          const k = Math.min(im.w/(b.nw||im.w), im.h/(b.nh||im.h));
+          im.dw = (b.nw||im.w)*k; im.dh = (b.nh||im.h)*k;
+          im.x += (im.w-im.dw)/2; im.y += (im.h-im.dh)/2;
+          media++;
+          const fn = 'image'+media+'.'+b.ext;
+          files.push({name:'xl/media/'+fn, data:b.data});
+          const rid = 'rId'+(dRels.length+1);
+          dRels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/'+fn+'"/>');
+          imgRels.push(rid);
+        }
+        files.push({name:'xl/drawings/drawing'+(i+1)+'.xml', data:drawingXml(S, imgRels)});
+        files.push({name:'xl/drawings/_rels/drawing'+(i+1)+'.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+dRels.join('')+'</Relationships>'});
+        files.push({name:'xl/worksheets/_rels/sheet'+(i+1)+'.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing'+(i+1)+'.xml"/></Relationships>'});
+        ct.push('<Override PartName="/xl/drawings/drawing'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>');
+      }
+      files.push({name:'xl/worksheets/sheet'+(i+1)+'.xml', data:sheetXml(S, styles, i, S.images.length>0)});
+      ct.push('<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>');
+      wbRels.push('<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>');
+    }
+    const n = sheets.length;
+    wbRels.push('<Relationship Id="rId'+(n+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>');
+    const wb = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+      + '<bookViews><workbookView activeTab="0"/></bookViews><sheets>'
+      + sheets.map((S,i)=>'<sheet name="'+esc(S.name)+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join('') + '</sheets>'
+      + '<definedNames>' + sheets.map((S,i)=>'<definedName name="_xlnm.Print_Area" localSheetId="'+i+'">\''+esc(S.name)+'\'!$A$1:$'+colName(COLS-1)+'$'+S.rows.length+'</definedName>').join('') + '</definedNames>'
+      + '<calcPr calcId="191029"/></workbook>';
+    const now = new Date().toISOString().replace(/\.\d+Z$/,'Z');
+    files.push({name:'xl/workbook.xml', data:wb});
+    files.push({name:'xl/_rels/workbook.xml.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+wbRels.join('')+'</Relationships>'});
+    files.push({name:'xl/styles.xml', data:styles.xml()});   // after all sheets registered their styles
+    files.push({name:'docProps/core.xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>'+esc(meta.title||'SF10-JHS')+'</dc:title><dc:creator>SchoolTrack</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">'+now+'</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">'+now+'</dcterms:modified></cp:coreProperties>'});
+    files.push({name:'_rels/.rels', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'});
+    files.unshift({name:'[Content_Types].xml', data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/>'
+      + '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+      + '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+      + ct.join('') + '</Types>'});
+    return { blob: await zip(files), name: Object.assign({}, ...sheets.map(S=>S.name1)) };
+  }
+  return { build };
+})();
+
+async function downloadSF10Excel(){
   const lrn = document.getElementById('sf10-student')?.value||'';
   const student = studentsCache.find(s=>s.lrn===lrn);
   if(!student){ toast('Select a student first',true); return; }
+  const out = document.getElementById('sf10-output');
+  const btn = document.getElementById('sf10-dl-btn');
+  try{
+    if(btn) btn.disabled = true;
+    // Make sure the preview on screen belongs to the selected learner.
+    if(!out || out.dataset.lrn!==lrn || out.classList.contains('hidden') || !out.querySelector('#sf10-sheet1 .sf10-fit'))
+      await renderSF10(lrn);
+    // Commit any field still being edited so its latest text is exported.
+    if(document.activeElement && out.contains(document.activeElement)) document.activeElement.blur();
+    const f1 = out.querySelector('#sf10-sheet1 .sf10-fit'), f2 = out.querySelector('#sf10-sheet2 .sf10-fit');
+    if(!f1 || !f1.offsetWidth){ toast('Open the SF10 preview first',true); return; }
 
-  const records = historicalCache[lrn]||[];
-  const np = student.name.split(',');
-  const lastName  = (np[0]||'').trim();
-  const rp = (np[1]||'').trim().split(' ');
-  const firstName = rp[0]||'';
-  const midName   = rp.slice(1).join(' ')||'';
+    const np = student.name.split(',');
+    const pages = [{name:'Front', fit:f1}]; if(f2) pages.push({name:'Back', fit:f2});
+    const res = await SF10X.build(pages, {title:'SF10-JHS — '+student.name});
+    const clean = s => String(s||'').toUpperCase().normalize('NFC').trim()
+        .replace(/[\\/:*?"<>|]+/g,'').replace(/\s+/g,'_');
+    const last  = clean(res.name.last  || (np[0]||''));
+    const first = clean(res.name.first || ((np[1]||'').trim().split(' ')[0]||''));
+    const fname = 'SF10-JHS_'+(last||'LEARNER')+(first?'_'+first:'')+'.xlsx';
 
-  // Build rows for each grade level
-  const SUBJ_NAMES = ['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH','Music','Arts','Physical Education','Health'];
-  const HIST_MATCH={'Filipino':['Filipino','Fil'],'English':['English','Eng'],'Mathematics':['Mathematics','Math'],'Science':['Science','Sci'],'Araling Panlipunan (AP)':['Araling','AP'],'Edukasyon sa Pagpapakatao (EsP)':['Edukasyon','EsP','ESP','Values'],'Technology and Livelihood Education (TLE)':['TLE','Technology'],'MAPEH':['MAPEH'],'Music':['Music'],'Arts':['Arts'],'Physical Education':['Physical Education','PE'],'Health':['Health']};
-
-  // Current grade encoded data
-  const sectionKey = 'G'+student.grade+'-'+student.section.toUpperCase();
-  const sectionStudents = studentsCache.filter(st=>sectionsMatch(st.section,sectionKey,st.grade)).sort((a,b)=>a.name.localeCompare(b.name));
-  const studentIdx = sectionStudents.findIndex(st=>st.lrn===lrn);
-  const currentEnc = getStudentGradesFromCache(studentIdx, sectionKey, student.grade);
-  const adviserAcc = accountsCache.find(a=>(a.role==='adviser'||a.role==='adviser-teacher')&&a.advisory_section&&sectionsMatch(student.section,a.advisory_section,student.grade));
-
-  const allRows = [];
-  // Header info rows
-  allRows.push(['SF10-JHS — Learner Permanent Record']);
-  allRows.push(['Last Name', lastName, 'First Name', firstName, 'Middle Name', midName]);
-  allRows.push(['LRN', student.lrn, 'Birthdate', student.bday||'', 'Sex', student.sex==='F'?'Female':'Male']);
-  allRows.push([]);
-
-  for(let g=7; g<=10; g++){
-    const isCurr = g===parseInt(student.grade);
-    const histRec = records.find(r=>r.grade_level===String(g))||null;
-
-    let school=SCHOOL_NAME, schoolId=SCHOOL_ID, district='Suarez', division=DIVISION, region='Region X', section='', sy='', adviser='';
-    let gwa='';
-
-    if(isCurr){
-      section=student.section.toUpperCase(); sy=SY; adviser=adviserAcc?.name||'';
-      let sum=0,cnt=0; [0,1,2,3,4,5,6,7].forEach(idx=>{const f=currentEnc[idx]?.final;if(f!=null){sum+=f;cnt++;}});
-      if(cnt>0) gwa=Math.round(sum/cnt);
-    } else if(histRec){
-      school=histRec.school_name||SCHOOL_NAME; schoolId=histRec.school_id||SCHOOL_ID;
-      district=histRec.district||''; division=histRec.division||DIVISION;
-      region=histRec.region||'Region X'; section=(histRec.section||'').toUpperCase();
-      sy=histRec.school_year||''; adviser=histRec.adviser||'';
-      if(histRec.general_average) gwa=Math.round(parseFloat(histRec.general_average));
-    }
-
-    allRows.push(['GRADE '+g+' SCHOLASTIC RECORD']);
-    allRows.push(['School', school, 'School ID', schoolId, 'District', district, 'Division', division, 'Region', region]);
-    allRows.push(['Section', section, 'School Year', sy, 'Adviser', adviser]);
-    allRows.push(['LEARNING AREA','Q1','Q2','Q3','Q4','FINAL RATING','REMARKS']);
-
-    SUBJ_NAMES.forEach(name=>{
-      let q1='',q2='',q3='',q4='',final='',rem='';
-      if(isCurr){
-        const idx=['Filipino','English','Mathematics','Science','Araling Panlipunan (AP)','Edukasyon sa Pagpapakatao (EsP)','Technology and Livelihood Education (TLE)','MAPEH','Music','Arts','Physical Education','Health'].indexOf(name);
-        const sfIdx = idx<=7 ? idx : idx===8||idx===9 ? 8 : 9; // Music/Arts→idx8, PE/Health→idx9
-        const mapIdx = {8:8,9:8,10:9,11:9}[idx]??idx;
-        const gd = currentEnc[mapIdx<=7?mapIdx:mapIdx-idx+7]||currentEnc[idx>7?(idx<=9?8:9):idx]||{};
-        if(gd.t1!=null)q1=gd.t1; if(gd.t2!=null)q2=gd.t2; if(gd.t3!=null)q3=gd.t3; if(gd.t4!=null)q4=gd.t4;
-        if(gd.final!=null){final=gd.final;rem=gd.final>=75?'Passed':'Failed';}
-      } else if(histRec){
-        const variants=HIST_MATCH[name]||[name];
-        const found=(histRec.subjects||[]).find(s=>variants.some(v=>s.name.toLowerCase().includes(v.toLowerCase())||v.toLowerCase().includes(s.name.toLowerCase())));
-        if(found){if(found.q1)q1=found.q1;if(found.q2)q2=found.q2;if(found.q3)q3=found.q3;if(found.q4)q4=found.q4;if(found.grade){final=found.grade;rem=parseFloat(found.grade)>=75?'Passed':'Failed';}}
-      }
-      allRows.push([name,q1,q2,q3,q4,final,rem]);
-    });
-    allRows.push(['','','','','','General Average:', gwa]);
-    allRows.push([]);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(res.blob);
+    a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    toast('\u2705 '+fname+' downloaded!');
+  }catch(e){
+    console.error('SF10 Excel export failed', e);
+    toast('SF10 Excel export failed: '+(e&&e.message||e), true);
+  }finally{
+    if(btn) btn.disabled = false;
   }
-
-  const fname = `SF10_${student.lrn}_${student.name.replace(/[^a-zA-Z0-9]/g,'_')}.xlsx`;
-  downloadExcel(fname,[{name:'SF10-JHS', headers:[], rows:allRows}]);
-  toast('✅ SF10 Excel downloaded!');
 }
-
-
 
 
 function openHistModal(lrn,gradeLevel){
