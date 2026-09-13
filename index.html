@@ -6194,10 +6194,16 @@ async function buildMPSReport(){
   if(isOnline) await fetchGradesForSection(sect);
 
   // ── Get students in this section ──────────────────────────────────
+  // BUGFIX: grades are stored keyed by the encoder's CANONICAL index —
+  // every student of the section, alphabetical, WITHOUT any status filter
+  // (see buildGradeTable). Filtering out Dropped learners here shifted every
+  // index by one and made grade lookups miss, so build the roster exactly the
+  // way the encoder does and skip Dropped learners by index instead.
   const sectName = sect.replace(/^G\d+-/,'');
-  const students = studentsCache
-    .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()&&`G${s.grade}-${s.section.toUpperCase()}`===sect&&s.status!=='Dropped')
+  const roster = studentsCache
+    .filter(s=>s.section.toUpperCase()===sectName.toUpperCase()&&`G${s.grade}-${s.section.toUpperCase()}`===sect)
     .sort((a,b)=>a.name.localeCompare(b.name));
+  const students = roster.filter(s=>s.status!=='Dropped');
 
   if(!students.length){
     document.getElementById('mps-output').innerHTML=`<div class="card"><div class="empty">No enrolled students found in ${sect}.</div></div>`;
@@ -6227,18 +6233,47 @@ async function buildMPSReport(){
   }
 
   // ── Compute MPS & PL per subject ──────────────────────────────────
+  // BUGFIX: the encoder writes grades under  <subjectId>_<section>_T<term>
+  // (see buildGradeTable / saveGrades). This report used to build
+  // "..._Q<term>", so no record was ever found and every subject reported
+  // "No grades encoded yet". Read with the same key format everyone else
+  // uses, plus the legacy "<id>_<grade>_<section>_T<term>" fallback.
+  const readGradeRec = (id)=>{
+    const k1 = id+'_'+sect+'_T'+term;
+    const k2 = id+'_'+grade+'_'+sect+'_T'+term;
+    return gradeCache[k1]||lsGet('gr_'+k1)||gradeCache[k2]||lsGet('gr_'+k2)||{};
+  };
+
   const rows = subjects.map(subj=>{
-    const gradeKey = shsSect
-      ? subj.id+'_'+sect+'_'+term
-      : subj.id+'_'+sect+'_Q'+term;
+    const base = subj.id.replace(/_\d+$/,'');
+    let valueAt;
 
-    const rec = gradeCache[gradeKey]||lsGet('gr_'+gradeKey)||{};
+    if(base==='mapeh'){
+      // MAPEH has no grades of its own — it is encoded as two components
+      // (Music & Arts, PE & Health) and averaged, exactly as the Grade
+      // Summary and SF9 do it.
+      const maRec  = readGradeRec('ma_'+grade);
+      const pehRec = readGradeRec('peh_'+grade);
+      valueAt = (i)=>{
+        const ma  = parseFloat(maRec[i]);
+        const peh = parseFloat(pehRec[i]);
+        if(!isNaN(ma)&&!isNaN(peh)) return (ma+peh)/2;
+        if(!isNaN(ma))  return ma;
+        if(!isNaN(peh)) return peh;
+        return null;
+      };
+    } else {
+      const rec = readGradeRec(subj.id);
+      valueAt = (i)=>{
+        const v = parseFloat(rec[i]);
+        return isNaN(v) ? null : v;
+      };
+    }
 
-    // Collect all encoded grades for this subject
-    const encodedGrades = students.map((_,i)=>{
-      const v = rec[i];
-      return v!==undefined&&v!==''&&v!==null ? parseFloat(v) : null;
-    }).filter(v=>v!==null);
+    // Collect all encoded grades for this subject (canonical index; Dropped skipped)
+    const encodedGrades = roster
+      .map((st,i)=> st.status==='Dropped' ? null : valueAt(i))
+      .filter(v=>v!==null);
 
     const takers = encodedGrades.length;
     if(takers===0) return {subj:subj.name, takers:0, mps:null, passed:0, failed:0, pl:null};
