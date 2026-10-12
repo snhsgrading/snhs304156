@@ -3209,9 +3209,9 @@ function updateStats(){
       ? (attCache[today+'_'+firstSect+'_AM']||lsGet('att_'+today+'_'+firstSect+'_AM')||{})
       : {};
     const tStudents = firstSect
-      ? studentsCache.filter(s=>sectionsMatch(s.section,firstSect,s.grade))
+      ? studentsCache.filter(s=>sectionsMatch(s.section,firstSect,s.grade)&&!isNLS(s))
       : [];
-    const present = Object.values(amRec).filter(v=>v==='P').length;
+    const present = tStudents.filter(s=>amRec[s.lrn]==='P').length;
     const pct = tStudents.length>0 ? Math.round(present/tStudents.length*100) : 0;
     sv('dt-att',      tStudents.length>0 ? pct+'%' : '—%');
     sv('dt-att-meta', tStudents.length>0 && present>0
@@ -3240,8 +3240,9 @@ function updateStats(){
     const amRec  = sectionKey
       ? (attCache[today+'_'+sectionKey+'_AM']||lsGet('att_'+today+'_'+sectionKey+'_AM')||{})
       : {};
-    const present= Object.values(amRec).filter(v=>v==='P').length;
-    const pct    = myStudents.length>0 ? Math.round(present/myStudents.length*100) : 0;
+    const attStudents = myStudents.filter(s=>!isNLS(s)); // NLS not counted in attendance
+    const present= attStudents.filter(s=>amRec[s.lrn]==='P').length;
+    const pct    = attStudents.length>0 ? Math.round(present/attStudents.length*100) : 0;
 
     // Format section label nicely: G10-THOUGHTFUL → Grade 10 – THOUGHTFUL
     const advLabel = advSect
@@ -3250,10 +3251,10 @@ function updateStats(){
 
     sv('da-section-label', advLabel);
     sv('da-total',   myStudents.length || '—');
-    sv('da-att',     myStudents.length>0 ? pct+'%' : '—%');
-    sv('da-att-meta',myStudents.length>0 && present>0
-      ? present+' of '+myStudents.length+' present (AM)'
-      : myStudents.length>0 ? 'No AM record today' : 'No students found');
+    sv('da-att',     attStudents.length>0 ? pct+'%' : '—%');
+    sv('da-att-meta',attStudents.length>0 && present>0
+      ? present+' of '+attStudents.length+' present (AM)'
+      : attStudents.length>0 ? 'No AM record today' : 'No students found');
     sv('da-pending', pending);
     sv('da-qtr-num', CQ);
 
@@ -4454,6 +4455,13 @@ function populateSF9StudentsBySection(){
   document.getElementById('sf9-placeholder')?.classList.remove('hidden');
 }
 
+// ── NLS (No Longer in School) HELPERS ───────────────────────────────
+// A learner tagged Dropped = NLS. Their name stays visible on every roster, but
+// they are NOT marked/counted in attendance and NOT counted in SF2 computations.
+// (Non-destructive: any old attendance marks are simply ignored, never deleted.)
+function isNLS(s){ return !!s && String(s.status||'').trim().toLowerCase()==='dropped'; }
+function getNLSLrnSet(){ return new Set((studentsCache||[]).filter(isNLS).map(s=>s.lrn)); }
+
 // ── SHARED ATTENDANCE HELPERS (AM+PM aware, half-day accumulation) ───
 // Reads both AM and PM session records for a given student+date+section.
 // Returns: 'P' full day present, 'A' full day absent, 'H' half-day absent
@@ -5377,6 +5385,9 @@ async function renderSF2(){
     schoolDays.push({date:d,dateStr,day:shortDay[dow]});
   }
 
+  // NLS (Dropped) learners: name + NLS remark stay on the form, but they are
+  // excluded from daily marks, totals, registered learners and attendance %.
+  const nlsSet = new Set(students.filter(isNLS).map(s=>s.lrn));
   const getAtt=(lrn,date,session)=>{
     const dateStr=monthStr+'-'+String(date).padStart(2,'0');
     const key=dateStr+'_'+sectionKey+'_'+session;
@@ -5384,21 +5395,22 @@ async function renderSF2(){
   };
   // AM+PM aware per-date status: 'P' full present, 'A' full absent, 'H' half-day absent, '' unrecorded
   const getDateStatus=(lrn,date)=>{
+    if(nlsSet.has(lrn)) return ''; // NLS: never counted
     const dateStr=monthStr+'-'+String(date).padStart(2,'0');
     return getDayStatus(lrn,dateStr,sectionKey);
   };
   // Per-student monthly totals with half-day accumulation (2 half-days = 1 day absent, resets monthly)
   const schoolDateStrs = schoolDays.map(d=>d.dateStr);
   const studentAtt = {};
-  students.forEach(s=>{ studentAtt[s.lrn] = computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey); });
+  students.forEach(s=>{ studentAtt[s.lrn] = nlsSet.has(s.lrn) ? {sd:0,dp:0,da:0,halfDays:[]} : computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey); });
 
   // SF2 calculations use only the days whose attendance has actually been
   // encoded/checked, so No. of Days of Classes, Average Daily Attendance and
   // % of Attendance always agree with the checked days in the grid. Class days
   // that are still blank are not counted until the adviser encodes them.
-  const registeredLearners = students.length;
+  const registeredLearners = students.length - nlsSet.size; // NLS excluded
   const classDaysInMonth = schoolDays.length;
-  const checkedDateStrs = schoolDateStrs.filter(ds => students.some(st => getDayStatus(st.lrn, ds, sectionKey) !== ''));
+  const checkedDateStrs = schoolDateStrs.filter(ds => students.some(st => !nlsSet.has(st.lrn) && getDayStatus(st.lrn, ds, sectionKey) !== ''));
   const daysOfClass = checkedDateStrs.length;
   const pendingDays = classDaysInMonth - daysOfClass;
   const totalDaysPresent = students.reduce((sum,s)=>sum+studentAtt[s.lrn].dp, 0);
@@ -5435,7 +5447,9 @@ async function renderSF2(){
   </tr>`;
 
   const renderRow=(num,stu)=>{
+    const isN = nlsSet.has(stu.lrn);
     const cells=allWeekdays.map(({date,susp})=>{
+      if(isN) return`<td style="border:1px solid #999;padding:2px;background:#f3f4f6"></td>`;
       if(susp) return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:8px;background:#f3f4f6;color:#9ca3af">—</td>`;
       const v=getDateStatus(stu.lrn,date);
       const bg=v==='A'?'background:#fee2e2;':v==='H'?'background:#fef3c7;':'';
@@ -5452,8 +5466,8 @@ async function renderSF2(){
     const presentCount = studentAtt[stu.lrn]?.dp||0;
     return`<tr>
       <td style="border:1px solid #999;padding:2px 4px;text-align:center;font-size:9px">${num}</td>
-      <td style="border:1px solid #999;padding:2px 4px;font-size:9px">${stu.name}</td>
-      <td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;font-weight:bold">${presentCount}</td>
+      <td style="border:1px solid #999;padding:2px 4px;font-size:9px;${isN?'color:#6b7280;background:#f3f4f6;':''}">${stu.name}</td>
+      <td style="border:1px solid #999;padding:2px;text-align:center;font-size:9px;font-weight:bold;${isN?'color:#9ca3af;background:#f3f4f6;':''}">${isN?'—':presentCount}</td>
       ${cells}
       ${remarkCell}
     </tr>`;
@@ -8357,6 +8371,9 @@ function loadAttendance(){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  // NLS learners stay listed (name shown) but are never marked or counted.
+  const activeList = list.filter(s=>!isNLS(s));
+  const nlsCount   = list.length - activeList.length;
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
   const amRec=attCache[amKey]||lsGet('att_'+amKey)||{};
   const pmRec=attCache[pmKey]||lsGet('att_'+pmKey)||{};
@@ -8371,11 +8388,11 @@ function loadAttendance(){
   // sessions to appear recorded in memory but never reach cloud/localStorage.
   if(isToday){
     if(currentSession==='AM' && !amSaved){
-      list.forEach(s=>amRec[s.lrn]='P');
+      activeList.forEach(s=>amRec[s.lrn]='P');
       toast('💡 All students pre-marked Present for today. Click ✕ to mark absent.');
     }
     if(currentSession==='PM' && !pmSaved){
-      list.forEach(s=>pmRec[s.lrn]='P');
+      activeList.forEach(s=>pmRec[s.lrn]='P');
     }
   } else {
     // Past date with no saved record — warn teacher
@@ -8393,7 +8410,7 @@ function loadAttendance(){
   // Their LRNs are missing from the stored record — auto-add them as 'P' (default)
   // into attRec so one Save brings the record up to date with the full class list.
   const curRec = currentSession==='AM' ? amRec : pmRec;
-  const missingStudents = list.filter(s => curRec[s.lrn]===undefined);
+  const missingStudents = activeList.filter(s => curRec[s.lrn]===undefined);
   missingStudents.forEach(s => { attRec[s.lrn] = 'P'; });
   const hasIncomplete = (currentSession==='AM' ? amSaved : pmSaved) && missingStudents.length > 0;
 
@@ -8408,8 +8425,8 @@ function loadAttendance(){
     if(missing>0)  return `<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 7px;font-weight:600">⚠️ Incomplete — ${missing} student${missing>1?'s':''} missing · Save to update</span>`;
     return             `<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 7px;font-weight:600">✓ Saved</span>`;
   };
-  const amMissing = list.filter(s=>amRec[s.lrn]===undefined).length;
-  const pmMissing = list.filter(s=>pmRec[s.lrn]===undefined).length;
+  const amMissing = activeList.filter(s=>amRec[s.lrn]===undefined).length;
+  const pmMissing = activeList.filter(s=>pmRec[s.lrn]===undefined).length;
   const amBadge = makeBadge(amSaved, amSaved ? amMissing : 0);
   const pmBadge = makeBadge(pmSaved, pmSaved ? pmMissing : 0);
 
@@ -8420,7 +8437,7 @@ function loadAttendance(){
 
   document.getElementById('att-table-title').textContent='Attendance — '+sect.replace(/G(\d+)-/,'G$1 – ')+(suspended?' 🚫 NO CLASS DAY':'');
   document.getElementById('att-table-sub').innerHTML=
-    dateLabel+' &nbsp;·&nbsp; '+list.length+' students &nbsp;·&nbsp; '
+    dateLabel+' &nbsp;·&nbsp; '+activeList.length+' students'+(nlsCount?' <span style="color:#991b1b">(+'+nlsCount+' NLS — not counted)</span>':'')+' &nbsp;·&nbsp; '
     +(currentSession==='AM'?'☀️ Morning':'🌤️ Afternoon')
     +(suspended?' &nbsp;·&nbsp; <span style="color:red">This day is marked as suspended/holiday</span>':'')
     +'<div style="margin-top:4px;display:flex;gap:8px">'
@@ -8429,6 +8446,14 @@ function loadAttendance(){
     +'</div>';
 
   document.getElementById('att-tbody').innerHTML=list.map((s,i)=>{
+    if(isNLS(s)){
+      return`<tr style="background:#f3f4f6">
+      <td style="color:var(--gray-400)">${i+1}</td>
+      <td style="font-family:monospace;font-size:11px;color:#9ca3af">${s.lrn}</td>
+      <td><strong style="color:#6b7280">${s.name}</strong><span style="font-size:9px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 6px;margin-left:6px;font-weight:700" title="No Longer in School — not counted in attendance or SF2">NLS</span></td>
+      <td colspan="4" style="text-align:center;font-size:10px;color:#9ca3af;font-style:italic">Not counted — No Longer in School</td>
+    </tr>`;
+    }
     const inRecord = curRec[s.lrn] !== undefined;
     const amSt=amRec[s.lrn]||'P';
     const pmSt=pmRec[s.lrn]||'P';
@@ -8482,6 +8507,7 @@ function markAllSession(status){
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   list.forEach((s,i)=>{
+    if(isNLS(s)) return; // NLS learners are never marked
     attRec[s.lrn]=status;
     if(currentSession==='AM'){
       const p=document.getElementById('att-am-'+i),a=document.getElementById('att-am-a-'+i);
@@ -8555,7 +8581,7 @@ function renderCalendar(){
     if(!isWeekend&&!isFuture){
       const amRec=attCache[dateStr+'_'+sect+'_AM']||lsGet('att_'+dateStr+'_'+sect+'_AM')||null;
       if(amRec){
-        const absents=Object.values(amRec).filter(v=>v==='A').length;
+        const _nls=getNLSLrnSet(); const absents=Object.entries(amRec).filter(([l,v])=>v==='A'&&!_nls.has(l)).length;
         dotHtml=`<div class="cal-dots"><div class="cal-dot ${absents>0?'has-absent':'all-present'}"></div></div>`;
       }else{dotHtml=`<div class="cal-dots"><div class="cal-dot no-record"></div></div>`;}
     }
@@ -8587,6 +8613,9 @@ function showCalDay(dateStr,sect){
   document.getElementById('cal-day-detail').classList.remove('hidden');
   const badge=v=>v?`<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${v==='P'?'var(--green-bg)':'var(--red-bg)'};color:${v==='P'?'var(--green)':'var(--red)'}">${v==='P'?'Present':'Absent'}</span>`:'<span style="color:var(--gray-400);font-size:11px">—</span>';
   document.getElementById('cal-day-tbody').innerHTML=list.map((s,i)=>{
+    if(isNLS(s)){
+      return`<tr style="background:#f3f4f6"><td>${i+1}</td><td><strong style="color:#6b7280">${s.name}</strong><span style="font-size:9px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 6px;margin-left:6px;font-weight:700">NLS</span></td><td colspan="3" style="text-align:center;font-size:10px;color:#9ca3af;font-style:italic">Not counted — No Longer in School</td></tr>`;
+    }
     const am=amRec[s.lrn]||'', pm=pmRec[s.lrn]||'';
     const dayStatus=(am==='P'&&pm==='P')?'Full Present':(am==='A'||pm==='A')?'Has Absence':'—';
     const col=dayStatus==='Full Present'?'var(--green)':dayStatus==='Has Absence'?'var(--red)':'var(--gray-400)';
@@ -8620,6 +8649,9 @@ function _origBuildAttSummary_v9(){
   if(lbl) lbl.textContent = totalAMDays+' AM days · '+totalPMDays+' PM days recorded';
 
   document.getElementById('att-sum-tbody').innerHTML = list.map((s)=>{
+    if(isNLS(s)){
+      return`<tr style="background:#f3f4f6"><td>${list.indexOf(s)+1}</td><td><strong style="color:#6b7280">${s.name}</strong><span style="font-size:9px;background:#fee2e2;color:#991b1b;border-radius:3px;padding:1px 6px;margin-left:6px;font-weight:700">NLS</span></td><td colspan="5" style="text-align:center;font-size:10px;color:#9ca3af;font-style:italic">Not counted — No Longer in School</td></tr>`;
+    }
     let amP=0,amA=0,pmP=0,pmA=0;
     amKeys.forEach(k=>{
       const rec=attCache[k]||lsGet('att_'+k)||{};
