@@ -1288,11 +1288,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <div class="card" style="margin-bottom:1.25rem">
             <div style="padding:1rem 1.25rem;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
               <div style="flex:1;min-width:140px">
-                <label class="form-label">Date <span style="font-size:10px;color:var(--gray-400)">(past or current date only)</span></label>
-                <input type="date" class="form-input" id="att-date" onchange="
-                  const today=new Date().toISOString().slice(0,10);
-                  if(this.value>today){this.value=today;toast('Cannot record attendance for a future date.',true);return;}
-                  loadAttendance();updateSuspendBtnState();" />
+                <label class="form-label">Date <span style="font-size:10px;color:var(--gray-400)">(any date)</span></label>
+                <input type="date" class="form-input" id="att-date" onchange="loadAttendance();updateSuspendBtnState();" />
               </div>
               <!-- Section: adviser auto-locked, admin/teacher sees dropdown -->
               <div id="att-section-wrap" style="flex:1;min-width:160px">
@@ -8167,9 +8164,9 @@ async function deleteStrand(id,name){
 function initAttendance(){
   const el=document.getElementById('att-date');
   const todayStr=new Date().toISOString().slice(0,10);
-  // BUG-008 FIX: prevent future date selection at the browser level
-  el.max=todayStr;
-  el.min=SY_START; // FIX: prevent encoding attendance before official SY start (Jun 8, 2026)
+  // Date is always open for encoding (including future dates) - no min/max limits
+  el.removeAttribute('max');
+  el.removeAttribute('min');
   if(!el.value) el.value=todayStr>SY_START ? todayStr : SY_START;
   currentSession='AM';
   document.getElementById('att-am-tab')?.classList.add('active');
@@ -8576,7 +8573,7 @@ function renderCalendar(){
     const dow=dt.getDay();
     const isWeekend=dow===0||dow===6;
     const isToday=dateStr===todayStr;
-    const isFuture=dt>today;
+    const isFuture=false; // future dates are open for encoding
     let dotHtml='';
     if(!isWeekend&&!isFuture){
       const amRec=attCache[dateStr+'_'+sect+'_AM']||lsGet('att_'+dateStr+'_'+sect+'_AM')||null;
