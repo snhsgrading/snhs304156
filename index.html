@@ -4457,6 +4457,12 @@ function populateSF9StudentsBySection(){
 // they are NOT marked/counted in attendance and NOT counted in SF2 computations.
 // (Non-destructive: any old attendance marks are simply ignored, never deleted.)
 function isNLS(s){ return !!s && String(s.status||'').trim().toLowerCase()==='dropped'; }
+// Learners who must NOT appear in attendance encoding: Dropped (NLS) or Transferred Out.
+function isOffEncoding(s){
+  if(!s) return false;
+  const st=String(s.status||'').trim().toLowerCase();
+  return st==='dropped' || st==='nls' || st.startsWith('transfer');
+}
 function getNLSLrnSet(){ return new Set((studentsCache||[]).filter(isNLS).map(s=>s.lrn)); }
 
 // ── SHARED ATTENDANCE HELPERS (AM+PM aware, half-day accumulation) ───
@@ -8368,9 +8374,10 @@ function loadAttendance(){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
-  // NLS learners stay listed (name shown) but are never marked or counted.
-  const activeList = list.filter(s=>!isNLS(s));
-  const nlsCount   = list.length - activeList.length;
+  // Dropped (NLS) and Transferred-Out learners are removed from encoding entirely.
+  list = list.filter(s=>!isOffEncoding(s));
+  const activeList = list;
+  const nlsCount   = 0;
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
   const amRec=attCache[amKey]||lsGet('att_'+amKey)||{};
   const pmRec=attCache[pmKey]||lsGet('att_'+pmKey)||{};
@@ -8503,8 +8510,9 @@ function markAllSession(status){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
+  list = list.filter(s=>!isOffEncoding(s)); // same list as the rendered rows
   list.forEach((s,i)=>{
-    if(isNLS(s)) return; // NLS learners are never marked
+    if(isOffEncoding(s)) return; // dropped / transferred learners are never marked
     attRec[s.lrn]=status;
     if(currentSession==='AM'){
       const p=document.getElementById('att-am-'+i),a=document.getElementById('att-am-a-'+i);
