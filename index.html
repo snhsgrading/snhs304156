@@ -725,11 +725,16 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         </div>
         <div class="form-group">
           <label class="form-label">Status</label>
-          <select class="form-select" id="enroll-status">
+          <select class="form-select" id="enroll-status" onchange="toggleTransferDate()">
             <option value="Enrolled">Enrolled</option>
             <option value="Transferred">Transferred</option>
             <option value="Dropped">Dropped</option>
           </select>
+        </div>
+        <div class="form-group" id="enroll-transfer-wrap" style="display:none">
+          <label class="form-label">Last Day of Attendance <span style="font-size:10px;color:var(--gray-400)">(transfer / drop date)</span></label>
+          <input type="date" class="form-input" id="enroll-transfer-date"/>
+          <div style="font-size:11px;margin-top:3px;color:var(--gray-400)">Learner stays on attendance up to and including this date, then is removed and grayed out in SF2.</div>
         </div>
         <div class="form-group">
           <label class="form-label">Parent / Guardian</label>
@@ -4458,10 +4463,19 @@ function populateSF9StudentsBySection(){
 // (Non-destructive: any old attendance marks are simply ignored, never deleted.)
 function isNLS(s){ return !!s && String(s.status||'').trim().toLowerCase()==='dropped'; }
 // Learners who must NOT appear in attendance encoding: Dropped (NLS) or Transferred Out.
-function isOffEncoding(s){
+function isLeftStatus(s){
   if(!s) return false;
   const st=String(s.status||'').trim().toLowerCase();
   return st==='dropped' || st==='nls' || st.startsWith('transfer');
+}
+// True if the learner is no longer on the roll on dateStr (YYYY-MM-DD).
+// With a transfer/drop date set: on roll up to and including that date.
+// Without a date: treated as off the roll for every date.
+function isOffEncoding(s, dateStr){
+  if(!isLeftStatus(s)) return false;
+  if(!s.transfer_date) return true;
+  if(!dateStr) return true;
+  return dateStr > s.transfer_date;
 }
 function getNLSLrnSet(){ return new Set((studentsCache||[]).filter(isNLS).map(s=>s.lrn)); }
 
@@ -5390,7 +5404,13 @@ async function renderSF2(){
 
   // NLS (Dropped) learners: name + NLS remark stay on the form, but they are
   // excluded from daily marks, totals, registered learners and attendance %.
-  const nlsSet = new Set(students.filter(isNLS).map(s=>s.lrn));
+  // Learners who left (Dropped / Transferred): with a transfer date they stay normal up to that
+  // date and are grayed after it; if they left before this month (or have no date) the whole row is grayed.
+  const _monthFirst = monthStr+'-01';
+  const nlsSet = new Set(students.filter(s=>isLeftStatus(s) && (!s.transfer_date || s.transfer_date < _monthFirst)).map(s=>s.lrn));
+  const stuByLrn = {}; students.forEach(s=>{ stuByLrn[s.lrn]=s; });
+  const _dstr = d => monthStr+'-'+String(d).padStart(2,'0');
+  const leftOnDay = (lrn,d) => isOffEncoding(stuByLrn[lrn], _dstr(d));
   const getAtt=(lrn,date,session)=>{
     const dateStr=monthStr+'-'+String(date).padStart(2,'0');
     const key=dateStr+'_'+sectionKey+'_'+session;
@@ -5399,13 +5419,14 @@ async function renderSF2(){
   // AM+PM aware per-date status: 'P' full present, 'A' full absent, 'H' half-day absent, '' unrecorded
   const getDateStatus=(lrn,date)=>{
     if(nlsSet.has(lrn)) return ''; // NLS: never counted
+    if(leftOnDay(lrn,date)) return ''; // left on/after the transfer date: not counted
     const dateStr=monthStr+'-'+String(date).padStart(2,'0');
     return getDayStatus(lrn,dateStr,sectionKey);
   };
   // Per-student monthly totals with half-day accumulation (2 half-days = 1 day absent, resets monthly)
   const schoolDateStrs = schoolDays.map(d=>d.dateStr);
   const studentAtt = {};
-  students.forEach(s=>{ studentAtt[s.lrn] = nlsSet.has(s.lrn) ? {sd:0,dp:0,da:0,halfDays:[]} : computeMonthlyAttendance(s.lrn, schoolDateStrs, sectionKey); });
+  students.forEach(s=>{ studentAtt[s.lrn] = nlsSet.has(s.lrn) ? {sd:0,dp:0,da:0,halfDays:[]} : computeMonthlyAttendance(s.lrn, schoolDateStrs.filter(ds=>!isOffEncoding(s,ds)), sectionKey); });
 
   // SF2 calculations use only the days whose attendance has actually been
   // encoded/checked, so No. of Days of Classes, Average Daily Attendance and
@@ -5413,7 +5434,7 @@ async function renderSF2(){
   // that are still blank are not counted until the adviser encodes them.
   const registeredLearners = students.length - nlsSet.size; // NLS excluded
   const classDaysInMonth = schoolDays.length;
-  const checkedDateStrs = schoolDateStrs.filter(ds => students.some(st => !nlsSet.has(st.lrn) && getDayStatus(st.lrn, ds, sectionKey) !== ''));
+  const checkedDateStrs = schoolDateStrs.filter(ds => students.some(st => !nlsSet.has(st.lrn) && !isOffEncoding(st,ds) && getDayStatus(st.lrn, ds, sectionKey) !== ''));
   const daysOfClass = checkedDateStrs.length;
   const pendingDays = classDaysInMonth - daysOfClass;
   const totalDaysPresent = students.reduce((sum,s)=>sum+studentAtt[s.lrn].dp, 0);
@@ -5452,7 +5473,7 @@ async function renderSF2(){
   const renderRow=(num,stu)=>{
     const isN = nlsSet.has(stu.lrn);
     const cells=allWeekdays.map(({date,susp})=>{
-      if(isN) return`<td style="border:1px solid #999;padding:2px;background:#f3f4f6"></td>`;
+      if(isN || leftOnDay(stu.lrn,date)) return`<td style="border:1px solid #999;padding:2px;background:#f3f4f6"></td>`;
       if(susp) return`<td style="border:1px solid #999;padding:2px;text-align:center;font-size:8px;background:#f3f4f6;color:#9ca3af">—</td>`;
       const v=getDateStatus(stu.lrn,date);
       const bg=v==='A'?'background:#fee2e2;':v==='H'?'background:#fef3c7;':'';
@@ -7018,6 +7039,8 @@ function openEnrollModal(lrn){
     document.getElementById('enroll-contact').value=s.contact||'';
     document.getElementById('enroll-address').value=s.address||'';
     document.getElementById('enroll-status').value=s.status||'Enrolled';
+    document.getElementById('enroll-transfer-date').value=s.transfer_date||'';
+    toggleTransferDate();
     // SHS strand
     if(s.grade==='11'||s.grade==='12'){
       onEnrollGradeChange({value:s.grade});
@@ -7033,9 +7056,17 @@ function openEnrollModal(lrn){
     document.getElementById('enroll-sex').value='';
     document.getElementById('enroll-grade').value='';
     document.getElementById('enroll-status').value='Enrolled';
+    document.getElementById('enroll-transfer-date').value='';
+    toggleTransferDate();
     populateEnrollSectionDropdown('', '');
   }
   openModal('enroll-modal');
+}
+
+function toggleTransferDate(){
+  const st=document.getElementById('enroll-status').value;
+  const wrap=document.getElementById('enroll-transfer-wrap');
+  if(wrap) wrap.style.display = (st==='Transferred'||st==='Dropped') ? '' : 'none';
 }
 
 function saveEnrollment(){
@@ -7051,10 +7082,12 @@ function saveEnrollment(){
   const contact=document.getElementById('enroll-contact').value.trim();
   const address=document.getElementById('enroll-address').value.trim();
   const status=document.getElementById('enroll-status').value;
+  const tdateRaw=document.getElementById('enroll-transfer-date').value;
+  const transfer_date=(status!=='Enrolled' && tdateRaw) ? tdateRaw : null;
   if(!lrn||!name||!sex||!bday||!grade||!section){toast('Please fill all required (*) fields',true);return}
   if((grade==='11'||grade==='12')&&!strand){toast('❌ Please select a Strand for Grade '+grade+' students.',true);return}
   if(lrn.length!==12||!/^\d+$/.test(lrn)){beep();toast('❌ LRN must be exactly 12 digits',true);return}
-  const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,grades:[]};
+  const obj={lrn,name,sex,bday,grade,section,strand,parent,contact,address,status,transfer_date,grades:[]};
   if(editingStudentLRN){
     const idx=studentsCache.findIndex(x=>x.lrn===editingStudentLRN);
     if(idx<0)return;
@@ -8375,7 +8408,7 @@ function loadAttendance(){
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
   // Dropped (NLS) and Transferred-Out learners are removed from encoding entirely.
-  list = list.filter(s=>!isOffEncoding(s));
+  list = list.filter(s=>!isOffEncoding(s,date));
   const activeList = list;
   const nlsCount   = 0;
   const amKey=date+'_'+sect+'_AM', pmKey=date+'_'+sect+'_PM';
@@ -8450,7 +8483,7 @@ function loadAttendance(){
     +'</div>';
 
   document.getElementById('att-tbody').innerHTML=list.map((s,i)=>{
-    if(isNLS(s)){
+    if(isOffEncoding(s,date)){
       return`<tr style="background:#f3f4f6">
       <td style="color:var(--gray-400)">${i+1}</td>
       <td style="font-family:monospace;font-size:11px;color:#9ca3af">${s.lrn}</td>
@@ -8510,9 +8543,10 @@ function markAllSession(status){
   const sn=sect.replace(/^G\d+-/,'');
   let list=studentsCache.filter(s=>s.section===sn);
   if(!list.length)list=studentsCache.filter(s=>`G${s.grade}-${s.section}`===sect);
-  list = list.filter(s=>!isOffEncoding(s)); // same list as the rendered rows
+  const _attDate=document.getElementById('att-date').value;
+  list = list.filter(s=>!isOffEncoding(s,_attDate)); // same list as the rendered rows
   list.forEach((s,i)=>{
-    if(isOffEncoding(s)) return; // dropped / transferred learners are never marked
+    if(isOffEncoding(s,_attDate)) return; // dropped / transferred learners are never marked
     attRec[s.lrn]=status;
     if(currentSession==='AM'){
       const p=document.getElementById('att-am-'+i),a=document.getElementById('att-am-a-'+i);
